@@ -1,0 +1,6 @@
+[package]
+name = "babel-typing"
+version = "0.1.0"
+authors = ["Kojo Adams <samanpa@gmail.com>"]
+
+[dependencies]
