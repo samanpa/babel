@@ -1,0 +1,44 @@
+use ast::*;
+use std::str::FromStr;
+
+grammar;
+
+Num: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
+Ident: String = <r"[a-zA-Z][a-zA-Z0-9_]*"> => <>.to_string();
+
+
+//pub Abstraction: Abstraction {
+//    "fn" <name:Ident> <p:Params> "->" <ty:Type> "{" <body: Expr> "}" => 
+//        Abstraction{name, params: p, return_ty: ty, body: body }
+//}
+
+
+pub Term: Expr = {
+    <n:Num> => Expr::Literal(Literal::I32(n)),
+    "true"  => Expr::Literal(Literal::Bool(true)),
+    "false" => Expr::Literal(Literal::Bool(false)),
+    "()"    => Expr::Literal(Literal::Unit),
+    "(" <t:Term> ")" => t,
+};
+
+Type: Type = {
+    "i32"  => Type::BaseType(BaseType::I32),
+    "bool" => Type::BaseType(BaseType::Bool),
+    "()"   => Type::BaseType(BaseType::Unit),
+    <p:Type> "->" <r:Type> 
+        => Type::FunctionType{ params_ty: vec![p], return_ty: Box::new(r) },
+    "(" <p:List<Type>> ")" "->" <r:Type> 
+        => Type::FunctionType{ params_ty: p, return_ty: Box::new(r) }
+};
+
+List<T>: Vec<T> = { // (1)
+    <v:(<T> ",")*> <e:T?> => match e { // (2)
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
+};
+

@@ -1,4 +1,7 @@
 pub mod ast;
+mod babel;
+
+pub fn parse() {}
 
 
 #[cfg(test)]

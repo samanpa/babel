@@ -1,0 +1,11 @@
+[package]
+name = "babel"
+version = "0.1.0"
+authors = ["Kojo Adams <samanpa@gmail.com>"]
+
+[dependencies]
+babel_parsing = { path = "parsing", version="0.1.0" }
+
+[[bin]]
+name = "babel"
+path = "src/main.rs"
