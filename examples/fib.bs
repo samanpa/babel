@@ -1,18 +1,20 @@
 fn fib(n: i32) -> i32 {
-    if int_lt(n, 2) {
+    if i32_lt(n, 2) {
         1
     }
     else {
-        int_add(fib(int_sub(n, 1))
-                , fib(int_sub(n, 2)))
+        i32_add(fib(i32_sub(n, 1))
+                , fib(i32_sub(n, 2)))
     }
 }
 
-fn fib_print(n: i32, print: int -> () ) {
+fn fib_print(n: i32, print: i32 -> () ) -> () {
     print(fib(n))
 }
 
-fn main() -> int {
-    fib_print(10, int_print);
-    0
+fn main( ) -> i32 {
+    fib_print(10, int_print)
 }
+
+
+
