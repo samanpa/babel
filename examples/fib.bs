@@ -12,7 +12,7 @@ fn fib_print(n: i32, print: i32 -> () ) -> () {
     print(fib(n))
 }
 
-fn main( ) -> i32 {
+fn main() -> i32 {
     fib_print(10, int_print)
 }
 

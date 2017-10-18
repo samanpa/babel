@@ -34,6 +34,9 @@ pub Lambda: Lambda = {
     "fn" <name:Ident> "(" <params:List<Param>> ")" "->" <ty:Type> "{"
         <body: Expr>
      "}" => Lambda::new(name, params, ty, body),
+    "fn" <name:Ident> "()" "->" <ty:Type> "{"
+        <body: Expr>
+     "}" => Lambda::new(name, vec![], ty, body),
 };
 
 pub Param: Param = {

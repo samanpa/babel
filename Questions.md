@@ -2,4 +2,10 @@
 - How does the fixed point combinator?
 - What are type expressions?
 - Added support for higher order functions?
+- Add support for zero sized types?
+- Type state?
+- structural types
+  anonymous types
+  tuples are structural
+- Dependent types
 - 
