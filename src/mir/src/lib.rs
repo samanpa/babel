@@ -27,7 +27,7 @@ pub enum Literal {
 }
 
 pub enum Expr {
-    Abstraction{name: VarRef, params: Vec<Param>, body: Box<Expr>},
+    Lambda{name: VarRef, params: Vec<Param>, body: Box<Expr>},
     Application{name: VarRef, args: Box<Expr> },
     Literal{val: Literal },
     Variable{name: VarRef },
