@@ -1,10 +1,15 @@
 #![allow(dead_code)]
 
 #[derive(Debug)]
-pub enum TopLevel {
+pub struct TopLevel {
+    decls: Vec<TopDecl>
+}
+
+#[derive(Debug)]
+pub enum TopDecl {
     Extern{name: String, ty: Type },
     Use{name: String},
-    Lambda(Box<Lambda>),
+    Lam(Box<Lam>),
 }
 
 #[derive(Debug)]
@@ -27,14 +32,7 @@ pub struct Param {
 }
 
 #[derive(Debug)]
-pub enum Literal {
-    Unit,
-    I32(i32),
-    Bool(bool),
-}
-
-#[derive(Debug)]
-pub struct Lambda {
+pub struct Lam {
     name:      String,
     params:    Vec<Param>,
     return_ty: Type, 
@@ -42,25 +40,40 @@ pub struct Lambda {
 }
 
 #[derive(Debug)]
-pub struct IfExpr {
+pub struct If {
     cond: Expr,
     true_expr: Expr,
-    false_expr: Option<Expr>,
+    false_expr: Expr,
 }
 
 #[derive(Debug)]
 pub enum Expr {
-    Lambda(Box<Lambda>),
-    Application{callee: Box<Expr>, args: Vec<Expr> },
-    Literal(Literal),
-    Variable{name: String },
-    IfExpr( Box<IfExpr> )
+    Lam(Box<Lam>),
+    App{callee: Box<Expr>, args: Vec<Expr> },
+    UnitLit,
+    I32Lit(i32),
+    BoolLit(bool),
+    Var{name: String },
+    If(Box<If> )
 }
 
-impl Lambda {
+impl TopLevel {
+    pub fn new(decls: Vec<TopDecl>) -> Self {
+        Self{decls}
+    }
+
+    pub fn decls(&self) -> &Vec<TopDecl> {
+        &self.decls
+    }
+}
+
+impl Lam {
     pub fn new(name: String, params: Vec<Param>, return_ty: Type
                , body: Expr) -> Self {
-        Lambda{name, params, return_ty, body}
+        Lam{name, params, return_ty, body}
+    }
+    pub fn body(&self) -> &Expr {
+        &self.body
     }
 }
 
@@ -70,8 +83,17 @@ impl Param {
     }
 }
 
-impl IfExpr {
-    pub fn new(cond: Expr, true_expr: Expr, false_expr: Option<Expr>) -> Self {
-        IfExpr{cond, true_expr, false_expr}
+impl If {
+    pub fn new(cond: Expr, true_expr: Expr, false_expr: Expr) -> Self {
+        If{cond, true_expr, false_expr}
+    }
+    pub fn cond(&self) -> &Expr {
+        &self.cond
+    }
+    pub fn true_expr(&self) -> &Expr {
+        &self.true_expr
+    }
+    pub fn false_expr(&self) -> &Expr {
+        &self.false_expr
     }
 }

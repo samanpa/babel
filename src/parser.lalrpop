@@ -20,23 +20,23 @@ List<T>: Vec<T> = {
 Num: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
 Ident: String = <r"[a-zA-Z][a-zA-Z0-9_]*"> => <>.to_string();
 
-pub TopLevel : Vec<TopLevel> = {
-    <TopLevelItem+> => <>
+pub TopLevel : TopLevel = {
+    <TopDecl+> => TopLevel::new(<>)
 };
 
-pub TopLevelItem: TopLevel = {
-    "extern" <name:Ident> ":" <ty:ArrowType> => TopLevel::Extern{<>},
-    "use" <name:Ident> ";" => TopLevel::Use{<>},
-    Lambda                 => TopLevel::Lambda(Box::new(<>)),
+pub TopDecl: TopDecl = {
+    "extern" <name:Ident> ":" <ty:ArrowType> => TopDecl::Extern{<>},
+    "use" <name:Ident> ";" => TopDecl::Use{<>},
+    Lambda                 => TopDecl::Lam(Box::new(<>)),
 };
 
-pub Lambda: Lambda = {
+pub Lambda: Lam = {
     "fn" <name:Ident> "(" <params:List<Param>> ")" "->" <ty:Type> "{"
         <body: Expr>
-     "}" => Lambda::new(name, params, ty, body),
+     "}" => Lam::new(name, params, ty, body),
     "fn" <name:Ident> "()" "->" <ty:Type> "{"
         <body: Expr>
-     "}" => Lambda::new(name, vec![], ty, body),
+     "}" => Lam::new(name, vec![], ty, body),
 };
 
 pub Param: Param = {
@@ -44,16 +44,16 @@ pub Param: Param = {
 };
 
 pub Expr: Expr = {
-    Num     => Expr::Literal(Literal::I32(<>)),
-    "true"  => Expr::Literal(Literal::Bool(true)),
-    "false" => Expr::Literal(Literal::Bool(false)),
-    "()"    => Expr::Literal(Literal::Unit),
-    Ident   => Expr::Variable{name: <> },
+    Num     => Expr::I32Lit(<>),
+    "true"  => Expr::BoolLit(true),
+    "false" => Expr::BoolLit(false),
+    "()"    => Expr::UnitLit,
+    Ident   => Expr::Var{name: <> },
     "(" <t:Expr> ")" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
-        => Expr::IfExpr(Box::new(IfExpr::new(cond, true_expr, Some(false_expr)))),
+        => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
     <callee:Expr> "(" <args:List<Expr>> ")"
-        => Expr::Application{callee: Box::new(callee), args}
+        => Expr::App{callee: Box::new(callee), args}
         
 };
 

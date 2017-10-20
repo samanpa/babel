@@ -1,6 +1,6 @@
 Babel is an exercise to understand expressive type systems. The goal is to
 build an expressive, call by value programming language which does not have a
-runtime library.
+runtime system.
 
 ### Design goals
  - Keep the language/compiler simple
