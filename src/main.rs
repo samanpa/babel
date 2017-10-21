@@ -10,7 +10,7 @@ fn compile(file: File) -> babel::Result<()> {
     let mut file = file;
     let _ = file.read_to_string(&mut file_contents);
 
-    let mut desugar  = babel::desugar::Desugar{};
+    let mut desugar  = babel::translate::Translate{};
 
     use babel::Pass;
     let ast  = babel::parser::parse_TopLevel(&file_contents)?;

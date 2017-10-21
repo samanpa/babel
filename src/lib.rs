@@ -1,7 +1,7 @@
 pub mod ast;
 pub mod parser;
 pub mod ir;
-pub mod desugar;
+pub mod translate;
 
 #[derive(Debug)]
 pub struct Error{

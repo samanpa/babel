@@ -1,15 +1,14 @@
 // Translates to syntax tree to intermediate representation
 //    Called it elaboration in previous incarnation
-//    Named after the corresponding from Haskell pass
 
 use ::ast;
 use ::ir;
 use ::Result;
 
-pub struct Desugar {
+pub struct Translate {
 }
 
-impl ::Pass for Desugar {
+impl ::Pass for Translate {
     type Input = Vec<ast::TopLevel>; //A list of parsed files
     type Output = Vec<ir::Module>;   //A list of modules
 
@@ -22,9 +21,9 @@ impl ::Pass for Desugar {
     }
 }
 
-impl Desugar {
+impl Translate {
     fn new() -> Self {
-        Desugar{}
+        Translate{}
     }
 
     fn trans_toplevel(&mut self
