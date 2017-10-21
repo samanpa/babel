@@ -7,7 +7,7 @@ pub struct TopLevel {
 
 #[derive(Debug)]
 pub enum TopDecl {
-    Extern{name: String, ty: Type },
+    Extern{name: String, ty: Type},
     Use{name: String},
     Lam(Box<Lam>),
 }
@@ -53,7 +53,7 @@ pub enum Expr {
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Var{name: String },
+    Var{name: String},
     If(Box<If> )
 }
 

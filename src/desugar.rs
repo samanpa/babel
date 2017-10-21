@@ -6,16 +6,7 @@ use ::ast;
 use ::ir;
 use ::Result;
 
-pub struct Desugar {}
-struct Context {
-    modules: Vec<ir::Module>,
-}
-
-//Is this optimal?
-trait Translate {
-    type Context;
-    type Output;
-    fn translate(&mut self, env: &mut Self::Context) -> Result<Self::Output>;
+pub struct Desugar {
 }
 
 impl ::Pass for Desugar {
@@ -23,79 +14,68 @@ impl ::Pass for Desugar {
     type Output = Vec<ir::Module>;   //A list of modules
 
     fn run(&mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
-        let mut env = Context{ modules: vec![] };
-        for mut toplevel in toplevel_vec {
-            let _ = Translate::translate(&mut toplevel, &mut env)?;
-        }   
-        Ok(env.modules)
+        let mut mods: Vec<ir::Module> = vec![];
+        for toplevel in &toplevel_vec {
+            self.trans_toplevel(toplevel, &mut mods)?;
+        }
+        Ok(mods)
     }
 }
 
-impl Translate for ast::TopLevel {
-    type Context = Context;
-    type Output = ();
+impl Desugar {
+    fn new() -> Self {
+        Desugar{}
+    }
 
-    fn translate(&mut self, env: &mut Self::Context) -> Result<Self::Output> {
+    fn trans_toplevel(&mut self
+                      , toplevel: &ast::TopLevel
+                      , modules: &mut Vec<ir::Module>) -> Result<()> {
         //FIXME: find better way
         let mut module = ir::Module::new("main".to_string());
-        for mut decl in self.decls() {
-            Translate::translate(&mut decl, &mut module)?
+        for decl in toplevel.decls() {
+            self.trans_topdecl(decl, &mut module)?
         }
-        env.modules.push(module);
+        modules.push(module);
         Ok(())
     }
-}
-
-impl <'a> Translate for &'a ast::TopDecl {
-    type Context = ir::Module;
-    type Output = ();
-
-    fn translate(&mut self, module: &mut ir::Module) -> Result<Self::Output> {
+    
+    fn trans_topdecl(&mut self
+                     , decl: &ast::TopDecl
+                     , module: &mut ir::Module) -> Result<()> {
         use ast::TopDecl::*;
-        use self::Translate;
-        let res = match *self {
-            &Extern{..}   => (),
-            &Use{..}      => (),
-            &Lam(ref lam) => (&mut &**lam).translate(module)?,
+        let res = match *decl {
+            Extern{..}   => (),
+            Use{..}      => (),
+            Lam(ref lam) => self.trans_lam(&mut &**lam, module)?,
         };
         Ok(())
     }
-}
 
-impl <'a> Translate for &'a ast::Lam {
-    type Context = ir::Module;
-    //type Output = ir::Lambda;
-    type Output = ();
-
-    fn translate(&mut self, module: &mut ir::Module) -> Result<Self::Output> {
-        println!("{:?}", *self);
-        let expr = (&mut self.body()).translate(module)?;
-        
+    fn trans_lam(&mut self, lam: &ast::Lam
+                 , module: &mut ir::Module) -> Result<()> {
+        println!("{:?}", *lam);
+        self.trans(lam.body(), module)?;
         Ok(())
     }
-}
-
-impl <'a> Translate for &'a ast::Expr {
-    type Context = ir::Module;
-    type Output = ir::Expr;
-
-    fn translate(&mut self, module: &mut ir::Module) -> Result<Self::Output> {
+    
+    fn trans(&mut self, expr: &ast::Expr
+             , module: &mut ir::Module) -> Result<ir::Expr> {
         use ast::Expr::*;
-        let res = match *self {
-            &UnitLit    => ir::Expr::UnitLit,
-            &I32Lit(n)  => ir::Expr::I32Lit(n),
-            &BoolLit(b) => ir::Expr::BoolLit(b),
-            &If(ref e) => {
-                let cond       = e.cond().translate(module)?;
-                let true_expr  = e.true_expr().translate(module)?;
-                let false_expr = e.false_expr().translate(module)?;
+        let res = match *expr {
+            UnitLit    => ir::Expr::UnitLit,
+            I32Lit(n)  => ir::Expr::I32Lit(n),
+            BoolLit(b) => ir::Expr::BoolLit(b),
+            If(ref e)  => {
+                let cond       = self.trans(e.cond(), module)?;
+                let true_expr  = self.trans(e.true_expr(), module)?;
+                let false_expr = self.trans(e.false_expr(), module)?;
                 ir::Expr::If{ cond: Box::new(cond),
                               true_expr: Box::new(true_expr),
                               false_expr: Box::new(false_expr)
                 }
             },
-            expr        => { println!("NOTHANDLED\n{:?} not handled", expr);
-                             unimplemented!() },
+            ref expr   => { println!("NOTHANDLED\n{:?} not handled", expr);
+                            unimplemented!() },
         };
         Ok(res)
     }
