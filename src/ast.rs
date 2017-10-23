@@ -1,99 +1,100 @@
 #![allow(dead_code)]
 
+
 #[derive(Debug)]
-pub struct TopLevel {
-    decls: Vec<TopDecl>
+pub struct TopLevel<Ident> {
+    decls: Vec<TopDecl<Ident>>,
 }
 
 #[derive(Debug)]
-pub enum TopDecl {
-    Extern{name: String, ty: Type},
+pub enum TopDecl<Ident> {
+    Extern{name: Ident, ty: Type},
     Use{name: String},
-    Lam(Box<Lam>),
+    Lam(Box<Lam<Ident>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum BaseType {
     Bool,
     I32,
     Unit,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum Type {
     BaseType(BaseType),
     FunctionType{ params_ty: Vec<Type>, return_ty: Box<Type> }
 }
 
 #[derive(Debug)]
-pub struct Param {
-    name: String,
+pub struct Param<Ident> {
+    name: Ident,
     ty: Type,
 }
 
 #[derive(Debug)]
-pub struct Lam {
-    name:      String,
-    params:    Vec<Param>,
+pub struct Lam<Ident> {
+    name:      Ident,
+    params:    Vec<Param<Ident>>,
     return_ty: Type, 
-    body:      Expr
+    body:      Expr<Ident>
 }
 
 #[derive(Debug)]
-pub struct If {
-    cond: Expr,
-    true_expr: Expr,
-    false_expr: Expr,
+pub struct If<Ident> {
+    cond:  Expr<Ident>,
+    texpr: Expr<Ident>,
+    fexpr: Expr<Ident>,
 }
 
 #[derive(Debug)]
-pub enum Expr {
-    Lam(Box<Lam>),
-    App{callee: Box<Expr>, args: Vec<Expr> },
+pub enum Expr<Ident> {
+    Lam(Box<Lam<Ident>>),
+    App{callee: Box<Expr<Ident>>, args: Vec<Expr<Ident>> },
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Var{name: String},
-    If(Box<If> )
+    Var{name: Ident},
+    If(Box<If<Ident>> )
 }
 
-impl TopLevel {
-    pub fn new(decls: Vec<TopDecl>) -> Self {
+impl <Ident> TopLevel<Ident> {
+    pub fn new(decls: Vec<TopDecl<Ident>>) -> Self {
         Self{decls}
     }
 
-    pub fn decls(&self) -> &Vec<TopDecl> {
+    pub fn decls(&self) -> &Vec<TopDecl<Ident>> {
         &self.decls
     }
 }
 
-impl Lam {
-    pub fn new(name: String, params: Vec<Param>, return_ty: Type
-               , body: Expr) -> Self {
+impl <Ident> Lam<Ident> {
+    pub fn new(name: Ident, params: Vec<Param<Ident>>, return_ty: Type
+               , body: Expr<Ident>) -> Self {
         Lam{name, params, return_ty, body}
     }
-    pub fn body(&self) -> &Expr {
+    pub fn body(&self) -> &Expr<Ident> {
         &self.body
     }
 }
 
-impl Param {
-    pub fn new(name: String, ty: Type) -> Self {
+impl <Ident> Param<Ident> {
+    pub fn new(name: Ident, ty: Type) -> Self {
         Param{name, ty}
     }
 }
 
-impl If {
-    pub fn new(cond: Expr, true_expr: Expr, false_expr: Expr) -> Self {
-        If{cond, true_expr, false_expr}
+impl <Ident> If<Ident> {
+    pub fn new(cond: Expr<Ident>, texpr: Expr<Ident>, fexpr: Expr<Ident>) -> Self {
+        If{cond, texpr, fexpr}
     }
-    pub fn cond(&self) -> &Expr {
+    pub fn cond(&self) -> &Expr<Ident> {
         &self.cond
     }
-    pub fn true_expr(&self) -> &Expr {
-        &self.true_expr
+    pub fn texpr(&self) -> &Expr<Ident> {
+        &self.texpr
     }
-    pub fn false_expr(&self) -> &Expr {
-        &self.false_expr
+    pub fn fexpr(&self) -> &Expr<Ident> {
+        &self.fexpr
     }
 }

@@ -20,17 +20,17 @@ List<T>: Vec<T> = {
 Num: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
 Ident: String = <r"[a-zA-Z][a-zA-Z0-9_]*"> => <>.to_string();
 
-pub TopLevel : TopLevel = {
+pub TopLevel : TopLevel<String> = {
     <TopDecl+> => TopLevel::new(<>)
 };
 
-pub TopDecl: TopDecl = {
+pub TopDecl: TopDecl<String> = {
     "extern" <name:Ident> ":" <ty:ArrowType> => TopDecl::Extern{<>},
     "use" <name:Ident> ";" => TopDecl::Use{<>},
     Lambda                 => TopDecl::Lam(Box::new(<>)),
 };
 
-pub Lambda: Lam = {
+pub Lambda: Lam<String> = {
     "fn" <name:Ident> "(" <params:List<Param>> ")" "->" <ty:Type> "{"
         <body: Expr>
      "}" => Lam::new(name, params, ty, body),
@@ -39,11 +39,11 @@ pub Lambda: Lam = {
      "}" => Lam::new(name, vec![], ty, body),
 };
 
-pub Param: Param = {
+pub Param: Param<String> = {
     <Ident> ":" <Type> => Param::new(<>)
 };
 
-pub Expr: Expr = {
+pub Expr: Expr<String> = {
     Num     => Expr::I32Lit(<>),
     "true"  => Expr::BoolLit(true),
     "false" => Expr::BoolLit(false),

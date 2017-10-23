@@ -5,11 +5,13 @@ use ::ast;
 use ::ir;
 use ::Result;
 
+type VarTy = String;
+
 pub struct Translate {
 }
 
 impl ::Pass for Translate {
-    type Input = Vec<ast::TopLevel>; //A list of parsed files
+    type Input = Vec<ast::TopLevel<VarTy>>; //A list of parsed files
     type Output = Vec<ir::Module>;   //A list of modules
 
     fn run(&mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
@@ -27,7 +29,7 @@ impl Translate {
     }
 
     fn trans_toplevel(&mut self
-                      , toplevel: &ast::TopLevel
+                      , toplevel: &ast::TopLevel<VarTy>
                       , modules: &mut Vec<ir::Module>) -> Result<()> {
         //FIXME: find better way
         let mut module = ir::Module::new("main".to_string());
@@ -39,7 +41,7 @@ impl Translate {
     }
     
     fn trans_topdecl(&mut self
-                     , decl: &ast::TopDecl
+                     , decl: &ast::TopDecl<VarTy>
                      , module: &mut ir::Module) -> Result<()> {
         use ast::TopDecl::*;
         let res = match *decl {
@@ -50,14 +52,14 @@ impl Translate {
         Ok(())
     }
 
-    fn trans_lam(&mut self, lam: &ast::Lam
+    fn trans_lam(&mut self, lam: &ast::Lam<VarTy>
                  , module: &mut ir::Module) -> Result<()> {
         println!("{:?}", *lam);
         self.trans(lam.body(), module)?;
         Ok(())
     }
     
-    fn trans(&mut self, expr: &ast::Expr
+    fn trans(&mut self, expr: &ast::Expr<VarTy>
              , module: &mut ir::Module) -> Result<ir::Expr> {
         use ast::Expr::*;
         let res = match *expr {
@@ -65,12 +67,12 @@ impl Translate {
             I32Lit(n)  => ir::Expr::I32Lit(n),
             BoolLit(b) => ir::Expr::BoolLit(b),
             If(ref e)  => {
-                let cond       = self.trans(e.cond(), module)?;
-                let true_expr  = self.trans(e.true_expr(), module)?;
-                let false_expr = self.trans(e.false_expr(), module)?;
-                ir::Expr::If{ cond: Box::new(cond),
-                              true_expr: Box::new(true_expr),
-                              false_expr: Box::new(false_expr)
+                let cond  = self.trans(e.cond(), module)?;
+                let texpr = self.trans(e.texpr(), module)?;
+                let fexpr = self.trans(e.fexpr(), module)?;
+                ir::Expr::If{ cond:  Box::new(cond),
+                              texpr: Box::new(texpr),
+                              fexpr: Box::new(fexpr)
                 }
             },
             ref expr   => { println!("NOTHANDLED\n{:?} not handled", expr);

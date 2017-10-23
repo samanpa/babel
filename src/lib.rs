@@ -2,6 +2,7 @@ pub mod ast;
 pub mod parser;
 pub mod ir;
 pub mod translate;
+pub (crate) mod scoped_map;
 
 #[derive(Debug)]
 pub struct Error{
@@ -21,6 +22,12 @@ impl std::error::Error for Error {
 
     fn cause(&self) -> Option<&std::error::Error> {
         None
+    }
+}
+
+impl Error {
+    pub fn new<T>(msg: T) -> Self where T: Into<String>{
+        Error{ msg: msg.into() }
     }
 }
 

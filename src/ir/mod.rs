@@ -47,7 +47,7 @@ pub enum Expr {
     Lambda(Lambda),
     App{name: VarRef, args: Box<Expr> },
     Var(VarRef),
-    If{cond: Box<Expr>, true_expr: Box<Expr>, false_expr: Box<Expr> }
+    If{cond: Box<Expr>, texpr: Box<Expr>, fexpr: Box<Expr> }
 }
 
 impl Module {
