@@ -39,7 +39,7 @@ pub struct Lambda {
 }
 
 pub enum Expr {
-    //Convert these into applications?
+    //Convert these into Type constants ?
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),

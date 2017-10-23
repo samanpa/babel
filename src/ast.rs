@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-
 #[derive(Debug)]
 pub struct TopLevel<Ident> {
     decls: Vec<TopDecl<Ident>>,
@@ -54,7 +53,7 @@ pub enum Expr<Ident> {
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Var{name: Ident},
+    Var(Ident),
     If(Box<If<Ident>> )
 }
 
@@ -73,14 +72,31 @@ impl <Ident> Lam<Ident> {
                , body: Expr<Ident>) -> Self {
         Lam{name, params, return_ty, body}
     }
+    pub fn name(&self) -> &Ident {
+        &self.name
+    }
     pub fn body(&self) -> &Expr<Ident> {
         &self.body
+    }
+    pub fn return_ty(&self) -> &Type {
+        &self.return_ty
+    }
+    pub fn params(&self) -> &Vec<Param<Ident>> {
+        &self.params
     }
 }
 
 impl <Ident> Param<Ident> {
     pub fn new(name: Ident, ty: Type) -> Self {
         Param{name, ty}
+    }
+
+    pub fn name(&self) -> &Ident {
+        &self.name
+    }
+
+    pub fn ty(&self) -> &Type {
+        &self.ty
     }
 }
 

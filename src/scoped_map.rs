@@ -20,21 +20,21 @@ impl <K: Hash + Eq,V> ScopedMap<K,V> {
         ScopedMap{ inner: Box::new(inner) }
     }
 
-    fn begin_scope(&mut self) {
+    pub fn begin_scope(&mut self) {
         let inner = Inner{curr_map: HashMap::new(), prev_scope: None };
         let old = mem::replace(&mut self.inner, Box::new(inner));
         self.inner.prev_scope = Some(old);
     }
 
-    fn end_scope(&mut self) {
+    pub fn end_scope(&mut self) {
         self.inner = self.inner.prev_scope.take().unwrap();
     }
 
-    fn insert(&mut self, k: K, v: V) -> Option<V> {
+    pub fn insert(&mut self, k: K, v: V) -> Option<V> {
         self.inner.curr_map.insert(k, v)
     }
 
-    fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V>  where
+    pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V>  where
         K: Borrow<Q>,
         Q: Hash + Eq
     {

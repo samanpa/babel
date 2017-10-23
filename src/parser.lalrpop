@@ -25,7 +25,7 @@ pub TopLevel : TopLevel<String> = {
 };
 
 pub TopDecl: TopDecl<String> = {
-    "extern" <name:Ident> ":" <ty:ArrowType> => TopDecl::Extern{<>},
+    "extern" <name:Ident> ":" <ty:ArrowType> ";" => TopDecl::Extern{<>},
     "use" <name:Ident> ";" => TopDecl::Use{<>},
     Lambda                 => TopDecl::Lam(Box::new(<>)),
 };
@@ -48,7 +48,7 @@ pub Expr: Expr<String> = {
     "true"  => Expr::BoolLit(true),
     "false" => Expr::BoolLit(false),
     "()"    => Expr::UnitLit,
-    Ident   => Expr::Var{name: <> },
+    Ident   => Expr::Var(<>),
     "(" <t:Expr> ")" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),

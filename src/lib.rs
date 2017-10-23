@@ -1,5 +1,6 @@
 pub mod ast;
 pub mod parser;
+pub mod rename;
 pub mod ir;
 pub mod translate;
 pub (crate) mod scoped_map;

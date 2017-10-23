@@ -10,12 +10,14 @@ fn compile(file: File) -> babel::Result<()> {
     let mut file = file;
     let _ = file.read_to_string(&mut file_contents);
 
-    let mut desugar  = babel::translate::Translate{};
+    let mut translate = babel::translate::Translate{};
+    let mut rename    = babel::rename::Rename::new();
 
     use babel::Pass;
     let ast  = babel::parser::parse_TopLevel(&file_contents)?;
     let asts = vec![ast];
-    let ir   = desugar.run(asts)?;
+    let asts = rename.run(asts)?;
+    let ir   = translate.run(asts)?;
     
     Ok(())
 }

@@ -1,3 +1,8 @@
+extern i32_lt: ( i32, i32 ) -> bool;
+extern i32_add: ( i32, i32 ) -> bool;
+extern i32_sub: ( i32, i32 ) -> bool;
+extern i32_print: i32 -> ();
+
 fn fib(n: i32) -> i32 {
     if i32_lt(n, 2) {
         1
@@ -13,7 +18,7 @@ fn fib_print(n: i32, print: i32 -> () ) -> () {
 }
 
 fn main() -> i32 {
-    fib_print(10, int_print)
+    fib_print(10, i32_print)
 }
 
 

@@ -5,7 +5,7 @@ use ::ast;
 use ::ir;
 use ::Result;
 
-type VarTy = String;
+type VarTy = ::rename::Var;
 
 pub struct Translate {
 }
@@ -66,6 +66,7 @@ impl Translate {
             UnitLit    => ir::Expr::UnitLit,
             I32Lit(n)  => ir::Expr::I32Lit(n),
             BoolLit(b) => ir::Expr::BoolLit(b),
+            Var(ref v) => ir::Var::
             If(ref e)  => {
                 let cond  = self.trans(e.cond(), module)?;
                 let texpr = self.trans(e.texpr(), module)?;
