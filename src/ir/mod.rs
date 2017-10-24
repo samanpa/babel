@@ -18,8 +18,7 @@ pub enum Type {
     FunctionType{ params_ty: Vec<Type>, return_ty: Vec<Type> }
 }
 
-pub struct VarRef(i32);
-pub struct TypeRef(i32);
+pub type VarRef = ::rename::Var;
 
 pub struct Param {
     name: VarRef,
@@ -45,7 +44,7 @@ pub enum Expr {
     BoolLit(bool),
 
     Lambda(Lambda),
-    App{name: VarRef, args: Box<Expr> },
+    App{callee: Box<Expr>, args: Vec<Expr> },
     Var(VarRef),
     If{cond: Box<Expr>, texpr: Box<Expr>, fexpr: Box<Expr> }
 }

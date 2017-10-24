@@ -66,7 +66,15 @@ impl Translate {
             UnitLit    => ir::Expr::UnitLit,
             I32Lit(n)  => ir::Expr::I32Lit(n),
             BoolLit(b) => ir::Expr::BoolLit(b),
-            Var(ref v) => ir::Var::
+            Var(ref v) => ir::Expr::Var(v.clone()),
+            App{ref callee, ref args} => {
+                let callee = Box::new(self.trans(callee, module)?);
+                let mut args_trans  = Vec::new();
+                for arg in args {
+                    args_trans.push(self.trans(arg, module)?);
+                }
+                ir::Expr::App{callee, args: args_trans}
+            }
             If(ref e)  => {
                 let cond  = self.trans(e.cond(), module)?;
                 let texpr = self.trans(e.texpr(), module)?;
