@@ -20,11 +20,6 @@ pub enum Type {
 
 pub type VarRef = ::rename::Var;
 
-pub struct Param {
-    name: VarRef,
-    ty: Type,
-}
-
 pub enum Literal {
     Unit,
     I32(i32),
@@ -33,7 +28,7 @@ pub enum Literal {
 
 pub struct Lambda {
     name: VarRef,
-    params: Vec<Param>,
+    params: Vec<VarRef>,
     body: Box<Expr>,
 }
 
@@ -52,6 +47,14 @@ pub enum Expr {
 impl Module {
     pub fn new(name: String) -> Self {
         Self{name, types: vec![], funcs: vec![]}
+    }
+
+    pub fn add_func(&mut self, lam: Lambda) {
+        self.funcs.push(lam)
+    }
+
+    pub fn add_type(&mut self, ty: Type) {
+        self.types.push(ty)
     }
 }
 

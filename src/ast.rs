@@ -6,8 +6,15 @@ pub struct TopLevel<Ident> {
 }
 
 #[derive(Debug)]
+pub struct FunProto<Ident> {
+    name: Ident,
+    params: Vec<Param<Ident>>,
+    return_ty: Type
+}
+
+#[derive(Debug)]
 pub enum TopDecl<Ident> {
-    Extern{name: Ident, ty: Type},
+    Extern(FunProto<Ident>),
     Use{name: String},
     Lam(Box<Lam<Ident>>),
 }
@@ -33,10 +40,8 @@ pub struct Param<Ident> {
 
 #[derive(Debug)]
 pub struct Lam<Ident> {
-    name:      Ident,
-    params:    Vec<Param<Ident>>,
-    return_ty: Type, 
-    body:      Expr<Ident>
+    proto: FunProto<Ident>,
+    body:  Expr<Ident>
 }
 
 #[derive(Debug)]
@@ -67,22 +72,46 @@ impl <Ident> TopLevel<Ident> {
     }
 }
 
-impl <Ident> Lam<Ident> {
-    pub fn new(name: Ident, params: Vec<Param<Ident>>, return_ty: Type
-               , body: Expr<Ident>) -> Self {
-        Lam{name, params, return_ty, body}
+impl <Ident> FunProto<Ident> {
+    pub fn new(name: Ident, params: Vec<Param<Ident>>, return_ty: Type) -> Self {
+        FunProto{name, params, return_ty}
     }
     pub fn name(&self) -> &Ident {
         &self.name
-    }
-    pub fn body(&self) -> &Expr<Ident> {
-        &self.body
     }
     pub fn return_ty(&self) -> &Type {
         &self.return_ty
     }
     pub fn params(&self) -> &Vec<Param<Ident>> {
         &self.params
+    }
+
+    pub fn ty(&self) -> Type {
+        let params_ty = self.params.iter()
+            .map(|ref param| param.ty.clone())
+            .collect();
+        let return_ty = Box::new(self.return_ty.clone());
+        Type::FunctionType{ params_ty, return_ty }
+    }
+}
+
+impl <Ident> Lam<Ident> {
+    pub fn new(name: Ident, params: Vec<Param<Ident>>, return_ty: Type
+               , body: Expr<Ident>) -> Self {
+        let proto = FunProto::new(name, params, return_ty);
+        Lam{proto, body}
+    }
+    pub fn name(&self) -> &Ident {
+        &self.proto.name
+    }
+    pub fn body(&self) -> &Expr<Ident> {
+        &self.body
+    }
+    pub fn return_ty(&self) -> &Type {
+        &self.proto.return_ty
+    }
+    pub fn params(&self) -> &Vec<Param<Ident>> {
+        &self.proto.params
     }
 }
 

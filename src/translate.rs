@@ -54,8 +54,7 @@ impl Translate {
 
     fn trans_lam(&mut self, lam: &ast::Lam<VarTy>
                  , module: &mut ir::Module) -> Result<()> {
-        println!("{:?}", *lam);
-        self.trans(lam.body(), module)?;
+        let body = self.trans(lam.body(), module)?;
         Ok(())
     }
     

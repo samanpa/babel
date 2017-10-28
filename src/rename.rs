@@ -61,34 +61,42 @@ impl Rename {
         }
         Ok(TopLevel::new(decls))
     }
+
+    fn rename_proto(&mut self, proto: &FunProto<String>) -> Result<FunProto<Var>> {
+        let var = self.add_var(proto.name().clone(), proto.ty())?;
+        self.names.begin_scope();
+        let params = self.rename_params(proto.params())?;
+        self.names.end_scope();
+        let proto = FunProto::new(var, params, proto.return_ty().clone());
+        Ok(proto)
+    }
     
     fn rename_topdecl(&mut self
                       , decl: &TopDecl<String>) -> Result<TopDecl<Var>> {
         use ast::TopDecl::*;
         let res = match *decl {
-            Extern{ref name, ref ty} => {
-                let var = self.add_var(name.clone(), ty.clone())?;
-                Extern{name: var, ty: ty.clone() }
-            }
+            Extern(ref proto) => Extern(self.rename_proto(proto)?),
             Lam(ref lam)  => Lam(Box::new(self.rename_lam(&mut &**lam)?)),
             Use{ref name} => Use{name: name.clone()}
         };
         Ok(res)
     }
 
-    fn rename_param(&mut self, param: &Param<String>) -> Result<Param<Var>> {
-        let var = self.add_var(param.name().clone(), param.ty().clone())?;
-        Ok(Param::new(var, param.ty().clone()))
+    fn rename_params(&mut self, params: &Vec<Param<String>>) -> Result<Vec<Param<Var>>> {
+        let mut nparams = Vec::new();
+        for param in params {
+            let var = self.add_var(param.name().clone(), param.ty().clone())?;
+            let param = Param::new(var, param.ty().clone());
+            nparams.push(param);
+        }
+        Ok(nparams)
     }
 
     fn rename_lam(&mut self, lam: &Lam<String>) -> Result<Lam<Var>> {
         let func_ty = Type::BaseType(BaseType::Unit); //Fixme
         let func_nm = self.add_var(lam.name().clone(), func_ty)?;
         self.names.begin_scope();
-        let mut params = Vec::new();
-        for param in lam.params() {
-            params.push(self.rename_param(param)?)
-        }
+        let params = self.rename_params(lam.params())?;
         let body = self.rename(lam.body())?;
         let lam = Lam::new(func_nm, params, lam.return_ty().clone(), body);
         self.names.end_scope();
