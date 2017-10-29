@@ -3,6 +3,7 @@ pub mod parser;
 pub mod rename;
 pub mod ir;
 pub mod translate;
+pub mod codegen;
 pub (crate) mod scoped_map;
 
 #[derive(Debug)]
@@ -12,6 +13,7 @@ pub struct Error{
 
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+        //fmt.print()?;
         Ok(())
     }
 }

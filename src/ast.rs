@@ -6,7 +6,7 @@ pub struct TopLevel<Ident> {
 }
 
 #[derive(Debug)]
-pub struct FunProto<Ident> {
+pub struct FnProto<Ident> {
     name: Ident,
     params: Vec<Param<Ident>>,
     return_ty: Type
@@ -14,7 +14,7 @@ pub struct FunProto<Ident> {
 
 #[derive(Debug)]
 pub enum TopDecl<Ident> {
-    Extern(FunProto<Ident>),
+    Extern(FnProto<Ident>),
     Use{name: String},
     Lam(Box<Lam<Ident>>),
 }
@@ -40,7 +40,7 @@ pub struct Param<Ident> {
 
 #[derive(Debug)]
 pub struct Lam<Ident> {
-    proto: FunProto<Ident>,
+    proto: FnProto<Ident>,
     body:  Expr<Ident>
 }
 
@@ -72,9 +72,9 @@ impl <Ident> TopLevel<Ident> {
     }
 }
 
-impl <Ident> FunProto<Ident> {
+impl <Ident> FnProto<Ident> {
     pub fn new(name: Ident, params: Vec<Param<Ident>>, return_ty: Type) -> Self {
-        FunProto{name, params, return_ty}
+        FnProto{name, params, return_ty}
     }
     pub fn name(&self) -> &Ident {
         &self.name
@@ -98,17 +98,23 @@ impl <Ident> FunProto<Ident> {
 impl <Ident> Lam<Ident> {
     pub fn new(name: Ident, params: Vec<Param<Ident>>, return_ty: Type
                , body: Expr<Ident>) -> Self {
-        let proto = FunProto::new(name, params, return_ty);
+        let proto = FnProto::new(name, params, return_ty);
         Lam{proto, body}
     }
-    pub fn name(&self) -> &Ident {
-        &self.proto.name
+    pub fn proto(&self) -> &FnProto<Ident> {
+        &self.proto
     }
     pub fn body(&self) -> &Expr<Ident> {
         &self.body
     }
+    pub fn name(&self) -> &Ident {
+        &self.proto.name
+    }
     pub fn return_ty(&self) -> &Type {
         &self.proto.return_ty
+    }
+    pub fn ty(&self) -> Type {
+        self.proto.ty()
     }
     pub fn params(&self) -> &Vec<Param<Ident>> {
         &self.proto.params

@@ -46,7 +46,7 @@ impl Rename {
             .or_insert(Rc::new(name.clone()))
             .clone();
         let var = Var{ name: interned_name, ty, id: self.count };
-        if let Some(ref nm) = self.names.insert(name.clone(), var.clone()) {
+        if let Some(ref _v) = self.names.insert(name.clone(), var.clone()) {
             return Err(Error::new(format!("Name {} already declared", name)));
         }
         self.count = self.count + 1;
@@ -62,12 +62,12 @@ impl Rename {
         Ok(TopLevel::new(decls))
     }
 
-    fn rename_proto(&mut self, proto: &FunProto<String>) -> Result<FunProto<Var>> {
+    fn rename_proto(&mut self, proto: &FnProto<String>) -> Result<FnProto<Var>> {
         let var = self.add_var(proto.name().clone(), proto.ty())?;
         self.names.begin_scope();
         let params = self.rename_params(proto.params())?;
         self.names.end_scope();
-        let proto = FunProto::new(var, params, proto.return_ty().clone());
+        let proto = FnProto::new(var, params, proto.return_ty().clone());
         Ok(proto)
     }
     
@@ -93,7 +93,7 @@ impl Rename {
     }
 
     fn rename_lam(&mut self, lam: &Lam<String>) -> Result<Lam<Var>> {
-        let func_ty = Type::BaseType(BaseType::Unit); //Fixme
+        let func_ty = lam.ty(); //Fixme
         let func_nm = self.add_var(lam.name().clone(), func_ty)?;
         self.names.begin_scope();
         let params = self.rename_params(lam.params())?;

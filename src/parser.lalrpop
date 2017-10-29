@@ -26,9 +26,9 @@ pub TopLevel : TopLevel<String> = {
 
 pub TopDecl: TopDecl<String> = {
     "extern" <name:Ident> "(" <params:List<Param>> ")" "->" <ty:Type> ";" =>
-        TopDecl::Extern(FunProto::new(name, params, ty)),
+        TopDecl::Extern(FnProto::new(name, params, ty)),
     "extern" <name:Ident> "()" "->" <ty:Type> ";" =>
-        TopDecl::Extern(FunProto::new(name, vec![], ty)),
+        TopDecl::Extern(FnProto::new(name, vec![], ty)),
     "use" <name:Ident> ";" => TopDecl::Use{<>},
     Lambda                 => TopDecl::Lam(Box::new(<>)),
 };

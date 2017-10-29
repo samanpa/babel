@@ -24,7 +24,7 @@ impl ::Pass for Translate {
 }
 
 impl Translate {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Translate{}
     }
 
@@ -45,21 +45,62 @@ impl Translate {
                      , module: &mut ir::Module) -> Result<()> {
         use ast::TopDecl::*;
         let res = match *decl {
-            Extern{..}   => (),
-            Use{..}      => (),
-            Lam(ref lam) => self.trans_lam(&mut &**lam, module)?,
+            Extern(ref proto) => {
+                let proto = self.trans_proto(proto);
+                module.add_extern(proto);
+            },
+            Use{..}      => unimplemented!(),
+            Lam(ref lam) => {
+                let lam = self.trans_lam(&mut &**lam)?;
+                module.add_lambda(lam);
+            }
         };
         Ok(())
     }
 
-    fn trans_lam(&mut self, lam: &ast::Lam<VarTy>
-                 , module: &mut ir::Module) -> Result<()> {
-        let body = self.trans(lam.body(), module)?;
-        Ok(())
+    fn trans_params(&mut self, params: &Vec<ast::Param<::rename::Var>>) -> Vec<ir::VarRef> {
+        params.iter()
+            .map( |ref p| p.name().clone())
+            .collect()
+    }
+
+    fn trans_ty(ty: &ast::Type) -> ir::Type {
+        use ast::Type::*;
+        use ast::BaseType::*;
+        match *ty {
+            BaseType(ref b) =>
+                match *b {
+                    Unit => ir::Type::BaseType(ir::BaseType::Unit),
+                    I32  => ir::Type::BaseType(ir::BaseType::I32),
+                    Bool => ir::Type::BaseType(ir::BaseType::Bool)
+                },
+            FunctionType{ ref params_ty, ref return_ty } => {
+                let params_ty = params_ty.iter()
+                    .map( Self::trans_ty )
+                    .collect();
+                let return_ty = Box::new(Self::trans_ty(return_ty));
+                ir::Type::FunctionType{ params_ty, return_ty }
+            }
+        }   
+    }
+
+    fn trans_proto(&mut self, proto: &ast::FnProto<VarTy>) -> ir::FnProto {
+        let name      = proto.name().clone();
+        let params    = self.trans_params(proto.params());
+        let return_ty = Self::trans_ty(proto.return_ty());
+        let proto     = ir::FnProto::new(name, params, return_ty);
+        proto
     }
     
-    fn trans(&mut self, expr: &ast::Expr<VarTy>
-             , module: &mut ir::Module) -> Result<ir::Expr> {
+    fn trans_lam(&mut self, lam: &ast::Lam<VarTy>) -> Result<ir::Lambda> {
+        let proto = self.trans_proto(lam.proto());
+        let body  = self.trans(lam.body())?;
+        let lam   = ir::Lambda::new(proto, body);
+        Ok(lam)
+    }
+
+        
+    fn trans(&mut self, expr: &ast::Expr<VarTy>) -> Result<ir::Expr> {
         use ast::Expr::*;
         let res = match *expr {
             UnitLit    => ir::Expr::UnitLit,
@@ -67,17 +108,17 @@ impl Translate {
             BoolLit(b) => ir::Expr::BoolLit(b),
             Var(ref v) => ir::Expr::Var(v.clone()),
             App{ref callee, ref args} => {
-                let callee = Box::new(self.trans(callee, module)?);
+                let callee = Box::new(self.trans(callee)?);
                 let mut args_trans  = Vec::new();
                 for arg in args {
-                    args_trans.push(self.trans(arg, module)?);
+                    args_trans.push(self.trans(arg)?);
                 }
                 ir::Expr::App{callee, args: args_trans}
             }
             If(ref e)  => {
-                let cond  = self.trans(e.cond(), module)?;
-                let texpr = self.trans(e.texpr(), module)?;
-                let fexpr = self.trans(e.fexpr(), module)?;
+                let cond  = self.trans(e.cond())?;
+                let texpr = self.trans(e.texpr())?;
+                let fexpr = self.trans(e.fexpr())?;
                 ir::Expr::If{ cond:  Box::new(cond),
                               texpr: Box::new(texpr),
                               fexpr: Box::new(fexpr)
