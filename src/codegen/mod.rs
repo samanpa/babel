@@ -1,5 +1,8 @@
+extern crate llvm_sys;
+
 use ::ir;
 use ::Result;
+use self::llvm_sys::*;
 
 pub struct CodeGen {
 }
@@ -18,6 +21,7 @@ impl ::Pass for CodeGen {
 
 impl CodeGen {
     pub fn new() -> Self {
+        unsafe { target::LLVM_InitializeNativeTarget() };
         CodeGen{}
     }
 

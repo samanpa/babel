@@ -11,6 +11,9 @@ name = "babel"
 name = "babel"
 path = "src/main.rs"
 
+[dependencies]
+llvm-sys = "50"
+
 [dependencies.regex]
 version = "0.2.0"
 
