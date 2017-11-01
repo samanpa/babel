@@ -11,6 +11,18 @@ pub struct Var {
     id:   u32,
 }
 
+impl Var {
+    pub fn name(&self) -> &Rc<String> {
+        &self.name
+    }
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+    pub fn ty(&self) -> &Type {
+        &self.ty
+    }
+}
+
 pub struct Rename {
     count: u32,
     names: ScopedMap<String, Var>,

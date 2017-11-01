@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 //FIXME: is Module a good name?
 #[derive(Debug)]
 pub struct Module {
@@ -21,14 +23,34 @@ pub enum Type {
     FunctionType{ params_ty: Vec<Type>, return_ty: Box<Type> }
 }
 
-pub type VarRef = ::rename::Var;
+#[derive(Debug)]
+pub struct Var {
+    name: Rc<String>,
+    ty:   Type,
+    id:   u32,
+}
+
+impl Var {
+    pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
+        Self{name, ty, id}
+    }
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+    pub fn ty(&self) -> &Type {
+        &self.ty
+    }
+}
 
 #[derive(Debug)]
-//FIXME: A VarRef already has an associated type so the return_ty is unnecessary.
+//FIXME: A Var already has an associated type so the return_ty is unnecessary.
 //  also params has duplicate type name for each parameter
 pub struct FnProto {
-    name: VarRef,
-    params: Vec<VarRef>,
+    name: Var,
+    params: Vec<Var>,
     return_ty: Type
 }
 
@@ -54,7 +76,7 @@ pub enum Expr {
 
     Lambda(Box<Lambda>),
     App{callee: Box<Expr>, args: Vec<Expr> },
-    Var(VarRef),
+    Var(Var),
     If{cond: Box<Expr>, texpr: Box<Expr>, fexpr: Box<Expr> }
 }
 
@@ -93,16 +115,16 @@ impl Module {
 }
 
 impl FnProto {
-    pub fn new(name: VarRef, params: Vec<VarRef>, return_ty: Type) -> Self {
+    pub fn new(name: Var, params: Vec<Var>, return_ty: Type) -> Self {
         FnProto{name, params, return_ty}
     }
-    pub fn name(&self) -> &VarRef {
+    pub fn name(&self) -> &Var {
         &self.name
     }
     pub fn return_ty(&self) -> &Type {
         &self.return_ty
     }
-    pub fn params(&self) -> &Vec<VarRef> {
+    pub fn params(&self) -> &Vec<Var> {
         &self.params
     }
 }
@@ -111,17 +133,11 @@ impl Lambda {
     pub fn new(proto: FnProto, body: Expr) -> Self {
         Lambda{proto, body}
     }
-    pub fn name(&self) -> &VarRef {
-        &self.proto.name
+    pub fn proto(&self) -> &FnProto {
+        &self.proto
     }
     pub fn body(&self) -> &Expr {
         &self.body
-    }
-    pub fn return_ty(&self) -> &Type {
-        &self.proto.return_ty
-    }
-    pub fn params(&self) -> &Vec<VarRef> {
-        &self.proto.params
     }
 }
 

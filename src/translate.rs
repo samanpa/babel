@@ -58,10 +58,16 @@ impl Translate {
         Ok(())
     }
 
-    fn trans_params(&mut self, params: &Vec<ast::Param<::rename::Var>>) -> Vec<ir::VarRef> {
+    fn trans_params(&mut self, params: &Vec<ast::Param<::rename::Var>>) -> Vec<ir::Var> {
         params.iter()
-            .map( |ref p| p.name().clone())
+            .map( |ref p| Self::trans_var( p.name() ) )
             .collect()
+    }
+
+    fn trans_var(var: &::rename::Var) -> ir::Var {
+        ir::Var::new(var.name().clone(),
+                     Self::trans_ty(var.ty()),
+                     var.id())
     }
 
     fn trans_ty(ty: &ast::Type) -> ir::Type {
@@ -85,7 +91,7 @@ impl Translate {
     }
 
     fn trans_proto(&mut self, proto: &ast::FnProto<VarTy>) -> ir::FnProto {
-        let name      = proto.name().clone();
+        let name      = Self::trans_var(proto.name());
         let params    = self.trans_params(proto.params());
         let return_ty = Self::trans_ty(proto.return_ty());
         let proto     = ir::FnProto::new(name, params, return_ty);
@@ -106,7 +112,7 @@ impl Translate {
             UnitLit    => ir::Expr::UnitLit,
             I32Lit(n)  => ir::Expr::I32Lit(n),
             BoolLit(b) => ir::Expr::BoolLit(b),
-            Var(ref v) => ir::Expr::Var(v.clone()),
+            Var(ref v) => ir::Expr::Var(Self::trans_var(v)),
             App{ref callee, ref args} => {
                 let callee = Box::new(self.trans(callee)?);
                 let mut args_trans  = Vec::new();
