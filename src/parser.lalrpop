@@ -17,7 +17,7 @@ List<T>: Vec<T> = {
 
 
 //Terminals
-Num: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
+Num: i32 = <s:r"-?[0-9]+"> => i32::from_str(s).unwrap();
 Ident: String = <r"[a-zA-Z][a-zA-Z0-9_]*"> => <>.to_string();
 
 pub TopLevel : TopLevel<String> = {

@@ -35,6 +35,9 @@ impl CodeGen {
     }
 }
 
+fn label(str: &str) -> * const i8 {
+    str.as_ptr() as *const _
+}
 
 
 struct ModuleCodeGen<'a, 'b> {
@@ -59,6 +62,10 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         for lam in self.ir_module.lambdas() {
            self.cg_lambda(lam)?;
         }
+        unsafe {
+            self::llvm_sys::core::LLVMDumpModule(self.module);
+
+        }
         Ok(())
     }
 
@@ -70,6 +77,7 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
             match *ty {
                 BaseType(Unit) => core::LLVMVoidTypeInContext(*self.context),
                 BaseType(I32)  => core::LLVMInt32TypeInContext(*self.context),
+                BaseType(Bool) => core::LLVMInt1TypeInContext(*self.context),
                 FunctionType{ref params_ty, ref return_ty} => {
                     let return_ty = self.get_type(return_ty);
                     let mut params_ty : Vec<LLVMTypeRef> = params_ty.iter()
@@ -92,6 +100,15 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         let function = unsafe {
             core::LLVMAddFunction(self.module, name, function_type)
         };
+        println!("{}", proto.params().len());
+        proto.params()
+            .iter()
+            .enumerate()
+            .map( | (i, param) | unsafe {
+                let value = core::LLVMGetParam(function, i as u32);
+                println!("param {}", param.name());
+                core::LLVMSetValueName(value, label(param.name().as_str()));
+            } );
         Ok(function)
     }
 
@@ -112,17 +129,26 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
             LLVMPositionBuilderAtEnd(self.builder, bb);
             bb
         };
-        let body = self.cg_expr(lam.body(), bb)?;
+        let body = self.emit(lam.body(), bb, proto)?;
         unsafe {
             LLVMBuildRet(self.builder, body);            
         };
         
         Ok(())
     }
+
+    fn add_bb(&mut self, func: LLVMValueRef, bblabel: &str) -> LLVMBasicBlockRef {
+        use self::llvm_sys::core::*;
+        unsafe {
+            LLVMAppendBasicBlockInContext(*self.context, func, label(bblabel))
+        }
+    }
     
-    fn cg_expr(&mut self, expr: &ir::Expr, bb: LLVMBasicBlockRef)
-               -> Result<LLVMValueRef>
+    fn emit(&mut self, expr: &ir::Expr, bb: LLVMBasicBlockRef
+            , func: LLVMValueRef) -> Result<LLVMValueRef>
     {
+        println!("EXPR {:?}", expr);
+
         use self::llvm_sys::core::*;
         use ir::Expr::*;
         use ir::Type::*;
@@ -130,10 +156,52 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         let val = unsafe {
             match *expr {
                 I32Lit(n) => {
-                    LLVMConstInt(self.get_type(&BaseType(I32))
-                                 , n as u64
-                                 , false as i32)
+                    let ty = self.get_type(&BaseType(I32));
+                    LLVMConstInt(ty, n as u64, false as i32)
                 },
+                BoolLit(b) => {
+                    let ty = self.get_type(&BaseType(Bool));
+                    LLVMConstInt(ty, b as u64, false as i32)
+                },
+                If{ref cond, ref texpr, ref fexpr} => {
+                    //codegen the condition
+                    let cond = self.emit(cond, bb, func)?;
+
+                    //Generate the blocks
+                    let then_bb = self.add_bb(func, "then\0");
+                    let else_bb = self.add_bb(func, "else\0");
+                    let phi_bb  = self.add_bb(func, "phi\0");
+
+                    //build conditional branch
+                    LLVMBuildCondBr(self.builder, cond, then_bb, else_bb);
+
+                    //then
+                    LLVMPositionBuilderAtEnd(self.builder, then_bb);
+                    let texpr = self.emit(texpr, then_bb, func)?;
+                    LLVMBuildBr(self.builder, phi_bb);
+
+                    //else
+                    LLVMPositionBuilderAtEnd(self.builder, else_bb);
+                    let fexpr = self.emit(fexpr, else_bb, func)?;
+                    LLVMBuildBr(self.builder, phi_bb);
+
+                    //merge
+                    LLVMPositionBuilderAtEnd(self.builder, phi_bb);
+                    let mut incoming_vals = vec![texpr, fexpr];
+                    let mut incoming_bbs  = vec![then_bb, else_bb];
+                    //hack to get type
+                    let ty = self.get_type(&BaseType(I32));
+                    let phi = LLVMBuildPhi(self.builder, ty, label("phi"));
+                    LLVMAddIncoming(phi,
+                                    incoming_vals.as_mut_ptr(),
+                                    incoming_bbs.as_mut_ptr(),
+                                    incoming_vals.len() as u32);
+                                    
+                    LLVMPositionBuilderAtEnd(self.builder, phi_bb);
+
+                    phi
+                },
+                
                 _ => unimplemented!(),
             }
         };
@@ -144,7 +212,6 @@ impl <'a,'b> Drop for ModuleCodeGen<'a,'b> {
     fn drop(&mut self) {
         use self::llvm_sys::core::*;
         unsafe {
-            LLVMDumpModule(self.module);
             LLVMDisposeBuilder(self.builder);
             LLVMDisposeModule(self.module);
         }

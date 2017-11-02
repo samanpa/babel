@@ -44,7 +44,7 @@ impl Translate {
                      , decl: &ast::TopDecl<VarTy>
                      , module: &mut ir::Module) -> Result<()> {
         use ast::TopDecl::*;
-        let res = match *decl {
+        match *decl {
             Extern(ref proto) => {
                 let proto = self.trans_proto(proto);
                 module.add_extern(proto);
