@@ -20,7 +20,8 @@ pub enum BaseType {
 #[derive(Debug)]
 pub enum Type {
     BaseType(BaseType),
-    FunctionType{ params_ty: Vec<Type>, return_ty: Box<Type> }
+    FunctionType{ params_ty: Vec<Type>, return_ty: Box<Type> },
+    PointerType(Box<Type>),
 }
 
 #[derive(Debug)]
@@ -30,27 +31,19 @@ pub struct Var {
     id:   u32,
 }
 
-impl Var {
-    pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
-        Self{name, ty, id}
-    }
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-    pub fn id(&self) -> u32 {
-        self.id
-    }
-    pub fn ty(&self) -> &Type {
-        &self.ty
-    }
+#[derive(Debug)]
+pub struct Param {
+    name: Rc<String>,
+    id:   u32,
 }
+
 
 #[derive(Debug)]
 //FIXME: A Var already has an associated type so the return_ty is unnecessary.
 //  also params has duplicate type name for each parameter
 pub struct FnProto {
     name: Var,
-    params: Vec<Var>,
+    params: Vec<Param>,
     return_ty: Type
 }
 
@@ -115,7 +108,7 @@ impl Module {
 }
 
 impl FnProto {
-    pub fn new(name: Var, params: Vec<Var>, return_ty: Type) -> Self {
+    pub fn new(name: Var, params: Vec<Param>, return_ty: Type) -> Self {
         FnProto{name, params, return_ty}
     }
     pub fn name(&self) -> &Var {
@@ -124,7 +117,7 @@ impl FnProto {
     pub fn return_ty(&self) -> &Type {
         &self.return_ty
     }
-    pub fn params(&self) -> &Vec<Var> {
+    pub fn params(&self) -> &Vec<Param> {
         &self.params
     }
 }
@@ -140,6 +133,34 @@ impl Lambda {
         &self.body
     }
 }
+
+impl Var {
+    pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
+        Self{name, ty, id}
+    }
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+    pub fn ty(&self) -> &Type {
+        &self.ty
+    }
+}
+
+impl Param {
+    pub fn new(name: Rc<String>, id: u32) -> Self {
+        Self{name, id}
+    }
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

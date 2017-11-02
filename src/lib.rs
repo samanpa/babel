@@ -12,7 +12,7 @@ pub struct Error{
 }
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+    fn fmt(&self, _fmt: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
         //fmt.print()?;
         Ok(())
     }

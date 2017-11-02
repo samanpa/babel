@@ -9,10 +9,9 @@ struct Inner<K,V> {
     prev_scope: Option<Box<Inner<K,V>>>,
 }
 
-pub struct ScopedMap<K,V> {
+pub struct ScopedMap<K,V> where K : Hash + Eq {
     inner: Box<Inner<K,V>>,
 }
-
 
 impl <K: Hash + Eq,V> ScopedMap<K,V> {
     pub fn new() -> Self {

@@ -32,7 +32,7 @@ impl Translate {
                       , toplevel: &ast::TopLevel<VarTy>
                       , modules: &mut Vec<ir::Module>) -> Result<()> {
         //FIXME: find better way
-        let mut module = ir::Module::new("main".to_string());
+        let mut module = ir::Module::new("main\0".to_string());
         for decl in toplevel.decls() {
             self.trans_topdecl(decl, &mut module)?
         }
@@ -58,19 +58,20 @@ impl Translate {
         Ok(())
     }
 
-    fn trans_params(&mut self, params: &Vec<ast::Param<::rename::Var>>) -> Vec<ir::Var> {
+    fn trans_params(&mut self, params: &Vec<ast::Param<::rename::Var>>) -> Vec<ir::Param> {
         params.iter()
-            .map( |ref p| Self::trans_var( p.name() ) )
+            .map( |ref p| ir::Param::new(p.name().name().clone()
+                                         , p.name().id() ))
             .collect()
     }
 
     fn trans_var(var: &::rename::Var) -> ir::Var {
         ir::Var::new(var.name().clone(),
-                     Self::trans_ty(var.ty()),
+                     Self::trans_ty(var.ty(), false),
                      var.id())
     }
 
-    fn trans_ty(ty: &ast::Type) -> ir::Type {
+    fn trans_ty(ty: &ast::Type, is_param: bool) -> ir::Type {
         use ast::Type::*;
         use ast::BaseType::*;
         match *ty {
@@ -82,10 +83,18 @@ impl Translate {
                 },
             FunctionType{ ref params_ty, ref return_ty } => {
                 let params_ty = params_ty.iter()
-                    .map( Self::trans_ty )
+                    .map( |ty| Self::trans_ty(ty, true) )
                     .collect();
-                let return_ty = Box::new(Self::trans_ty(return_ty));
-                ir::Type::FunctionType{ params_ty, return_ty }
+                let return_ty = Box::new(Self::trans_ty(return_ty, false));
+                let fn_ty = ir::Type::FunctionType{ params_ty, return_ty };
+                if is_param {
+                    //HACK because LLVM wants parameter types to be 
+                    ir::Type::PointerType(Box::new(fn_ty))
+                }
+                else {
+                    fn_ty
+                }
+                    
             }
         }   
     }
@@ -93,7 +102,7 @@ impl Translate {
     fn trans_proto(&mut self, proto: &ast::FnProto<VarTy>) -> ir::FnProto {
         let name      = Self::trans_var(proto.name());
         let params    = self.trans_params(proto.params());
-        let return_ty = Self::trans_ty(proto.return_ty());
+        let return_ty = Self::trans_ty(proto.return_ty(), false);
         let proto     = ir::FnProto::new(name, params, return_ty);
         proto
     }
@@ -105,7 +114,6 @@ impl Translate {
         Ok(lam)
     }
 
-        
     fn trans(&mut self, expr: &ast::Expr<VarTy>) -> Result<ir::Expr> {
         use ast::Expr::*;
         let res = match *expr {
