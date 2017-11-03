@@ -34,10 +34,10 @@ impl CodeGen {
     fn codegen_module(&mut self, module: &ir::Module) -> Result<()> {
         let mut codegen = ModuleCodeGen::new(module.name(), &mut self.context);
 
-        for ex in self.module.externs() {
+        for ex in module.externs() {
             codegen.gen_extern(ex)?;
         }
-        for lam in self.ir_module.lambdas() {
+        for lam in module.lambdas() {
            codegen.gen_lambda(lam)?;
         }
         unsafe {
@@ -55,18 +55,17 @@ fn to_cstr(str: &String) -> CString {
 }
 
 
-struct ModuleCodeGen<'a, 'b> {
+struct ModuleCodeGen<'a> {
     module: LLVMModuleRef,
-    ir_module: &'b ir::Module,
     context: &'a LLVMContextRef,
     builder: LLVMBuilderRef,
     var_env: ScopedMap<u32, LLVMValueRef>,
 }
 
-impl <'a,'b> ModuleCodeGen<'a,'b> {
+impl <'a> ModuleCodeGen<'a> {
     fn new(mod_name: &String, context: &'a mut LLVMContextRef) -> Self {
         //FIXME: Add NUL byte
-        let mod_name = to_cstr(mod_name.name());
+        let mod_name = to_cstr(mod_name);
         let module  = unsafe{ core::LLVMModuleCreateWithName(mod_name.as_ptr()) };
         let builder = unsafe{ core::LLVMCreateBuilderInContext(*context) };
         Self{module, context, builder, var_env: ScopedMap::new()}
@@ -101,11 +100,11 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         }
     }
     
-    fn cg_proto(&mut self, proto: &ir::FnProto) -> Result<LLVMValueRef> {
+    fn gen_proto(&mut self, proto: &ir::FnProto) -> Result<LLVMValueRef> {
         unsafe {
-            let function_type = self.get_type(proto.name().ty(), false);
-            let name = to_cstr(proto.name().name());
-            let func = core::LLVMAddFunction(self.module, name.as_ptr(), function_type);
+            let fn_ty = self.get_type(proto.name().ty(), false);
+            let name  = to_cstr(proto.name().name());
+            let func  = core::LLVMAddFunction(self.module, name.as_ptr(), fn_ty);
             for (i,param) in proto.params().iter().enumerate() {
                 let value = core::LLVMGetParam(func, i as u32);
                 core::LLVMSetValueName(value, to_cstr(param.name()).as_ptr());
@@ -115,16 +114,16 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         }
     }
 
-    fn cg_extern(&mut self, proto: &ir::FnProto) -> Result<()> {
-        let _ = self.cg_proto(proto)?;
+    fn gen_extern(&mut self, proto: &ir::FnProto) -> Result<()> {
+        let _ = self.gen_proto(proto)?;
         Ok(())
     }
     
-    fn cg_lambda(&mut self, lam: &ir::Lambda) -> Result<()> {
+    fn gen_lambda(&mut self, lam: &ir::Lambda) -> Result<()> {
         use self::llvm_sys::core::*;
 
         let params = lam.proto().params();
-        let proto  = self.cg_proto(lam.proto())?;
+        let proto  = self.gen_proto(lam.proto())?;
         self.var_env.begin_scope();
         unsafe {
             let nm = label("func_entry").as_ptr();
@@ -237,7 +236,8 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         Ok(val)
     }
 }
-impl <'a,'b> Drop for ModuleCodeGen<'a,'b> {
+
+impl <'a> Drop for ModuleCodeGen<'a> {
     fn drop(&mut self) {
         use self::llvm_sys::core::*;
         unsafe {
