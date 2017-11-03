@@ -32,8 +32,18 @@ impl CodeGen {
     }
 
     fn codegen_module(&mut self, module: &ir::Module) -> Result<()> {
-        let mut codegen = ModuleCodeGen::new(module, &mut self.context);
-        codegen.run()
+        let mut codegen = ModuleCodeGen::new(module.name(), &mut self.context);
+
+        for ex in self.module.externs() {
+            codegen.gen_extern(ex)?;
+        }
+        for lam in self.ir_module.lambdas() {
+           codegen.gen_lambda(lam)?;
+        }
+        unsafe {
+            self::llvm_sys::core::LLVMDumpModule(codegen.module);
+        }
+        Ok(())
     }
 }
 
@@ -54,25 +64,12 @@ struct ModuleCodeGen<'a, 'b> {
 }
 
 impl <'a,'b> ModuleCodeGen<'a,'b> {
-    fn new(ir_module: &'b ir::Module, context: &'a mut LLVMContextRef) -> Self {
+    fn new(mod_name: &String, context: &'a mut LLVMContextRef) -> Self {
         //FIXME: Add NUL byte
-        let mod_name = to_cstr(ir_module.name());
+        let mod_name = to_cstr(mod_name.name());
         let module  = unsafe{ core::LLVMModuleCreateWithName(mod_name.as_ptr()) };
         let builder = unsafe{ core::LLVMCreateBuilderInContext(*context) };
-        Self{ir_module, module, context, builder, var_env: ScopedMap::new()}
-    }
-
-    fn run(&mut self ) -> Result<()>{
-        for ex in self.ir_module.externs() {
-            self.cg_extern(ex)?;
-        }
-        for lam in self.ir_module.lambdas() {
-           self.cg_lambda(lam)?;
-        }
-        unsafe {
-            self::llvm_sys::core::LLVMDumpModule(self.module);
-        }
-        Ok(())
+        Self{module, context, builder, var_env: ScopedMap::new()}
     }
 
     unsafe fn get_type(&mut self, ty: &ir::Type, nested: bool) -> LLVMTypeRef {
