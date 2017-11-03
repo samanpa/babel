@@ -32,7 +32,7 @@ impl Translate {
                       , toplevel: &ast::TopLevel<VarTy>
                       , modules: &mut Vec<ir::Module>) -> Result<()> {
         //FIXME: find better way
-        let mut module = ir::Module::new("main\0".to_string());
+        let mut module = ir::Module::new("main".to_string());
         for decl in toplevel.decls() {
             self.trans_topdecl(decl, &mut module)?
         }
@@ -67,11 +67,11 @@ impl Translate {
 
     fn trans_var(var: &::rename::Var) -> ir::Var {
         ir::Var::new(var.name().clone(),
-                     Self::trans_ty(var.ty(), false),
+                     Self::trans_ty(var.ty()),
                      var.id())
     }
 
-    fn trans_ty(ty: &ast::Type, is_param: bool) -> ir::Type {
+    fn trans_ty(ty: &ast::Type) -> ir::Type {
         use ast::Type::*;
         use ast::BaseType::*;
         match *ty {
@@ -83,18 +83,10 @@ impl Translate {
                 },
             FunctionType{ ref params_ty, ref return_ty } => {
                 let params_ty = params_ty.iter()
-                    .map( |ty| Self::trans_ty(ty, true) )
+                    .map( Self::trans_ty )
                     .collect();
-                let return_ty = Box::new(Self::trans_ty(return_ty, false));
-                let fn_ty = ir::Type::FunctionType{ params_ty, return_ty };
-                if is_param {
-                    //HACK because LLVM wants parameter types to be 
-                    ir::Type::PointerType(Box::new(fn_ty))
-                }
-                else {
-                    fn_ty
-                }
-                    
+                let return_ty = Box::new(Self::trans_ty(return_ty));
+                ir::Type::FunctionType{ params_ty, return_ty }
             }
         }   
     }
@@ -102,7 +94,7 @@ impl Translate {
     fn trans_proto(&mut self, proto: &ast::FnProto<VarTy>) -> ir::FnProto {
         let name      = Self::trans_var(proto.name());
         let params    = self.trans_params(proto.params());
-        let return_ty = Self::trans_ty(proto.return_ty(), false);
+        let return_ty = Self::trans_ty(proto.return_ty());
         let proto     = ir::FnProto::new(name, params, return_ty);
         proto
     }

@@ -3,6 +3,7 @@ extern crate llvm_sys;
 use ::ir;
 use ::Result;
 use ::scoped_map::ScopedMap;
+use std::ffi::CString;
 use self::llvm_sys::*;
 use self::llvm_sys::prelude::*;
 
@@ -36,8 +37,11 @@ impl CodeGen {
     }
 }
 
-fn label(str: &str) -> * const i8 {
-    str.as_ptr() as *const _
+fn label<T: Into<Vec<u8>>>(str: T) -> CString {
+    unsafe{ CString::from_vec_unchecked(str.into().to_vec()) }
+}
+fn to_cstr(str: &String) -> CString {
+    label(str.as_str())
 }
 
 
@@ -52,9 +56,9 @@ struct ModuleCodeGen<'a, 'b> {
 impl <'a,'b> ModuleCodeGen<'a,'b> {
     fn new(ir_module: &'b ir::Module, context: &'a mut LLVMContextRef) -> Self {
         //FIXME: Add NUL byte
-        let mod_name = ir_module.name().as_bytes().as_ptr() as * const _;
-        let module   = unsafe{ core::LLVMModuleCreateWithName(mod_name) };
-        let builder  = unsafe{ core::LLVMCreateBuilderInContext(*context) };
+        let mod_name = to_cstr(ir_module.name());
+        let module  = unsafe{ core::LLVMModuleCreateWithName(mod_name.as_ptr()) };
+        let builder = unsafe{ core::LLVMCreateBuilderInContext(*context) };
         Self{ir_module, module, context, builder, var_env: ScopedMap::new()}
     }
 
@@ -71,7 +75,7 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         Ok(())
     }
 
-    unsafe fn get_type(&mut self, ty: &ir::Type) -> LLVMTypeRef {
+    unsafe fn get_type(&mut self, ty: &ir::Type, nested: bool) -> LLVMTypeRef {
         use ir::Type::*;
         use ir::BaseType::*;
 
@@ -80,32 +84,34 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
             BaseType(I32)  => core::LLVMInt32TypeInContext(*self.context),
             BaseType(Bool) => core::LLVMInt1TypeInContext(*self.context),
             FunctionType{ref params_ty, ref return_ty} => {
-                let return_ty = self.get_type(return_ty);
+                let return_ty = self.get_type(return_ty, true);
                 let mut params_ty : Vec<LLVMTypeRef> = params_ty.iter()
-                    .map( |ref ty| self.get_type(ty))
+                    .map( |ref ty| self.get_type(ty, true))
                     .collect();
                 let is_var_arg = false;
-                core::LLVMFunctionType(return_ty,
-                                       params_ty.as_mut_ptr(),
-                                       params_ty.len() as u32,
-                                       is_var_arg as LLVMBool)
+                let fn_ty = core::LLVMFunctionType(return_ty,
+                                                   params_ty.as_mut_ptr(),
+                                                   params_ty.len() as u32,
+                                                   is_var_arg as LLVMBool);
+                if nested {
+                    const ADDRESS_SPACE : u32 = 0;
+                    core::LLVMPointerType(fn_ty, ADDRESS_SPACE)
+                }
+                else {
+                    fn_ty
+                }
             },
-            PointerType(ref ty) => {
-                let ty = self.get_type(ty);
-                const ADDRESS_SPACE : u32 = 0;
-                core::LLVMPointerType(ty, ADDRESS_SPACE)
-            }
         }
     }
     
     fn cg_proto(&mut self, proto: &ir::FnProto) -> Result<LLVMValueRef> {
         unsafe {
-            let function_type = self.get_type(proto.name().ty());
-            let name = proto.name().name().as_bytes().as_ptr() as * const _;
-            let func = core::LLVMAddFunction(self.module, name, function_type);
+            let function_type = self.get_type(proto.name().ty(), false);
+            let name = to_cstr(proto.name().name());
+            let func = core::LLVMAddFunction(self.module, name.as_ptr(), function_type);
             for (i,param) in proto.params().iter().enumerate() {
                 let value = core::LLVMGetParam(func, i as u32);
-                core::LLVMSetValueName(value, label(param.name().as_str()));
+                core::LLVMSetValueName(value, to_cstr(param.name()).as_ptr());
             }
             self.var_env.insert(proto.name().id(), func);
             Ok(func)
@@ -124,7 +130,7 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         let proto  = self.cg_proto(lam.proto())?;
         self.var_env.begin_scope();
         unsafe {
-            let nm = label("func_entry");
+            let nm = label("func_entry").as_ptr();
             let bb = LLVMAppendBasicBlockInContext(*self.context, proto, nm);
             for (i,param) in params.iter().enumerate() {
                 let value = core::LLVMGetParam(proto, i as u32);
@@ -141,10 +147,10 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         Ok(())
     }
 
-    fn add_bb(&mut self, func: LLVMValueRef, bblabel: &str) -> LLVMBasicBlockRef {
+    fn add_bb(&mut self, func: LLVMValueRef, name: &str) -> LLVMBasicBlockRef {
         use self::llvm_sys::core::*;
         unsafe {
-            LLVMAppendBasicBlockInContext(*self.context, func, label(bblabel))
+            LLVMAppendBasicBlockInContext(*self.context, func, label(name).as_ptr())
         }
     }
     
@@ -158,11 +164,11 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
         let val = unsafe {
             match *expr {
                 I32Lit(n) => {
-                    let ty = self.get_type(&BaseType(I32));
+                    let ty = self.get_type(&BaseType(I32), false);
                     LLVMConstInt(ty, n as u64, false as i32)
                 },
                 BoolLit(b) => {
-                    let ty = self.get_type(&BaseType(Bool));
+                    let ty = self.get_type(&BaseType(Bool), false);
                     LLVMConstInt(ty, b as u64, false as i32)
                 },
                 App{ref callee, ref args} => {
@@ -176,7 +182,7 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
                                              , callee
                                              , llargs.as_mut_ptr()
                                              , llargs.len() as u32
-                                             , label("call_func"));
+                                             , label("call_func").as_ptr());
                     call
                 }
                 Var( ref var ) => {
@@ -194,9 +200,9 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
                     let cond = self.emit(cond, bb, func)?;
 
                     //Generate the blocks
-                    let then_bb = self.add_bb(func, "then\0");
-                    let else_bb = self.add_bb(func, "else\0");
-                    let phi_bb  = self.add_bb(func, "phi\0");
+                    let then_bb = self.add_bb(func, "then");
+                    let else_bb = self.add_bb(func, "else");
+                    let phi_bb  = self.add_bb(func, "phi");
 
                     //build conditional branch
                     LLVMBuildCondBr(self.builder, cond, then_bb, else_bb);
@@ -216,8 +222,8 @@ impl <'a,'b> ModuleCodeGen<'a,'b> {
                     let mut incoming_vals = vec![texpr, fexpr];
                     let mut incoming_bbs  = vec![then_bb, else_bb];
                     //hack to get type
-                    let ty = self.get_type(&BaseType(I32));
-                    let phi = LLVMBuildPhi(self.builder, ty, label("phi\0"));
+                    let ty = self.get_type(&BaseType(I32), false);
+                    let phi = LLVMBuildPhi(self.builder, ty, label("phi").as_ptr());
                     LLVMAddIncoming(phi,
                                     incoming_vals.as_mut_ptr(),
                                     incoming_bbs.as_mut_ptr(),

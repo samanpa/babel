@@ -21,7 +21,6 @@ pub enum BaseType {
 pub enum Type {
     BaseType(BaseType),
     FunctionType{ params_ty: Vec<Type>, return_ty: Box<Type> },
-    PointerType(Box<Type>),
 }
 
 #[derive(Debug)]
