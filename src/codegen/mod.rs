@@ -15,7 +15,7 @@ impl ::Pass for CodeGen {
     type Input  = Vec<ir::Module>; 
     type Output = Vec<()>;
 
-    fn run(&mut self, modules: Self::Input) -> Result<Self::Output> {
+    fn run(mut self, modules: Self::Input) -> Result<Self::Output> {
         for module in modules {
             self.codegen_module(&module)?;
         }

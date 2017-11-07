@@ -36,7 +36,7 @@ impl ::Pass for Rename {
     type Input  = Vec<TopLevel<String>>; //A list of parsed files
     type Output = Vec<TopLevel<Var>>;
 
-    fn run(&mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
+    fn run(mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
         let mut result = Vec::new();
         for toplevel in &toplevel_vec {
             result.push(self.rename_toplevel(toplevel)?);

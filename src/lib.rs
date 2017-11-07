@@ -49,7 +49,7 @@ pub trait Pass {
     type Input;
     type Output;
 
-    fn run(&mut self, source: Self::Input) -> Result<Self::Output>;
+    fn run(self, source: Self::Input) -> Result<Self::Output>;
 }
 
 pub struct VecUtil {}

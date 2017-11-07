@@ -1,19 +1,16 @@
 use ::ast::*;
 use ::{Result,Error,VecUtil};
-use std::collections::HashMap;
 
 
 type VarTy = ::rename::Var;
 
-pub struct SimpleTypeChecker {
-    type_env: HashMap<u32, Type>,
-}
+pub struct SimpleTypeChecker {}
 
 impl ::Pass for SimpleTypeChecker {
     type Input  = Vec<TopLevel<VarTy>>;
     type Output = Vec<TopLevel<VarTy>>;
 
-    fn run(&mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
+    fn run(mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
         let res = VecUtil::map(&toplevel_vec, |tl| self.tc_toplevel(tl))?;
         Ok(res)
     }
@@ -32,7 +29,7 @@ fn ty_compare<T: Into<String>>(t1: &Type, t2: &Type, msg: T) -> Result<()> {
 
 impl SimpleTypeChecker {
     pub fn new() -> Self {
-        SimpleTypeChecker{type_env: HashMap::new()}
+        SimpleTypeChecker{}
     }
 
     fn tc_toplevel(&mut self, toplevel: &TopLevel<VarTy>) -> Result<TopLevel<VarTy>> {
@@ -48,10 +45,6 @@ impl SimpleTypeChecker {
             Use{..} => unimplemented!()
         };
         Ok(res )
-    }
-
-    fn add_ident(&mut self, var: &VarTy) {
-        self.type_env.insert(var.id(), var.ty().clone());
     }
 
     fn tc_params(params: &Vec<Param<VarTy>>) -> Vec<Param<VarTy>>{
@@ -76,11 +69,7 @@ impl SimpleTypeChecker {
         let params = Self::tc_params(lam.params());
         let body = self.tc_expr(lam.body())?;
         let lam = Lam::new(func_nm, params, lam.return_ty().clone(), body);
-
-
         Ok(lam)
-
-        
     }
 
     fn get_type(&mut self, expr: &Expr<VarTy>) -> Result<Type> {
@@ -89,8 +78,8 @@ impl SimpleTypeChecker {
         use ::ast::Expr::*;
         let res = match *expr {
             UnitLit    => BaseType(Unit),
-            I32Lit(n)  => BaseType(I32),
-            BoolLit(b) => BaseType(Bool),
+            I32Lit(_)  => BaseType(I32),
+            BoolLit(_) => BaseType(Bool),
             Var(ref v) => v.ty().clone(),
             App{ref callee, ref args} => {
                 let callee_ty = self.get_type(callee)?;

@@ -14,7 +14,7 @@ impl ::Pass for Translate {
     type Input = Vec<ast::TopLevel<VarTy>>; //A list of parsed files
     type Output = Vec<ir::Module>;   //A list of modules
 
-    fn run(&mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
+    fn run(mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
         let mut mods: Vec<ir::Module> = vec![];
         for toplevel in &toplevel_vec {
             self.trans_toplevel(toplevel, &mut mods)?;

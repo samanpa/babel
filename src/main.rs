@@ -10,10 +10,11 @@ fn compile(file: File) -> babel::Result<()> {
     let mut file = file;
     let _ = file.read_to_string(&mut file_contents);
 
-    let mut rename    = babel::rename::Rename::new();
-    let mut typecheck = babel::typing::SimpleTypeChecker::new();
-    let mut translate = babel::translate::Translate::new();
-    let mut codegen   = babel::codegen::CodeGen::new();
+    
+    let rename    = babel::rename::Rename::new();
+    let typecheck = babel::typing::SimpleTypeChecker::new();
+    let translate = babel::translate::Translate::new();
+    let codegen   = babel::codegen::CodeGen::new();
 
     use babel::Pass;
     let ast  = babel::parser::parse_TopLevel(&file_contents)?;
