@@ -69,7 +69,7 @@ pub enum Expr {
     Lambda(Box<Lambda>),
     App{callee: Box<Expr>, args: Vec<Expr> },
     Var(Var),
-    If{cond: Box<Expr>, texpr: Box<Expr>, fexpr: Box<Expr> }
+    If{cond: Box<Expr>, texpr: Box<Expr>, fexpr: Box<Expr>, ty: Type }
 }
 
 impl Module {

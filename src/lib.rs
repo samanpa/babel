@@ -4,6 +4,7 @@ pub mod rename;
 pub mod ir;
 pub mod translate;
 pub mod codegen;
+pub mod typing;
 pub (crate) mod scoped_map;
 
 #[derive(Debug)]
@@ -51,13 +52,16 @@ pub trait Pass {
     fn run(&mut self, source: Self::Input) -> Result<Self::Output>;
 }
 
+pub struct VecUtil {}
 
-pub fn vec_map_till<I,O,F>(v: &Vec<I>, f: F) -> Result<Vec<O>> 
-    where F: Fn(&I) -> Result<O>{
-    let mut res = Vec::new();
-    for val in v {
-        let val = f(val)?;
-        res.push(val);
+impl VecUtil {
+    pub fn map<I,O,F>(v: &Vec<I>, mut f: F) -> Result<Vec<O>> 
+        where F: FnMut(&I) -> Result<O>{
+        let mut res = Vec::new();
+        for val in v {
+            let val = f(val)?;
+            res.push(val);
+        }
+        Ok(res)
     }
-    Ok(res)
 }

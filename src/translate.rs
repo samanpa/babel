@@ -49,7 +49,7 @@ impl Translate {
                 let proto = self.trans_proto(proto);
                 module.add_extern(proto);
             },
-            Use{..}      => unimplemented!(),
+            Use{..}      => {},
             Lam(ref lam) => {
                 let lam = self.trans_lam(&mut &**lam)?;
                 module.add_lambda(lam);
@@ -125,9 +125,11 @@ impl Translate {
                 let cond  = self.trans(e.cond())?;
                 let texpr = self.trans(e.texpr())?;
                 let fexpr = self.trans(e.fexpr())?;
+                let ty    = Self::trans_ty(&e.res_ty().clone().unwrap());
                 ir::Expr::If{ cond:  Box::new(cond),
                               texpr: Box::new(texpr),
-                              fexpr: Box::new(fexpr)
+                              fexpr: Box::new(fexpr),
+                              ty
                 }
             },
             ref expr   => { println!("NOTHANDLED\n{:?} not handled", expr);

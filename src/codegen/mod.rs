@@ -191,7 +191,7 @@ impl <'a> ModuleCodeGen<'a> {
                         Some(v) => *v
                     }
                 }
-                If{ref cond, ref texpr, ref fexpr} => {
+                If{ref cond, ref texpr, ref fexpr, ref ty} => {
                     //codegen the condition
                     let cond = self.emit(cond, bb, func)?;
 
@@ -218,7 +218,7 @@ impl <'a> ModuleCodeGen<'a> {
                     let mut incoming_vals = vec![texpr, fexpr];
                     let mut incoming_bbs  = vec![then_bb, else_bb];
                     //hack to get type
-                    let ty = self.get_type(&BaseType(I32), false);
+                    let ty = self.get_type(ty, false);
                     let phi = LLVMBuildPhi(self.builder, ty, label("phi").as_ptr());
                     LLVMAddIncoming(phi,
                                     incoming_vals.as_mut_ptr(),

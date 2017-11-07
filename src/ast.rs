@@ -19,14 +19,14 @@ pub enum TopDecl<Ident> {
     Lam(Box<Lam<Ident>>),
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Eq,PartialEq)]
 pub enum BaseType {
     Bool,
     I32,
     Unit,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Eq,PartialEq)]
 pub enum Type {
     BaseType(BaseType),
     FunctionType{ params_ty: Vec<Type>, return_ty: Box<Type> }
@@ -77,6 +77,7 @@ impl <Ident> FnProto<Ident> {
     pub fn new(name: Ident, params: Vec<Param<Ident>>, return_ty: Type) -> Self {
         FnProto{name, params, return_ty}
     }
+    //Rename
     pub fn name(&self) -> &Ident {
         &self.name
     }

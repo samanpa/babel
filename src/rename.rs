@@ -11,6 +11,7 @@ pub struct Var {
     id:   u32,
 }
 
+//FIXME: rename
 impl Var {
     pub fn name(&self) -> &Rc<String> {
         &self.name
