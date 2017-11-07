@@ -124,8 +124,9 @@ impl Rename {
             If(ref e)    => {
                 use ast::*;
                 let if_expr = If::new(self.rename(e.cond())?,
-                                           self.rename(e.texpr())?,
-                                           self.rename(e.fexpr())?);
+                                      self.rename(e.texpr())?,
+                                      self.rename(e.fexpr())?,
+                                      e.res_ty().clone());
                 If(Box::new(if_expr))
             }
             App{ref callee, ref args} => {

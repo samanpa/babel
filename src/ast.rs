@@ -49,6 +49,7 @@ pub struct If<Ident> {
     cond:  Expr<Ident>,
     texpr: Expr<Ident>,
     fexpr: Expr<Ident>,
+    res_ty:Option<Type>, // The type of both texpr and fexpr
 }
 
 #[derive(Debug)]
@@ -59,7 +60,7 @@ pub enum Expr<Ident> {
     I32Lit(i32),
     BoolLit(bool),
     Var(Ident),
-    If(Box<If<Ident>> )
+    If(Box<If<Ident>>)
 }
 
 impl <Ident> TopLevel<Ident> {
@@ -136,8 +137,9 @@ impl <Ident> Param<Ident> {
 }
 
 impl <Ident> If<Ident> {
-    pub fn new(cond: Expr<Ident>, texpr: Expr<Ident>, fexpr: Expr<Ident>) -> Self {
-        If{cond, texpr, fexpr}
+    pub fn new(cond: Expr<Ident>, texpr: Expr<Ident>, fexpr: Expr<Ident>
+               ,res_ty: Option<Type>) -> Self {
+        If{cond, texpr, fexpr, res_ty}
     }
     pub fn cond(&self) -> &Expr<Ident> {
         &self.cond
@@ -147,5 +149,8 @@ impl <Ident> If<Ident> {
     }
     pub fn fexpr(&self) -> &Expr<Ident> {
         &self.fexpr
+    }
+    pub fn res_ty(&self) -> &Option<Type> {
+        &self.res_ty
     }
 }

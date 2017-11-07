@@ -50,3 +50,14 @@ pub trait Pass {
 
     fn run(&mut self, source: Self::Input) -> Result<Self::Output>;
 }
+
+
+pub fn vec_map_till<I,O,F>(v: &Vec<I>, f: F) -> Result<Vec<O>> 
+    where F: Fn(&I) -> Result<O>{
+    let mut res = Vec::new();
+    for val in v {
+        let val = f(val)?;
+        res.push(val);
+    }
+    Ok(res)
+}

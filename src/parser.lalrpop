@@ -54,7 +54,7 @@ pub Expr: Expr<String> = {
     Ident   => Expr::Var(<>),
     "(" <t:Expr> ")" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
-        => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
+        => Expr::If(Box::new(If::new(cond, true_expr, false_expr, None))),
     <callee:Expr> "(" <args:List<Expr>> ")"
         => Expr::App{callee: Box::new(callee), args}
         
