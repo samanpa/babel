@@ -6,6 +6,7 @@ use ::scoped_map::ScopedMap;
 use std::ffi::CString;
 use self::llvm_sys::*;
 use self::llvm_sys::prelude::*;
+use self::llvm_sys::core::*;
 
 pub struct CodeGen {
     context: LLVMContextRef,
@@ -27,7 +28,7 @@ impl CodeGen {
     pub fn new() -> Self {
         unsafe {
             target::LLVM_InitializeNativeTarget();
-            CodeGen{context: core::LLVMContextCreate(),}
+            CodeGen{context: LLVMContextCreate(),}
         }
     }
 
@@ -41,7 +42,7 @@ impl CodeGen {
            codegen.gen_lambda(lam)?;
         }
         unsafe {
-            self::llvm_sys::core::LLVMDumpModule(codegen.module);
+            LLVMDumpModule(codegen.module);
         }
         Ok(())
     }
@@ -64,10 +65,9 @@ struct ModuleCodeGen<'a> {
 
 impl <'a> ModuleCodeGen<'a> {
     fn new(mod_name: &String, context: &'a mut LLVMContextRef) -> Self {
-        //FIXME: Add NUL byte
         let mod_name = to_cstr(mod_name);
-        let module  = unsafe{ core::LLVMModuleCreateWithName(mod_name.as_ptr()) };
-        let builder = unsafe{ core::LLVMCreateBuilderInContext(*context) };
+        let module  = unsafe{ LLVMModuleCreateWithName(mod_name.as_ptr()) };
+        let builder = unsafe{ LLVMCreateBuilderInContext(*context) };
         Self{module, context, builder, var_env: ScopedMap::new()}
     }
 
@@ -76,22 +76,22 @@ impl <'a> ModuleCodeGen<'a> {
         use ir::BaseType::*;
 
         match *ty {
-            BaseType(Unit) => core::LLVMVoidTypeInContext(*self.context),
-            BaseType(I32)  => core::LLVMInt32TypeInContext(*self.context),
-            BaseType(Bool) => core::LLVMInt1TypeInContext(*self.context),
+            BaseType(Unit) => LLVMVoidTypeInContext(*self.context),
+            BaseType(I32)  => LLVMInt32TypeInContext(*self.context),
+            BaseType(Bool) => LLVMInt1TypeInContext(*self.context),
             FunctionType{ref params_ty, ref return_ty} => {
                 let return_ty = self.get_type(return_ty, true);
                 let mut params_ty : Vec<LLVMTypeRef> = params_ty.iter()
                     .map( |ref ty| self.get_type(ty, true))
                     .collect();
                 let is_var_arg = false;
-                let fn_ty = core::LLVMFunctionType(return_ty,
-                                                   params_ty.as_mut_ptr(),
-                                                   params_ty.len() as u32,
-                                                   is_var_arg as LLVMBool);
+                let fn_ty = LLVMFunctionType(return_ty,
+                                             params_ty.as_mut_ptr(),
+                                             params_ty.len() as u32,
+                                             is_var_arg as LLVMBool);
                 if nested {
                     const ADDRESS_SPACE : u32 = 0;
-                    core::LLVMPointerType(fn_ty, ADDRESS_SPACE)
+                    LLVMPointerType(fn_ty, ADDRESS_SPACE)
                 }
                 else {
                     fn_ty
@@ -104,10 +104,10 @@ impl <'a> ModuleCodeGen<'a> {
         unsafe {
             let fn_ty = self.get_type(proto.name().ty(), false);
             let name  = to_cstr(proto.name().name());
-            let func  = core::LLVMAddFunction(self.module, name.as_ptr(), fn_ty);
+            let func  = LLVMAddFunction(self.module, name.as_ptr(), fn_ty);
             for (i,param) in proto.params().iter().enumerate() {
-                let value = core::LLVMGetParam(func, i as u32);
-                core::LLVMSetValueName(value, to_cstr(param.name()).as_ptr());
+                let value = LLVMGetParam(func, i as u32);
+                LLVMSetValueName(value, to_cstr(param.name()).as_ptr());
             }
             self.var_env.insert(proto.name().id(), func);
             Ok(func)
@@ -120,8 +120,6 @@ impl <'a> ModuleCodeGen<'a> {
     }
     
     fn gen_lambda(&mut self, lam: &ir::Lambda) -> Result<()> {
-        use self::llvm_sys::core::*;
-
         let params = lam.proto().params();
         let proto  = self.gen_proto(lam.proto())?;
         self.var_env.begin_scope();
@@ -129,7 +127,7 @@ impl <'a> ModuleCodeGen<'a> {
             let nm = label("func_entry").as_ptr();
             let bb = LLVMAppendBasicBlockInContext(*self.context, proto, nm);
             for (i,param) in params.iter().enumerate() {
-                let value = core::LLVMGetParam(proto, i as u32);
+                let value = LLVMGetParam(proto, i as u32);
                 self.var_env.insert(param.id(), value);
             }
             LLVMPositionBuilderAtEnd(self.builder, bb);
@@ -144,7 +142,6 @@ impl <'a> ModuleCodeGen<'a> {
     }
 
     fn add_bb(&mut self, func: LLVMValueRef, name: &str) -> LLVMBasicBlockRef {
-        use self::llvm_sys::core::*;
         unsafe {
             LLVMAppendBasicBlockInContext(*self.context, func, label(name).as_ptr())
         }
@@ -153,7 +150,6 @@ impl <'a> ModuleCodeGen<'a> {
     fn emit(&mut self, expr: &ir::Expr, bb: LLVMBasicBlockRef
             , func: LLVMValueRef) -> Result<LLVMValueRef>
     {
-        use self::llvm_sys::core::*;
         use ir::Expr::*;
         use ir::Type::*;
         use ir::BaseType::*;
@@ -239,7 +235,6 @@ impl <'a> ModuleCodeGen<'a> {
 
 impl <'a> Drop for ModuleCodeGen<'a> {
     fn drop(&mut self) {
-        use self::llvm_sys::core::*;
         unsafe {
             LLVMDisposeBuilder(self.builder);
             LLVMDisposeModule(self.module);
