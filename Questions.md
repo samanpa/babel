@@ -1,3 +1,5 @@
+- Do we want to keep lalr_pop (read_to_string is ugly)
+- 
 - Are function calls in tail positions converted to tail calls by llvm?
 - How does the fixed point combinator?
 - What are type expressions?

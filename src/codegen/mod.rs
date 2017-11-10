@@ -71,7 +71,7 @@ impl <'a> ModuleCodeGen<'a> {
         Self{module, context, builder, var_env: ScopedMap::new()}
     }
 
-    unsafe fn get_type(&mut self, ty: &ir::Type, nested: bool) -> LLVMTypeRef {
+    unsafe fn get_type(&mut self, ty: &ir::Type, param: bool) -> LLVMTypeRef {
         use ir::Type::*;
         use ir::BaseType::*;
 
@@ -89,7 +89,9 @@ impl <'a> ModuleCodeGen<'a> {
                                              params_ty.as_mut_ptr(),
                                              params_ty.len() as u32,
                                              is_var_arg as LLVMBool);
-                if nested {
+                // In LLVM the type of a function passed as a parameter is
+                //     Pointer(FunctionType)
+                if param {
                     const ADDRESS_SPACE : u32 = 0;
                     LLVMPointerType(fn_ty, ADDRESS_SPACE)
                 }

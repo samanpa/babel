@@ -40,7 +40,7 @@ impl SimpleTypeChecker {
     fn tc_topdecl(&mut self, decl: &TopDecl<VarTy>) -> Result<TopDecl<VarTy>> {
         use ::ast::TopDecl::*;
         let res = match *decl {
-            Lam(ref lam)      => Lam(Box::new(self.tc_lam(&**lam)?)),
+            Lam(ref lam)      => Lam(Box::new(self.tc_lam(lam)?)),
             Extern(ref proto) => Extern(self.tc_proto(proto)),
             Use{..} => unimplemented!()
         };

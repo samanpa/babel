@@ -41,7 +41,7 @@ impl <K: Hash + Eq,V> ScopedMap<K,V> {
             None => {
                 match self.inner.prev_scope {
                     None => None,
-                    Some(ref prev) => (**prev).curr_map.get(k)
+                    Some(ref prev) => prev.curr_map.get(k)
                 }
             },
             v => v

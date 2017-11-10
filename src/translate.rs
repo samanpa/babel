@@ -51,7 +51,7 @@ impl Translate {
             },
             Use{..}      => {},
             Lam(ref lam) => {
-                let lam = self.trans_lam(&mut &**lam)?;
+                let lam = self.trans_lam(lam)?;
                 module.add_lambda(lam);
             }
         };

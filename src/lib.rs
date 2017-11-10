@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod prelude;
 pub mod parser;
 pub mod rename;
 pub mod ir;
@@ -49,7 +50,7 @@ pub trait Pass {
     type Input;
     type Output;
 
-    fn run(self, source: Self::Input) -> Result<Self::Output>;
+    fn run(self, source: Self::Input) -> ::Result<Self::Output>;
 }
 
 pub struct VecUtil {}
@@ -64,4 +65,17 @@ impl VecUtil {
         }
         Ok(res)
     }
+}
+
+#[macro_export]
+macro_rules! passes {
+    ( $expr:expr => $($pass:expr) => + ) => {
+        {
+            let ret = $expr;
+            $(
+                let ret = Pass::run($pass, ret)?;
+            )*
+            ret
+        }
+    };
 }

@@ -1,5 +1,5 @@
+#[macro_use(passes)]
 extern crate babel;
-
 use std::env;
 use std::fs::File;
     
@@ -17,12 +17,14 @@ fn compile(file: File) -> babel::Result<()> {
     let codegen   = babel::codegen::CodeGen::new();
 
     use babel::Pass;
-    let ast  = babel::parser::parse_TopLevel(&file_contents)?;
-    let asts = vec![ast];
-    let asts = rename.run(asts)?;
-    let asts = typecheck.run(asts)?;
-    let ir   = translate.run(asts)?;
-    let _    = codegen.run(ir)?;
+    let asts  = vec![babel::parser::parse_TopLevel(&file_contents)?];
+    let _ = passes![
+        asts
+        => rename
+        => typecheck
+        => translate
+        => codegen
+    ];
     
     Ok(())
 }
