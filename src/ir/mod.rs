@@ -9,18 +9,12 @@ pub struct Module {
     ext_func: Vec<FnProto>,
 }
 
-#[repr(i8)]
-#[derive(PartialEq,Eq,Clone,Copy,Debug)]
-pub enum BaseType {
-    Unit,
-    Bool,
-    I32
-}
-
 #[derive(Debug)]
 pub enum Type {
-    BaseType(BaseType),
-    FunctionType{ params_ty: Vec<Type>, return_ty: Box<Type> },
+    Unit,
+    Bool,
+    I32,
+    Function{ params_ty: Vec<Type>, return_ty: Box<Type> },
 }
 
 #[derive(Debug)]

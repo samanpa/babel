@@ -20,16 +20,11 @@ pub enum TopDecl<Ident> {
 }
 
 #[derive(Debug,Clone,Eq,PartialEq)]
-pub enum BaseType {
+pub enum Type {
     Bool,
     I32,
     Unit,
-}
-
-#[derive(Debug,Clone,Eq,PartialEq)]
-pub enum Type {
-    BaseType(BaseType),
-    FunctionType{ params_ty: Vec<Type>, return_ty: Box<Type> }
+    Function{ params_ty: Vec<Type>, return_ty: Box<Type> },
 }
 
 #[derive(Debug)]
@@ -93,7 +88,7 @@ impl <Ident> FnProto<Ident> {
             .map(|ref param| param.ty.clone())
             .collect();
         let return_ty = Box::new(self.return_ty.clone());
-        Type::FunctionType{ params_ty, return_ty }
+        Type::Function{ params_ty, return_ty }
     }
 }
 

@@ -73,13 +73,12 @@ impl <'a> ModuleCodeGen<'a> {
 
     unsafe fn get_type(&mut self, ty: &ir::Type, param: bool) -> LLVMTypeRef {
         use ir::Type::*;
-        use ir::BaseType::*;
 
         match *ty {
-            BaseType(Unit) => LLVMVoidTypeInContext(*self.context),
-            BaseType(I32)  => LLVMInt32TypeInContext(*self.context),
-            BaseType(Bool) => LLVMInt1TypeInContext(*self.context),
-            FunctionType{ref params_ty, ref return_ty} => {
+            Unit => LLVMVoidTypeInContext(*self.context),
+            I32  => LLVMInt32TypeInContext(*self.context),
+            Bool => LLVMInt1TypeInContext(*self.context),
+            Function{ref params_ty, ref return_ty} => {
                 let return_ty = self.get_type(return_ty, true);
                 let mut params_ty : Vec<LLVMTypeRef> = params_ty.iter()
                     .map( |ref ty| self.get_type(ty, true))
@@ -154,15 +153,14 @@ impl <'a> ModuleCodeGen<'a> {
     {
         use ir::Expr::*;
         use ir::Type::*;
-        use ir::BaseType::*;
         let val = unsafe {
             match *expr {
                 I32Lit(n) => {
-                    let ty = self.get_type(&BaseType(I32), false);
+                    let ty = self.get_type(&I32, false);
                     LLVMConstInt(ty, n as u64, false as i32)
                 },
                 BoolLit(b) => {
-                    let ty = self.get_type(&BaseType(Bool), false);
+                    let ty = self.get_type(&Bool, false);
                     LLVMConstInt(ty, b as u64, false as i32)
                 },
                 App{ref callee, ref args} => {

@@ -73,20 +73,16 @@ impl Translate {
 
     fn trans_ty(ty: &ast::Type) -> ir::Type {
         use ast::Type::*;
-        use ast::BaseType::*;
         match *ty {
-            BaseType(ref b) =>
-                match *b {
-                    Unit => ir::Type::BaseType(ir::BaseType::Unit),
-                    I32  => ir::Type::BaseType(ir::BaseType::I32),
-                    Bool => ir::Type::BaseType(ir::BaseType::Bool)
-                },
-            FunctionType{ ref params_ty, ref return_ty } => {
+            Unit => ir::Type::Unit,
+            I32  => ir::Type::I32,
+            Bool => ir::Type::Bool,
+            Function{ ref params_ty, ref return_ty } => {
                 let params_ty = params_ty.iter()
                     .map( Self::trans_ty )
                     .collect();
                 let return_ty = Box::new(Self::trans_ty(return_ty));
-                ir::Type::FunctionType{ params_ty, return_ty }
+                ir::Type::Function{ params_ty, return_ty }
             }
         }   
     }

@@ -61,9 +61,9 @@ pub Expr: Expr<String> = {
 };
 
 BaseType: Type = {
-    "i32"  => Type::BaseType(BaseType::I32),
-    "bool" => Type::BaseType(BaseType::Bool),
-    "()"   => Type::BaseType(BaseType::Unit),
+    "i32"  => Type::I32,
+    "bool" => Type::Bool,
+    "()"   => Type::Unit,
 };
 
 Type: Type = {
@@ -73,8 +73,8 @@ Type: Type = {
 
 ArrowType: Type = {
     <p:Type> "->" <r:BaseType> 
-        => Type::FunctionType{ params_ty: vec![p], return_ty: Box::new(r) },
+        => Type::Function{ params_ty: vec![p], return_ty: Box::new(r) },
     "(" <p:List<Type>> ")" "->" <r:BaseType> 
-        => Type::FunctionType{ params_ty: p, return_ty: Box::new(r) }
+        => Type::Function{ params_ty: p, return_ty: Box::new(r) }
 };
 

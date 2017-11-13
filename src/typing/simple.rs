@@ -74,17 +74,16 @@ impl SimpleTypeChecker {
 
     fn get_type(&mut self, expr: &Expr<VarTy>) -> Result<Type> {
         use ::ast::Type::*;
-        use ::ast::BaseType::*;
         use ::ast::Expr::*;
         let res = match *expr {
-            UnitLit    => BaseType(Unit),
-            I32Lit(_)  => BaseType(I32),
-            BoolLit(_) => BaseType(Bool),
+            UnitLit    => Unit,
+            I32Lit(_)  => I32,
+            BoolLit(_) => Bool,
             Var(ref v) => v.ty().clone(),
             App{ref callee, ref args} => {
                 let callee_ty = self.get_type(callee)?;
                 let args_ty   = VecUtil::map(args, |arg| self.get_type(arg))?;
-                if let FunctionType{ref params_ty, ref return_ty} = callee_ty {
+                if let Function{ref params_ty, ref return_ty} = callee_ty {
                     if params_ty.len() != args_ty.len() {
                         let msg = format!("Invalid number of args to {:?}",
                                           callee);
@@ -104,7 +103,7 @@ impl SimpleTypeChecker {
                 let cond_ty  = self.get_type(e.cond())?;
                 let texpr_ty = self.get_type(e.texpr())?;
                 let fexpr_ty = self.get_type(e.fexpr())?;
-                ty_compare(&cond_ty, &BaseType(Bool), "If condition")?;
+                ty_compare(&cond_ty, &Bool, "If condition")?;
                 ty_compare(&texpr_ty, &fexpr_ty, "True expr and false expr")?;
                 texpr_ty
             },
