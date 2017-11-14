@@ -1,6 +1,7 @@
 pub mod ast;
 pub mod prelude;
 pub mod parser;
+pub mod hir;
 pub mod rename;
 pub mod ir;
 pub mod translate;

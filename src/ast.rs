@@ -1,25 +1,23 @@
-#![allow(dead_code)]
-
 #[derive(Debug)]
-pub struct TopLevel<Ident> {
-    decls: Vec<TopDecl<Ident>>,
+pub struct TopLevel {
+    decls: Vec<TopDecl>,
 }
 
 #[derive(Debug)]
-pub struct FnProto<Ident> {
-    name: Ident,
-    params: Vec<Param<Ident>>,
+pub struct FnProto {
+    name: String,
+    params: Vec<Param>,
     return_ty: Type
 }
 
 #[derive(Debug)]
-pub enum TopDecl<Ident> {
-    Extern(FnProto<Ident>),
+pub enum TopDecl {
+    Extern(FnProto),
     Use{name: String},
-    Lam(Box<Lam<Ident>>),
+    Lam(Box<Lam>),
 }
 
-#[derive(Debug,Clone,Eq,PartialEq)]
+#[derive(Debug,Clone)]
 pub enum Type {
     Bool,
     I32,
@@ -28,61 +26,59 @@ pub enum Type {
 }
 
 #[derive(Debug)]
-pub struct Param<Ident> {
-    name: Ident,
+pub struct Param {
+    name: String,
     ty: Type,
 }
 
 #[derive(Debug)]
-pub struct Lam<Ident> {
-    proto: FnProto<Ident>,
-    body:  Expr<Ident>
+pub struct Lam {
+    proto: FnProto,
+    body:  Expr
 }
 
 #[derive(Debug)]
-pub struct If<Ident> {
-    cond:  Expr<Ident>,
-    texpr: Expr<Ident>,
-    fexpr: Expr<Ident>,
-    res_ty:Option<Type>, // The type of both texpr and fexpr
+pub struct If {
+    cond:  Expr,
+    texpr: Expr,
+    fexpr: Expr,
 }
 
 #[derive(Debug)]
-pub enum Expr<Ident> {
-    Lam(Box<Lam<Ident>>),
-    App{callee: Box<Expr<Ident>>, args: Vec<Expr<Ident>> },
+pub enum Expr {
+    Lam(Box<Lam>),
+    App{callee: Box<Expr>, args: Vec<Expr> },
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Var(Ident),
-    If(Box<If<Ident>>)
+    Var(String),
+    If(Box<If>)
 }
 
-impl <Ident> TopLevel<Ident> {
-    pub fn new(decls: Vec<TopDecl<Ident>>) -> Self {
+impl TopLevel {
+    pub fn new(decls: Vec<TopDecl>) -> Self {
         Self{decls}
     }
 
-    pub fn decls(&self) -> &Vec<TopDecl<Ident>> {
+    pub fn decls(&self) -> &Vec<TopDecl> {
         &self.decls
     }
 }
 
-impl <Ident> FnProto<Ident> {
-    pub fn new(name: Ident, params: Vec<Param<Ident>>, return_ty: Type) -> Self {
+impl FnProto {
+    pub fn new(name: String, params: Vec<Param>, return_ty: Type) -> Self {
         FnProto{name, params, return_ty}
     }
     //Rename
-    pub fn name(&self) -> &Ident {
+    pub fn name(&self) -> &String {
         &self.name
     }
     pub fn return_ty(&self) -> &Type {
         &self.return_ty
     }
-    pub fn params(&self) -> &Vec<Param<Ident>> {
+    pub fn params(&self) -> &Vec<Param> {
         &self.params
     }
-
     pub fn ty(&self) -> Type {
         let params_ty = self.params.iter()
             .map(|ref param| param.ty.clone())
@@ -92,19 +88,19 @@ impl <Ident> FnProto<Ident> {
     }
 }
 
-impl <Ident> Lam<Ident> {
-    pub fn new(name: Ident, params: Vec<Param<Ident>>, return_ty: Type
-               , body: Expr<Ident>) -> Self {
+impl Lam {
+    pub fn new(name: String, params: Vec<Param>, return_ty: Type
+               , body: Expr) -> Self {
         let proto = FnProto::new(name, params, return_ty);
         Lam{proto, body}
     }
-    pub fn proto(&self) -> &FnProto<Ident> {
+    pub fn proto(&self) -> &FnProto {
         &self.proto
     }
-    pub fn body(&self) -> &Expr<Ident> {
+    pub fn body(&self) -> &Expr {
         &self.body
     }
-    pub fn name(&self) -> &Ident {
+    pub fn name(&self) -> &String {
         &self.proto.name
     }
     pub fn return_ty(&self) -> &Type {
@@ -113,17 +109,17 @@ impl <Ident> Lam<Ident> {
     pub fn ty(&self) -> Type {
         self.proto.ty()
     }
-    pub fn params(&self) -> &Vec<Param<Ident>> {
+    pub fn params(&self) -> &Vec<Param> {
         &self.proto.params
     }
 }
 
-impl <Ident> Param<Ident> {
-    pub fn new(name: Ident, ty: Type) -> Self {
+impl Param {
+    pub fn new(name: String, ty: Type) -> Self {
         Param{name, ty}
     }
 
-    pub fn name(&self) -> &Ident {
+    pub fn name(&self) -> &String {
         &self.name
     }
 
@@ -132,21 +128,17 @@ impl <Ident> Param<Ident> {
     }
 }
 
-impl <Ident> If<Ident> {
-    pub fn new(cond: Expr<Ident>, texpr: Expr<Ident>, fexpr: Expr<Ident>
-               ,res_ty: Option<Type>) -> Self {
-        If{cond, texpr, fexpr, res_ty}
+impl If {
+    pub fn new(cond: Expr, texpr: Expr, fexpr: Expr) -> Self {
+        If{cond, texpr, fexpr}
     }
-    pub fn cond(&self) -> &Expr<Ident> {
+    pub fn cond(&self) -> &Expr {
         &self.cond
     }
-    pub fn texpr(&self) -> &Expr<Ident> {
+    pub fn texpr(&self) -> &Expr {
         &self.texpr
     }
-    pub fn fexpr(&self) -> &Expr<Ident> {
+    pub fn fexpr(&self) -> &Expr {
         &self.fexpr
-    }
-    pub fn res_ty(&self) -> &Option<Type> {
-        &self.res_ty
     }
 }

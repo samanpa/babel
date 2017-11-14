@@ -20,11 +20,11 @@ List<T>: Vec<T> = {
 Num: i32 = <s:r"-?[0-9]+"> => i32::from_str(s).unwrap();
 Ident: String = <r"[a-zA-Z][a-zA-Z0-9_]*"> => <>.to_string();
 
-pub TopLevel : TopLevel<String> = {
+pub TopLevel : TopLevel = {
     <TopDecl+> => TopLevel::new(<>)
 };
 
-pub TopDecl: TopDecl<String> = {
+pub TopDecl: TopDecl = {
     "extern" <name:Ident> "(" <params:List<Param>> ")" "->" <ty:Type> ";" =>
         TopDecl::Extern(FnProto::new(name, params, ty)),
     "extern" <name:Ident> "()" "->" <ty:Type> ";" =>
@@ -33,7 +33,7 @@ pub TopDecl: TopDecl<String> = {
     Lambda                 => TopDecl::Lam(Box::new(<>)),
 };
 
-pub Lambda: Lam<String> = {
+pub Lambda: Lam = {
     "fn" <name:Ident> "(" <params:List<Param>> ")" "->" <ty:Type> "{"
         <body: Expr>
      "}" => Lam::new(name, params, ty, body),
@@ -42,11 +42,11 @@ pub Lambda: Lam<String> = {
      "}" => Lam::new(name, vec![], ty, body),
 };
 
-pub Param: Param<String> = {
+pub Param: Param = {
     <Ident> ":" <Type> => Param::new(<>)
 };
 
-pub Expr: Expr<String> = {
+pub Expr: Expr = {
     Num     => Expr::I32Lit(<>),
     "true"  => Expr::BoolLit(true),
     "false" => Expr::BoolLit(false),
@@ -54,7 +54,7 @@ pub Expr: Expr<String> = {
     Ident   => Expr::Var(<>),
     "(" <t:Expr> ")" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
-        => Expr::If(Box::new(If::new(cond, true_expr, false_expr, None))),
+        => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
     <callee:Expr> "(" <args:List<Expr>> ")"
         => Expr::App{callee: Box::new(callee), args}
         
