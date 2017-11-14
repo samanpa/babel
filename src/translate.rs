@@ -74,6 +74,7 @@ impl Translate {
             Unit => ir::Type::Unit,
             I32  => ir::Type::I32,
             Bool => ir::Type::Bool,
+            TyVar(..) => unimplemented!(),
             Function{ ref params_ty, ref return_ty } => {
                 let params_ty = params_ty.iter()
                     .map( Self::trans_ty )

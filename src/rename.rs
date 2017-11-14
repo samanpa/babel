@@ -33,11 +33,16 @@ impl Rename {
         }
     }
 
-    fn rename_ty(&self, ty: &ast::Type) -> hir::Type {
+    fn rename_ty(&mut self, ty: &ast::Type) -> hir::Type {
         match *ty {
             ast::Type::Bool => hir::Type::Bool,
             ast::Type::I32  => hir::Type::I32,
             ast::Type::Unit => hir::Type::Unit,
+            ast::Type::TyVar(ref v) => {
+                let count = self.count;
+                self.count = count + 1;
+                hir::Type::TyVar(count)
+            }
             ast::Type::Function{ ref params_ty, ref return_ty } => {
                 let params_ty = params_ty.iter()
                     .map(|ty| self.rename_ty(ty))
@@ -83,8 +88,8 @@ impl Rename {
         use ast::TopDecl::*;
         let res = match *decl {
             Extern(ref proto) => hir::TopDecl::Extern(self.rename_proto(proto)?),
-            Lam(ref lam)  => hir::TopDecl::Lam(Box::new(self.rename_lam(&mut &**lam)?)),
-            Use{..} => unimplemented!(),
+            Lam(ref lam)      => hir::TopDecl::Lam(self.rename_lam(lam)?),
+            Use{..}           => unimplemented!(),
         };
         Ok(res)
     }

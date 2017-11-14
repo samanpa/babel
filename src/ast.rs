@@ -4,17 +4,17 @@ pub struct TopLevel {
 }
 
 #[derive(Debug)]
+pub enum TopDecl {
+    Extern(FnProto),
+    Use{name: String},
+    Lam(Lam),
+}
+
+#[derive(Debug)]
 pub struct FnProto {
     name: String,
     params: Vec<Param>,
     return_ty: Type
-}
-
-#[derive(Debug)]
-pub enum TopDecl {
-    Extern(FnProto),
-    Use{name: String},
-    Lam(Box<Lam>),
 }
 
 #[derive(Debug,Clone)]
@@ -23,6 +23,7 @@ pub enum Type {
     I32,
     Unit,
     Function{ params_ty: Vec<Type>, return_ty: Box<Type> },
+    TyVar(String),
 }
 
 #[derive(Debug)]
