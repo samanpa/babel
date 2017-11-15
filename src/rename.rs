@@ -55,13 +55,6 @@ impl Rename {
         }
     }
 
-    fn intern(&mut self, name: &String) -> Rc<String> {
-        self.uniq_names
-            .entry(name.clone())
-            .or_insert(Rc::new(name.clone()))
-            .clone()
-    }
-    
     fn insert_ident(&mut self, nm: &String, ident: &hir::Ident) -> Result<()> {
         if let Some(..) = self.names.insert(nm.clone(), ident.clone()) {
             return Err(Error::new(format!("Name {} already declared", nm)));
@@ -70,7 +63,11 @@ impl Rename {
     }
 
     fn add_ident(&mut self, nm: &String, ty: hir::Type) -> Result<hir::Ident> {
-        let ident = hir::Ident::new(self.intern(&nm), ty, self.new_count());
+        let ident_name = self.uniq_names
+            .entry(nm.clone())
+            .or_insert(Rc::new(nm.clone()))
+            .clone();
+        let ident = hir::Ident::new(ident_name, ty, self.new_count());
         self.insert_ident(nm, &ident)?;
         Ok(ident)
     }
@@ -84,7 +81,7 @@ impl Rename {
         Ok(hir::TopLevel::new(decls?))
     }
 
-    fn rename_params(&mut self, params: &Vec<ast::Param>)
+    fn rename_params(&mut self, params: &Vec<ast::Param>) 
                      -> Result<Vec<hir::Ident>>
     {
         VecUtil::map(params, |param| {
