@@ -70,7 +70,6 @@ impl Translate {
 
     fn trans_ty(ty: &hir::Type) -> ir::Type {
         use hir::Type::*;
-        println!("{:?}", ty);
         match *ty {
             Unit => ir::Type::Unit,
             I32  => ir::Type::I32,

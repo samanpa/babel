@@ -62,6 +62,9 @@ impl TopLevel {
     pub fn decls(&self) -> &Vec<TopDecl> {
         &self.decls
     }
+    pub fn decls_mut(&mut self) -> &mut Vec<TopDecl> {
+        &mut self.decls
+    }
 }
 
 impl Ident {

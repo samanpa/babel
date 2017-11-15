@@ -66,6 +66,15 @@ impl VecUtil {
         }
         Ok(res)
     }
+    pub fn mapm<I,O,F>(v: &mut Vec<I>, mut f: F) -> Result<Vec<O>> 
+        where F: FnMut(&mut I) -> Result<O>{
+        let mut res = Vec::new();
+        for val in v {
+            let val = f(val)?;
+            res.push(val);
+        }
+        Ok(res)
+    }
 }
 
 #[macro_export]

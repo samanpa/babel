@@ -9,7 +9,7 @@ impl ::Pass for SimpleTypeChecker {
     type Output = Vec<TopLevel>;
 
     fn run(self, mut toplevel_vec: Self::Input) -> Result<Self::Output> {
-        VecUtil::map(&mut toplevel_vec, |ref mut tl| self.tc_toplevel(tl))?;
+        VecUtil::mapm(&mut toplevel_vec, |tl| self.tc_toplevel(tl))?;
         Ok(toplevel_vec)
     }
 }
@@ -31,14 +31,14 @@ impl SimpleTypeChecker {
     }
 
     fn tc_toplevel(&self, toplevel: &mut TopLevel) -> Result<()> {
-        VecUtil::map(toplevel.decls(), |decl| self.tc_topdecl(&mut decl))?;
+        VecUtil::mapm(toplevel.decls_mut(), |decl| self.tc_topdecl(decl))?;
         Ok(())
     }
     
     fn tc_topdecl(&self, decl: &mut TopDecl) -> Result<()> {
         use ::hir::TopDecl::*;
         let res = match *decl {
-            Lam(ref lam)      => self.tc_lam(&mut lam)?,
+            Lam(ref mut lam)           => self.tc_lam(lam)?,
             Extern(ref proto, ref tys) => self.tc_proto(proto, tys)?,
         };
         Ok(res )
@@ -50,7 +50,7 @@ impl SimpleTypeChecker {
         Ok(())
     }
 
-    fn tc_lam(&mut self, lam: &mut Lam) -> Result<()> {
+    fn tc_lam(&self, lam: &mut Lam) -> Result<()> {
         let body_ty = self.get_type(lam.body())?;
         ty_compare(&body_ty, lam.return_ty()
                    , format!("lamba {:?}", lam.ident()))?;
