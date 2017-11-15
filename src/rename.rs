@@ -62,13 +62,17 @@ impl Rename {
             .clone()
     }
     
-    fn add_ident(&mut self, name: &String, ty: hir::Type) -> Result<hir::Ident> {
-        let interned_name = self.intern(&name);
-        let var = hir::Ident::new(interned_name, ty, self.new_count());
-        if let Some(..) = self.names.insert(name.clone(), var.clone()) {
-            return Err(Error::new(format!("Name {} already declared", name)));
+    fn insert_ident(&mut self, nm: &String, ident: &hir::Ident) -> Result<()> {
+        if let Some(..) = self.names.insert(nm.clone(), ident.clone()) {
+            return Err(Error::new(format!("Name {} already declared", nm)));
         }
-        Ok(var)
+        Ok(())
+    }
+
+    fn add_ident(&mut self, nm: &String, ty: hir::Type) -> Result<hir::Ident> {
+        let ident = hir::Ident::new(self.intern(&nm), ty, self.new_count());
+        self.insert_ident(nm, &ident)?;
+        Ok(ident)
     }
     
     fn rename_toplevel(&mut self, toplevel: &ast::TopLevel)
@@ -89,25 +93,20 @@ impl Rename {
         })
     }
 
-    fn rename_extern(&mut self, proto: &ast::FnProto)
-                     -> Result<(hir::Ident, Vec<hir::Type>)>
-    {
-        let return_ty = Box::new(self.rename_ty(proto.return_ty()));
-        let params_ty : Vec<hir::Type> = proto.params().iter()
-            .map( |param| self.rename_ty(param.ty()))
-            .collect();
-        let ty = hir::Type::Function{ params_ty: params_ty.clone(), return_ty };
-        let funcid = self.add_ident(proto.name(), ty)?;
-        Ok((funcid,params_ty))
+    fn rename_proto(&mut self, proto: &ast::FnProto)-> Result<hir::FnProto> {
+        let ty        = self.rename_ty(&proto.ty());
+        let funcid    = self.add_ident(proto.name(), ty)?;
+        let return_ty = self.rename_ty(proto.return_ty());
+        self.names.begin_scope();
+        let params    = self.rename_params(proto.params())?;
+        self.names.end_scope();
+        Ok(hir::FnProto::new(funcid, params, return_ty))
     }
     
     fn rename_topdecl(&mut self, decl: &ast::TopDecl) -> Result<hir::TopDecl> {
         use ast::TopDecl::*;
         let res = match *decl {
-            Extern(ref proto) => {
-                let (ident, ty) = self.rename_extern(proto)?;
-                hir::TopDecl::Extern(ident, ty)
-            },
+            Extern(ref proto) => hir::TopDecl::Extern(self.rename_proto(proto)?),
             Lam(ref lam)      => hir::TopDecl::Lam(self.rename_lam(lam)?),
             Use{..}           => unimplemented!(),
         };
@@ -115,18 +114,13 @@ impl Rename {
     }
 
     fn rename_lam(&mut self, lam: &ast::Lam) -> Result<hir::Lam> {
-        let return_ty = self.rename_ty(lam.return_ty());
-        let params_ty : Vec<hir::Type> = lam.params().iter()
-            .map( |param| self.rename_ty(param.ty()))
-            .collect();
-        let ty = hir::Type::Function{ params_ty: params_ty.clone()
-                                      , return_ty: Box::new(return_ty.clone()) };
-        let funcid = self.add_ident(lam.name(), ty)?;
+        let proto = self.rename_proto(lam.proto())?;
         self.names.begin_scope();
-        let params = self.rename_params(lam.params())?;
-        let body = self.rename(lam.body())?;
+        //Insert function parameters into current scope
+        VecUtil::map(proto.params(), |p| self.insert_ident(p.name(), p))?;
+        let body  = self.rename(lam.body())?;
         self.names.end_scope();
-        let lam  = hir::Lam::new(funcid, params, body, return_ty);
+        let lam   = hir::Lam::new(proto, body);
         Ok(lam)
     }
     
@@ -140,7 +134,7 @@ impl Rename {
                 let if_expr = hir::If::new(self.rename(e.cond())?,
                                            self.rename(e.texpr())?,
                                            self.rename(e.fexpr())?,
-                                           hir::Type::TyVar(0));
+                                           hir::Type::TyVar(0)); //dummy type
                 hir::Expr::If(Box::new(if_expr))
             }
             App{ref callee, ref args} => {

@@ -1,7 +1,9 @@
+#[derive(Debug)]
 pub struct TopLevel {
     decls: Vec<TopDecl>,
 }
 
+#[derive(Debug)]
 pub enum TopDecl {
     Extern(FnProto),
     Use(String),
@@ -15,7 +17,7 @@ pub struct FnProto {
     return_ty: Type
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum Type {
     Bool,
     I32,
@@ -68,7 +70,6 @@ impl FnProto {
     pub fn new(name: String, params: Vec<Param>, return_ty: Type) -> Self {
         FnProto{name, params, return_ty}
     }
-    //Rename
     pub fn name(&self) -> &String {
         &self.name
     }
@@ -77,6 +78,13 @@ impl FnProto {
     }
     pub fn params(&self) -> &Vec<Param> {
         &self.params
+    }
+    pub fn ty(&self) -> Type {
+        let params_ty = self.params.iter()
+            .map(|ref param| param.ty.clone())
+            .collect();
+        let return_ty = Box::new(self.return_ty.clone());
+        Type::Function{ params_ty, return_ty }
     }
 }
 
@@ -97,6 +105,9 @@ impl Lam {
     }
     pub fn return_ty(&self) -> &Type {
         &self.proto.return_ty
+    }
+    pub fn ty(&self) -> Type {
+        self.proto.ty()
     }
     pub fn params(&self) -> &Vec<Param> {
         &self.proto.params

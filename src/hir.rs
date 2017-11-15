@@ -6,8 +6,15 @@ pub struct TopLevel {
 }
 
 #[derive(Debug)]
+pub struct FnProto {
+    ident: Ident,
+    params: Vec<Ident>,
+    return_ty: Type,
+}
+
+#[derive(Debug)]
 pub enum TopDecl {
-    Extern(Ident, Vec<Type>),
+    Extern(FnProto),
     Lam(Lam),
 }
 
@@ -29,9 +36,7 @@ pub enum Type {
 
 #[derive(Debug)]
 pub struct Lam {
-    ident: Ident,
-    params: Vec<Ident>,
-    return_ty: Type,
+    proto: FnProto,
     body:  Expr,
 }
 
@@ -71,8 +76,6 @@ impl Ident {
     pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
         Ident{name, ty, id}
     }
-
-    //Rename
     pub fn name(&self) -> &Rc<String> {
         &self.name
     }
@@ -84,16 +87,9 @@ impl Ident {
     }
 }
 
-impl Lam {
-    pub fn new(ident: Ident, params: Vec<Ident>, body: Expr
-               , return_ty: Type) -> Self {
-        Lam{ident, params, body, return_ty}
-    }
-    pub fn body(&self) -> &Expr {
-        &self.body
-    }
-    pub fn body_mut(&mut self) -> &mut Expr {
-        &mut self.body
+impl FnProto {
+    pub fn new(ident: Ident, params: Vec<Ident>, return_ty: Type) -> Self {
+        FnProto{ ident, params, return_ty }
     }
     pub fn ident(&self) -> &Ident {
         &self.ident
@@ -103,6 +99,31 @@ impl Lam {
     }
     pub fn params(&self) -> &Vec<Ident> {
         &self.params
+    }
+}
+
+
+impl Lam {
+    pub fn new(proto: FnProto, body: Expr) -> Self {
+        Lam{proto, body}
+    }
+    pub fn proto(&self) -> &FnProto {
+        &self.proto
+    }
+    pub fn body(&self) -> &Expr {
+        &self.body
+    }
+    pub fn body_mut(&mut self) -> &mut Expr {
+        &mut self.body
+    }
+    pub fn ident(&self) -> &Ident {
+        &self.proto.ident
+    }
+    pub fn return_ty(&self) -> &Type {
+        &self.proto.return_ty
+    }
+    pub fn params(&self) -> &Vec<Ident> {
+        &self.proto.params
     }
 }
 

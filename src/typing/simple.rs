@@ -38,13 +38,13 @@ impl SimpleTypeChecker {
     fn tc_topdecl(&self, decl: &mut TopDecl) -> Result<()> {
         use ::hir::TopDecl::*;
         let res = match *decl {
-            Lam(ref mut lam)           => self.tc_lam(lam)?,
-            Extern(ref proto, ref tys) => self.tc_proto(proto, tys)?,
+            Lam(ref mut lam)  => self.tc_lam(lam)?,
+            Extern(ref proto) => self.tc_proto(proto)?,
         };
         Ok(res )
     }
 
-    fn tc_proto(&self, proto: &Ident, tys: &Vec<Type>) -> Result<()> {
+    fn tc_proto(&self, _proto: &FnProto) -> Result<()> {
         //FIXME: Check if they are valid types currently not possible to
         //       have invalid types
         Ok(())
@@ -54,7 +54,7 @@ impl SimpleTypeChecker {
         let body_ty = self.get_type(lam.body())?;
         ty_compare(&body_ty, lam.return_ty()
                    , format!("lamba {:?}", lam.ident()))?;
-        let mut expr = self.tc_expr(lam.body())?;
+        let expr = self.tc_expr(lam.body())?;
         *(lam.body_mut()) = expr;
         Ok(())
     }

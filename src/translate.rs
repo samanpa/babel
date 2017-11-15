@@ -4,7 +4,6 @@
 use ::hir;
 use ::ir;
 use ::Result;
-use std::rc::Rc;
 
 pub struct Translate {
 }
@@ -44,8 +43,8 @@ impl Translate {
                      , module: &mut ir::Module) -> Result<()> {
         use hir::TopDecl::*;
         match *decl {
-            Extern(ref proto, ref tys) => {
-                let proto = self.trans_extern(proto, tys)?;
+            Extern(ref proto) => {
+                let proto = Self::trans_proto(proto);
                 module.add_extern(proto);
             },
             Lam(ref lam) => {
@@ -85,32 +84,17 @@ impl Translate {
         }   
     }
 
-    fn trans_extern(&mut self, ext_fun: &hir::Ident
-                    , params_ty: &Vec<hir::Type>) -> Result<ir::FnProto>
+    fn trans_proto(proto: &hir::FnProto) -> ir::FnProto
     {
-        let ident = Self::trans_ident(ext_fun);
-        let params = params_ty.iter()
-            .enumerate()
-            .map( |(i, param_ty) | {
-                ir::Ident::new( Rc::new(format!("v{}", i))
-                                , Self::trans_ty(param_ty)
-                                , i as u32)
-            }).collect();
-        let proto     = ir::FnProto::new(ident, params);
-        Ok(proto)
+        let name   = Self::trans_ident(proto.ident());
+        let params = Self::trans_params(proto.params());
+        ir::FnProto::new(name, params)
     }
     
     fn trans_lam(&mut self, lam: &hir::Lam) -> Result<ir::Lambda> {
-        let params_ty = lam.params().iter()
-            .map( |param| Self::trans_ty(param.ty() ) )
-            .collect();
-        let return_ty = Box::new(Self::trans_ty(lam.ident().ty()));
-        let ty = ir::Type::Function{ params_ty, return_ty: return_ty.clone() };
-        let ident = ir::Ident::new(lam.ident().name().clone(), ty, lam.ident().id());
-        let params = Self::trans_params(lam.params());
-        let proto  = ir::FnProto::new(ident, params);
-        let body   = self.trans(lam.body())?;
-        let lam    = ir::Lambda::new(proto, body);
+        let proto = Self::trans_proto(lam.proto());
+        let body  = self.trans(lam.body())?;
+        let lam   = ir::Lambda::new(proto, body);
         Ok(lam)
     }
 
