@@ -6,7 +6,7 @@ use std::fs::File;
 fn compile(file: File) -> babel::Result<()> {
     use std::io::Read;
     
-    let mut file_contents = String::new();
+    let mut file_contents = babel::prelude::PRELUDE.to_string();
     let mut file = file;
     let _ = file.read_to_string(&mut file_contents);
 

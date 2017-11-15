@@ -9,7 +9,7 @@ pub struct Module {
     ext_func: Vec<FnProto>,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum Type {
     Unit,
     Bool,
@@ -18,26 +18,16 @@ pub enum Type {
 }
 
 #[derive(Debug)]
-pub struct Var {
+pub struct Ident {
     name: Rc<String>,
     ty:   Type,
     id:   u32,
 }
 
 #[derive(Debug)]
-pub struct Param {
-    name: Rc<String>,
-    id:   u32,
-}
-
-
-#[derive(Debug)]
-//FIXME: A Var already has an associated type so the return_ty is unnecessary.
-//  also params has duplicate type name for each parameter
 pub struct FnProto {
-    name: Var,
-    params: Vec<Param>,
-    return_ty: Type
+    ident: Ident,
+    params: Vec<Ident>
 }
 
 #[derive(Debug)]
@@ -62,7 +52,7 @@ pub enum Expr {
 
     Lambda(Box<Lambda>),
     App{callee: Box<Expr>, args: Vec<Expr> },
-    Var(Var),
+    Var(Ident),
     If{cond: Box<Expr>, texpr: Box<Expr>, fexpr: Box<Expr>, ty: Type }
 }
 
@@ -101,17 +91,17 @@ impl Module {
 }
 
 impl FnProto {
-    pub fn new(name: Var, params: Vec<Param>, return_ty: Type) -> Self {
-        FnProto{name, params, return_ty}
+    pub fn new(ident: Ident, params: Vec<Ident>) -> Self {
+        FnProto{ident, params}
     }
-    pub fn name(&self) -> &Var {
-        &self.name
+    pub fn name(&self) -> &Ident {
+        &self.ident
+    }
+    pub fn params(&self) -> &Vec<Ident> {
+        &self.params
     }
     pub fn return_ty(&self) -> &Type {
-        &self.return_ty
-    }
-    pub fn params(&self) -> &Vec<Param> {
-        &self.params
+        self.ident.ty()
     }
 }
 
@@ -127,7 +117,7 @@ impl Lambda {
     }
 }
 
-impl Var {
+impl Ident {
     pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
         Self{name, ty, id}
     }
@@ -141,19 +131,6 @@ impl Var {
         &self.ty
     }
 }
-
-impl Param {
-    pub fn new(name: Rc<String>, id: u32) -> Self {
-        Self{name, id}
-    }
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-    pub fn id(&self) -> u32 {
-        self.id
-    }
-}
-
 
 #[cfg(test)]
 mod tests {

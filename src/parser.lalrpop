@@ -29,7 +29,7 @@ pub TopDecl: TopDecl = {
         TopDecl::Extern(FnProto::new(name, params, ty)),
     "extern" <name:Ident> "()" "->" <ty:Type> ";" =>
         TopDecl::Extern(FnProto::new(name, vec![], ty)),
-    "use" <name:Ident> ";" => TopDecl::Use{<>},
+    "use" <name:Ident> ";" => TopDecl::Use(<>),
     Lambda                 => TopDecl::Lam(<>),
 };
 

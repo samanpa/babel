@@ -8,9 +8,9 @@ impl ::Pass for SimpleTypeChecker {
     type Input  = Vec<TopLevel>;
     type Output = Vec<TopLevel>;
 
-    fn run(mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
-        let res = VecUtil::map(&toplevel_vec, |tl| self.tc_toplevel(tl))?;
-        Ok(res)
+    fn run(self, mut toplevel_vec: Self::Input) -> Result<Self::Output> {
+        VecUtil::map(&mut toplevel_vec, |ref mut tl| self.tc_toplevel(tl))?;
+        Ok(toplevel_vec)
     }
 }
 
@@ -30,46 +30,36 @@ impl SimpleTypeChecker {
         SimpleTypeChecker{}
     }
 
-    fn tc_toplevel(&mut self, toplevel: &TopLevel) -> Result<TopLevel> {
-        let res = VecUtil::map(toplevel.decls(), |decl| self.tc_topdecl(decl))?;
-        Ok(TopLevel::new(res))
+    fn tc_toplevel(&self, toplevel: &mut TopLevel) -> Result<()> {
+        VecUtil::map(toplevel.decls(), |decl| self.tc_topdecl(&mut decl))?;
+        Ok(())
     }
     
-    fn tc_topdecl(&mut self, decl: &TopDecl) -> Result<TopDecl> {
+    fn tc_topdecl(&self, decl: &mut TopDecl) -> Result<()> {
         use ::hir::TopDecl::*;
         let res = match *decl {
-            Lam(ref lam)      => Lam(self.tc_lam(lam)?),
-            Extern(ref proto) => Extern(self.tc_proto(proto)),
+            Lam(ref lam)      => self.tc_lam(&mut lam)?,
+            Extern(ref proto, ref tys) => self.tc_proto(proto, tys)?,
         };
         Ok(res )
     }
 
-    fn tc_params(params: &Vec<Param>) -> Vec<Param>{
-        params.iter()
-            .map(|param| Param::new(param.name().clone(), param.ty().clone()))
-            .collect()
+    fn tc_proto(&self, proto: &Ident, tys: &Vec<Type>) -> Result<()> {
+        //FIXME: Check if they are valid types currently not possible to
+        //       have invalid types
+        Ok(())
     }
 
-    fn tc_proto(&mut self, proto: &FnProto) -> FnProto {
-        let var = proto.name().clone();
-        let params = Self::tc_params(proto.params());
-        let proto = FnProto::new(var, params, proto.return_ty().clone());
-        proto
-    }
-
-    fn tc_lam(&mut self, lam: &Lam) -> Result<Lam> {
+    fn tc_lam(&mut self, lam: &mut Lam) -> Result<()> {
         let body_ty = self.get_type(lam.body())?;
-        ty_compare(&body_ty, lam.proto().return_ty()
-                   , format!("lamba {:?}", lam.proto().name()))?;
-
-        let func_nm = lam.name().clone();
-        let params = Self::tc_params(lam.params());
-        let body = self.tc_expr(lam.body())?;
-        let lam = Lam::new(func_nm, params, lam.return_ty().clone(), body);
-        Ok(lam)
+        ty_compare(&body_ty, lam.return_ty()
+                   , format!("lamba {:?}", lam.ident()))?;
+        let mut expr = self.tc_expr(lam.body())?;
+        *(lam.body_mut()) = expr;
+        Ok(())
     }
 
-    fn get_type(&mut self, expr: &Expr) -> Result<Type> {
+    fn get_type(&self, expr: &Expr) -> Result<Type> {
         use ::hir::Type::*;
         use ::hir::Expr::*;
         let res = match *expr {
@@ -110,9 +100,8 @@ impl SimpleTypeChecker {
         Ok(res)
     }
 
-    fn tc_expr(&mut self, expr: &Expr) -> Result<Expr> {
+    fn tc_expr(&self, expr: &Expr) -> Result<Expr> {
         use ::hir::Expr::*;
-        let ty = self.get_type(expr)?;
         let res = match *expr {
             UnitLit    => UnitLit,
             I32Lit(n)  => I32Lit(n),
@@ -128,7 +117,7 @@ impl SimpleTypeChecker {
                 let if_expr = self::If::new(self.tc_expr(e.cond())?,
                                             self.tc_expr(e.texpr())?,
                                             self.tc_expr(e.fexpr())?,
-                                            Some(ty));
+                                            self.get_type(e.fexpr())?);
                 If(Box::new(if_expr))
             },
             ref expr   => { println!("NOTHANDLED\n{:?} not handled", expr);

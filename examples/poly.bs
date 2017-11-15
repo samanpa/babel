@@ -1,0 +1,11 @@
+fn id<a>(a: a) -> a {
+   a
+}
+
+fn apply(n: i32) -> i32 {
+    i32_lt(id(n)) 
+}
+
+fn main() -> i32 {
+    apply(10)
+}
