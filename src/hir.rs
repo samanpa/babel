@@ -10,6 +10,7 @@ pub struct FnProto {
     ident: Ident,
     params: Vec<Ident>,
     return_ty: Type,
+    ty_vars: Vec<u32>,
 }
 
 #[derive(Debug)]
@@ -88,8 +89,9 @@ impl Ident {
 }
 
 impl FnProto {
-    pub fn new(ident: Ident, params: Vec<Ident>, return_ty: Type) -> Self {
-        FnProto{ ident, params, return_ty }
+    pub fn new(ident: Ident, params: Vec<Ident>, ty_vars: Vec<u32>
+               , return_ty: Type) -> Self {
+        FnProto{ ident, params, ty_vars, return_ty }
     }
     pub fn ident(&self) -> &Ident {
         &self.ident
@@ -100,6 +102,9 @@ impl FnProto {
     pub fn params(&self) -> &Vec<Ident> {
         &self.params
     }
+    pub fn ty_vars(&self) -> &Vec<u32> {
+        &self.ty_vars
+    }
 }
 
 
@@ -109,6 +114,9 @@ impl Lam {
     }
     pub fn proto(&self) -> &FnProto {
         &self.proto
+    }
+    pub fn proto1(self) -> FnProto {
+        self.proto
     }
     pub fn body(&self) -> &Expr {
         &self.body

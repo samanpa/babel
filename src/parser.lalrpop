@@ -20,26 +20,31 @@ List<T>: Vec<T> = {
 Num: i32 = <s:r"-?[0-9]+"> => i32::from_str(s).unwrap();
 Ident: String = <r"[a-zA-Z][a-zA-Z0-9_]*"> => <>.to_string();
 
-pub TopLevel : TopLevel = {
+pub TopLevel: TopLevel = {
     <TopDecl+> => TopLevel::new(<>)
 };
 
 pub TopDecl: TopDecl = {
     "extern" <name:Ident> "(" <params:List<Param>> ")" "->" <ty:Type> ";" =>
-        TopDecl::Extern(FnProto::new(name, params, ty)),
+        TopDecl::Extern(FnProto::new(name, params, ty, vec![])),
     "extern" <name:Ident> "()" "->" <ty:Type> ";" =>
-        TopDecl::Extern(FnProto::new(name, vec![], ty)),
+        TopDecl::Extern(FnProto::new(name, vec![], ty, vec![])),
     "use" <name:Ident> ";" => TopDecl::Use(<>),
     Lambda                 => TopDecl::Lam(<>),
 };
 
+pub LamTyVars: Vec<String> = {
+    "<" <tyvars: List<Ident>> ">" => tyvars,
+                                  => vec![]
+};
+
 pub Lambda: Lam = {
-    "fn" <name:Ident> "(" <params:List<Param>> ")" "->" <ty:Type> "{"
+    "fn" <name:Ident> <tv:LamTyVars> "(" <p:List<Param>> ")" "->" <ty:Type> "{"
         <body: Expr>
-     "}" => Lam::new(name, params, ty, body),
-    "fn" <name:Ident> "()" "->" <ty:Type> "{"
+     "}" => Lam::new(name, p, ty, tv, body),
+    "fn" <name:Ident> <tv:LamTyVars> "()" "->" <ty:Type> "{"
         <body: Expr>
-     "}" => Lam::new(name, vec![], ty, body),
+     "}" => Lam::new(name, vec![], ty, tv, body),
 };
 
 pub Param: Param = {
@@ -64,6 +69,7 @@ BaseType: Type = {
     "i32"  => Type::I32,
     "bool" => Type::Bool,
     "()"   => Type::Unit,
+    Ident  => Type::TyCon(<>)
 };
 
 Type: Type = {

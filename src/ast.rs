@@ -14,7 +14,8 @@ pub enum TopDecl {
 pub struct FnProto {
     name: String,
     params: Vec<Param>,
-    return_ty: Type
+    return_ty: Type,
+    ty_vars: Vec<String>,
 }
 
 #[derive(Debug,Clone)]
@@ -22,6 +23,7 @@ pub enum Type {
     Bool,
     I32,
     Unit,
+    TyCon(String),
     Function{ params_ty: Vec<Type>, return_ty: Box<Type> },
     TyVar(String),
 }
@@ -67,8 +69,9 @@ impl TopLevel {
 }
 
 impl FnProto {
-    pub fn new(name: String, params: Vec<Param>, return_ty: Type) -> Self {
-        FnProto{name, params, return_ty}
+    pub fn new(name: String, params: Vec<Param>, return_ty: Type
+               , ty_vars: Vec<String> ) -> Self {
+        FnProto{name, params, return_ty, ty_vars}
     }
     pub fn name(&self) -> &String {
         &self.name
@@ -78,6 +81,9 @@ impl FnProto {
     }
     pub fn params(&self) -> &Vec<Param> {
         &self.params
+    }
+    pub fn ty_vars(&self) -> &Vec<String> {
+        &self.ty_vars
     }
     pub fn ty(&self) -> Type {
         let params_ty = self.params.iter()
@@ -90,8 +96,8 @@ impl FnProto {
 
 impl Lam {
     pub fn new(name: String, params: Vec<Param>, return_ty: Type
-               , body: Expr) -> Self {
-        let proto = FnProto::new(name, params, return_ty);
+               , ty_vars: Vec<String>, body: Expr) -> Self {
+        let proto = FnProto::new(name, params, return_ty, ty_vars);
         Lam{proto, body}
     }
     pub fn proto(&self) -> &FnProto {
