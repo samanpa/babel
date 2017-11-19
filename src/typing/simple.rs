@@ -79,7 +79,8 @@ impl SimpleTypeChecker {
                     let mut i = 0;
                     for (arg, param) in args_ty.iter().zip(params_ty) {
                         i += 1;
-                        ty_compare(arg, param, format!("param type {}", i))?
+                        let msg = format!("param type {} to {:?}", i, callee);
+                        ty_compare(arg, param, msg)?
                     }
                     return Ok((**return_ty).clone());
                 }
