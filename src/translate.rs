@@ -6,6 +6,7 @@ use ::ir;
 use ::Result;
 
 pub struct Translate {
+    mod_name: String
 }
 
 impl ::Pass for Translate {
@@ -22,15 +23,14 @@ impl ::Pass for Translate {
 }
 
 impl Translate {
-    pub fn new() -> Self {
-        Translate{}
+    pub fn new(mod_name: String) -> Self {
+        Translate{mod_name}
     }
 
     fn trans_toplevel(&mut self
                       , toplevel: &hir::TopLevel
                       , modules: &mut Vec<ir::Module>) -> Result<()> {
-        //FIXME: find better way
-        let mut module = ir::Module::new("main".to_string());
+        let mut module = ir::Module::new(self.mod_name.clone());
         for decl in toplevel.decls() {
             self.trans_topdecl(decl, &mut module)?
         }
