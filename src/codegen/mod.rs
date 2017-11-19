@@ -52,7 +52,7 @@ impl CodeGen {
 
     fn codegen_module(&mut self, module: &ir::Module) -> Result<()> {
         let mut codegen = LowerToLlvm::new(module.name(), &mut self.context);
-        let mut pass_runner = PassRunner::new();
+        let pass_runner = PassRunner::new();
 
         for ex in module.externs() {
             codegen.gen_extern(ex)?;

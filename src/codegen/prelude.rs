@@ -3,10 +3,10 @@ extern crate llvm_sys;
 
 use ::ir;
 use ::Result;
-use ::scoped_map::ScopedMap;
 use std::ffi::CString;
 use self::llvm_sys::prelude::*;
 use self::llvm_sys::core::*;
+use self::llvm_sys::*;
 
 pub struct Prelude{}
 
@@ -15,7 +15,7 @@ fn label<T: Into<Vec<u8>>>(str: T) -> CString {
 }
 
 impl Prelude {
-    unsafe fn prepare(mut context: LLVMContextRef, func: LLVMValueRef
+    unsafe fn prepare(context: LLVMContextRef, func: LLVMValueRef
                       , builder: LLVMBuilderRef) {
         let nm = label("intrinsic_entry").as_ptr();
         let bb = LLVMAppendBasicBlockInContext(context, func, nm);
@@ -40,7 +40,16 @@ impl Prelude {
                 Self::prepare(LLVMGetModuleContext(module), func, builder);
                 let p0  = LLVMGetParam(func, 0);
                 let p1  = LLVMGetParam(func, 1);
-                let add = LLVMBuildSub(builder, p0, p1, label("add").as_ptr());
+                let add = LLVMBuildSub(builder, p0, p1, label("sub").as_ptr());
+                let res = LLVMBuildRet(builder, add);
+                Some(res)
+            }
+            "i32_lt" => {
+                Self::prepare(LLVMGetModuleContext(module), func, builder);
+                let p0  = LLVMGetParam(func, 0);
+                let p1  = LLVMGetParam(func, 1);
+                let op  = LLVMIntPredicate::LLVMIntSGT;
+                let add = LLVMBuildICmp(builder, op, p0, p1, label("lt").as_ptr());
                 let res = LLVMBuildRet(builder, add);
                 Some(res)
             }

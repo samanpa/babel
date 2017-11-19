@@ -1,5 +1,6 @@
 extern crate llvm_sys;
 
+use std;
 use ::Result;
 use self::llvm_sys::prelude::*;
 use self::llvm_sys::core::*;
@@ -15,22 +16,33 @@ impl PassRunner {
 
     pub fn run(&self, module: LLVMModuleRef ) -> Result<()>{
         unsafe {
-            let pm = LLVMCreateFunctionPassManagerForModule(module);
+            let fpm = LLVMCreateFunctionPassManagerForModule(module);
+            let pm = LLVMCreatePassManager();
             
             //promote allocas to register
-            scalar::LLVMAddPromoteMemoryToRegisterPass(pm);
+            scalar::LLVMAddPromoteMemoryToRegisterPass(fpm);
+            scalar::LLVMAddInstructionCombiningPass(fpm);
+            scalar::LLVMAddNewGVNPass(fpm);
+            scalar::LLVMAddReassociatePass(fpm);
+            scalar::LLVMAddCFGSimplificationPass(fpm);
+            scalar::LLVMAddConstantPropagationPass(fpm);
 
+            ipo::LLVMAddFunctionInliningPass(pm);
             ipo::LLVMAddGlobalDCEPass(pm);
-            
-            scalar::LLVMAddInstructionCombiningPass(pm);
+            ipo::LLVMAddIPConstantPropagationPass(pm);
 
-            //ipo::LLVMAddFunctionInliningPass(pm);
+            LLVMFinalizeFunctionPassManager(fpm);
 
-            LLVMFinalizeFunctionPassManager(pm);
+            let mut func = LLVMGetFirstFunction(module);
+            while func == std::ptr::null_mut() {
+                LLVMRunFunctionPassManager(fpm, func);
+                func = LLVMGetNextFunction(func);
+            }
+            LLVMRunPassManager(pm, module);
 
             LLVMDumpModule(module);
 
-            LLVMDisposePassManager(pm);
+            LLVMDisposePassManager(fpm);
         }
 
         Ok(())
