@@ -5,7 +5,6 @@ use scoped_map::ScopedMap;
 use std::rc::Rc;
 use std::collections::HashMap;
 
-
 pub struct Rename {
     count: u32,
     names: ScopedMap<String, hir::Ident>,
@@ -50,7 +49,7 @@ impl Rename {
             ast::Type::TyCon(ref tycon) => {
                 match self.ty_names.get(tycon) {
                     Some(ref ty) => (*ty).clone(),
-                    None => { let msg = format!("TyCon {} not found", tycon);
+                    None => { let msg = format!("TyCon [{}] not found", tycon);
                               return Err(Error::new(msg)) }
                 }
             }
@@ -65,10 +64,10 @@ impl Rename {
     }
 
     fn insert_ident(&mut self, nm: &String, ident: &hir::Ident) -> Result<()> {
-        if let Some(..) = self.names.insert(nm.clone(), ident.clone()) {
-            return Err(Error::new(format!("Name {} already declared", nm)));
+        match self.names.insert(nm.clone(), ident.clone()) {
+            None => Ok(()),
+            Some(..) => Err(Error::new(format!("Name {} already declared", nm)))
         }
-        Ok(())
     }
 
     fn add_ident(&mut self, nm: &String, ty: hir::Type) -> Result<hir::Ident> {
@@ -83,9 +82,10 @@ impl Rename {
     
     fn add_tyvar(&mut self, nm: &String) -> Result<u32> {
         let id = self.new_count();
-        self.ty_names.insert(nm.clone(), hir::Type::TyVar(id))
-            .ok_or(Error::new(format!("TyVar {} already declared", nm)))?;
-        Ok(id)
+        match self.ty_names.insert(nm.clone(), hir::Type::TyVar(id)) {
+            None    => Ok(id),
+            Some(_) => Err(Error::new(format!("TyVar {} already declared", nm)))
+        }
     }
 
     fn rename_toplevel(&mut self, toplevel: &ast::TopLevel)
@@ -99,19 +99,19 @@ impl Rename {
 
     fn rename_lam(&mut self, proto: &ast::FnProto, body: &ast::Expr)
                   -> Result<hir::Lam> {
+        self.ty_names.begin_scope();
+        let ty_vars = VecUtil::map(proto.ty_vars(), |ty| self.add_tyvar(ty))?;
+
         let ty        = self.rename_ty(&proto.ty())?;
         let funcid    = self.add_ident(proto.name(), ty)?;
-        let return_ty = self.rename_ty(proto.return_ty())?;
-        
+        let return_ty = self.rename_ty(proto.return_ty())?;        
 
         self.names.begin_scope();
-        self.ty_names.begin_scope();
 
         let params = VecUtil::map(proto.params(), |param| {
             let ty = self.rename_ty(param.ty())?;
             self.add_ident(param.name(), ty)
         })?;
-        let ty_vars = VecUtil::map(proto.ty_vars(), |ty| self.add_tyvar(ty))?;
         let proto   = hir::FnProto::new(funcid, params, ty_vars, return_ty);
         let body    = self.rename(body)?;
         self.names.end_scope();
