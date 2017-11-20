@@ -13,7 +13,7 @@ fn compile(file: File) -> babel::Result<()> {
     
     let rename    = babel::rename::Rename::new();
     let typecheck = babel::typing::SimpleTypeChecker::new();
-    let translate = babel::translate::Translate::new("module_name".to_string());
+    let elaborate = babel::elaborate::Elaborate::new("module_name".to_string());
     let codegen   = babel::codegen::CodeGen::new();
 
     use babel::Pass;
@@ -22,7 +22,7 @@ fn compile(file: File) -> babel::Result<()> {
         asts
         => rename
         => typecheck
-        => translate
+        => elaborate
         => codegen
     ];
     

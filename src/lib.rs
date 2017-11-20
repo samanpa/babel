@@ -4,7 +4,7 @@ pub mod parser;
 pub mod hir;
 pub mod rename;
 pub mod ir;
-pub mod translate;
+pub mod elaborate;
 pub mod codegen;
 pub mod typing;
 pub (crate) mod scoped_map;
