@@ -5,7 +5,7 @@ pub struct TopLevel {
     decls: Vec<TopDecl>,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct FnProto {
     ident: Ident,
     params: Vec<Ident>,
@@ -26,7 +26,7 @@ pub struct Ident {
     ty: Type,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Hash)]
 pub enum Type {
     Bool,
     I32,
@@ -65,11 +65,12 @@ impl TopLevel {
         Self{decls}
     }
 
-    pub fn decls(&self) -> &Vec<TopDecl> {
-        &self.decls
+    pub fn decls(self) -> Vec<TopDecl> {
+        self.decls
     }
-    pub fn decls_mut(&mut self) -> &mut Vec<TopDecl> {
-        &mut self.decls
+
+    pub fn add_decl(&mut self, decl: TopDecl) {
+        self.decls.push(decl)
     }
 }
 
@@ -127,6 +128,7 @@ impl PartialEq for Type {
         }
     }
 }
+impl Eq for Type {}
 
 impl Lam {
     pub fn new(proto: FnProto, body: Expr) -> Self {
@@ -140,9 +142,6 @@ impl Lam {
     }
     pub fn body(&self) -> &Expr {
         &self.body
-    }
-    pub fn body_mut(&mut self) -> &mut Expr {
-        &mut self.body
     }
     pub fn ident(&self) -> &Ident {
         &self.proto.ident

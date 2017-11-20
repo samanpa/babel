@@ -8,9 +8,8 @@ impl ::Pass for SimpleTypeChecker {
     type Input  = Vec<TopLevel>;
     type Output = Vec<TopLevel>;
 
-    fn run(self, mut toplevel_vec: Self::Input) -> Result<Self::Output> {
-        VecUtil::mapm(&mut toplevel_vec, |tl| self.tc_toplevel(tl))?;
-        Ok(toplevel_vec)
+    fn run(self, toplevel_vec: Self::Input) -> Result<Self::Output> {
+        VecUtil::mapt(toplevel_vec, |tl| self.tc_toplevel(tl))
     }
 }
 
@@ -30,33 +29,33 @@ impl SimpleTypeChecker {
         SimpleTypeChecker{}
     }
 
-    fn tc_toplevel(&self, toplevel: &mut TopLevel) -> Result<()> {
-        VecUtil::mapm(toplevel.decls_mut(), |decl| self.tc_topdecl(decl))?;
-        Ok(())
+    fn tc_toplevel(&self, tl: TopLevel) -> Result<TopLevel> {
+        let decls = VecUtil::mapt(tl.decls(), |decl| self.tc_topdecl(decl))?;
+        Ok(TopLevel::new(decls))
     }
     
-    fn tc_topdecl(&self, decl: &mut TopDecl) -> Result<()> {
+    fn tc_topdecl(&self, decl: TopDecl) -> Result<TopDecl> {
         use ::hir::TopDecl::*;
-        let res = match *decl {
-            Lam(ref mut lam)  => self.tc_lam(lam)?,
-            Extern(ref proto) => self.tc_proto(proto)?,
+        let res = match decl {
+            Lam(lam)  => Lam(self.tc_lam(lam)?),
+            Extern(proto) => Extern(self.tc_proto(&proto)?),
         };
-        Ok(res )
+        Ok(res)
     }
 
-    fn tc_proto(&self, _proto: &FnProto) -> Result<()> {
+    fn tc_proto(&self, proto: &FnProto) -> Result<FnProto> {
         //FIXME: Check if they are valid types currently not possible to
         //       have invalid types
-        Ok(())
+        Ok(proto.clone())
     }
 
-    fn tc_lam(&self, lam: &mut Lam) -> Result<()> {
+    fn tc_lam(&self, lam: Lam) -> Result<Lam> {
         let body_ty = self.get_type(lam.body())?;
         ty_compare(&body_ty, lam.return_ty()
                    , format!("lamba {:?}", lam.ident()))?;
         let expr = self.tc_expr(lam.body())?;
-        *(lam.body_mut()) = expr;
-        Ok(())
+        let proto = self.tc_proto(lam.proto())?;
+        Ok(Lam::new(proto, expr))
     }
 
     fn get_type(&self, expr: &Expr) -> Result<Type> {

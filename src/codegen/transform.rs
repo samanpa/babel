@@ -145,7 +145,7 @@ impl <'a> LowerToLlvm<'a> {
                                              , label("call_func").as_ptr());
                     call
                 }
-                Var( ref var ) => {
+                Var(ref var) => {
                     let llvar = self.var_env.get(&var.id());
                     match llvar {
                         None => {

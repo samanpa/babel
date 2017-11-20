@@ -11,10 +11,11 @@ fn compile(file: File) -> babel::Result<()> {
     let _ = file.read_to_string(&mut file_contents);
 
     
-    let rename    = babel::rename::Rename::new();
-    let typecheck = babel::typing::SimpleTypeChecker::new();
-    let elaborate = babel::elaborate::Elaborate::new("module_name".to_string());
-    let codegen   = babel::codegen::CodeGen::new();
+    let rename       = babel::rename::Rename::new();
+    let typecheck    = babel::typing::SimpleTypeChecker::new();
+    let monomorphise = babel::monomorphise::Monomorphise::new();
+    let elaborate    = babel::elaborate::Elaborate::new("module".to_string());
+    let codegen      = babel::codegen::CodeGen::new();
 
     use babel::Pass;
     let asts  = vec![babel::parser::parse_TopLevel(&file_contents)?];
@@ -22,6 +23,7 @@ fn compile(file: File) -> babel::Result<()> {
         asts
         => rename
         => typecheck
+        => monomorphise
         => elaborate
         => codegen
     ];

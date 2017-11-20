@@ -4,6 +4,7 @@ pub mod parser;
 pub mod hir;
 pub mod rename;
 pub mod ir;
+pub mod monomorphise;
 pub mod elaborate;
 pub mod codegen;
 pub mod typing;
@@ -66,8 +67,8 @@ impl VecUtil {
         }
         Ok(res)
     }
-    pub fn mapm<I,O,F>(v: &mut Vec<I>, mut f: F) -> Result<Vec<O>> 
-        where F: FnMut(&mut I) -> Result<O>{
+    pub fn mapt<I,O,F>(v: Vec<I>, mut f: F) -> Result<Vec<O>> 
+        where F: FnMut(I) -> Result<O>{
         let mut res = Vec::new();
         for val in v {
             let val = f(val)?;
