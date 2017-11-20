@@ -2,10 +2,14 @@ fn id<a>(a: a) -> a {
    a
 }
 
-fn apply(n: i32) -> i32 {
-    i32_lt(id(n)) 
+fn max(n: i32, m: i32) -> i32 {
+    if i32_lt(id(n), id(m)) { 
+        n
+    } else {
+        m
+    }
 }
 
 fn main() -> i32 {
-    apply(10)
+    max(10, 4)
 }

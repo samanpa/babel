@@ -26,7 +26,7 @@ pub struct Ident {
     ty: Type,
 }
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug,Clone)]
 pub enum Type {
     Bool,
     I32,
@@ -107,6 +107,26 @@ impl FnProto {
     }
 }
 
+impl PartialEq for Type {
+    fn eq(&self, rhs: &Type) -> bool {
+        use self::Type::*;
+        match (self, rhs) {
+            (&Bool, &Bool) => true,
+            (&I32,  &I32)  => true,
+            (&Unit, &Unit) => true,
+            (&TyVar(_), _) => true,
+            (_, &TyVar(_)) => true,
+            (&Function{params_ty: ref lparam, return_ty: ref lreturn},
+             &Function{params_ty: ref rparam, return_ty: ref rreturn}) => {
+                lreturn == rreturn &&
+                    lparam.len() == rparam.len() &&
+                    lparam.iter().zip(rparam)
+                       .fold(true, |prev, (lty, rty)| prev && (lty == rty))
+            },
+            _ => false,
+        }
+    }
+}
 
 impl Lam {
     pub fn new(proto: FnProto, body: Expr) -> Self {
