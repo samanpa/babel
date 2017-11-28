@@ -1,4 +1,5 @@
 use ::hir::*;
+use ::types::Type;
 use ::{Result,Error,VecUtil};
 
 
@@ -13,7 +14,7 @@ impl ::Pass for SimpleTypeChecker {
     }
 }
 
-fn ty_compare<T: Into<String>>(t1: &Type, t2: &Type, msg: T) -> Result<()> {
+fn ty_compare<T: Into<String>>(t1: &Type<u32>, t2: &Type<u32>, msg: T) -> Result<()> {
     if t1 != t2 {
         let msg = format!("Types don't match {}: {:?} != {:?}",
                           msg.into(), t1, t2);
@@ -58,8 +59,8 @@ impl SimpleTypeChecker {
         Ok(Lam::new(proto, expr))
     }
 
-    fn get_type(&self, expr: &Expr) -> Result<Type> {
-        use ::hir::Type::*;
+    fn get_type(&self, expr: &Expr) -> Result<Type<u32>> {
+        use ::types::Type::*;
         use ::hir::Expr::*;
         let res = match *expr {
             UnitLit    => Unit,

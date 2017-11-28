@@ -1,5 +1,6 @@
 use ast::*;
 use std::str::FromStr;
+use types::Type::*;
 
 grammar;
 
@@ -61,15 +62,17 @@ pub Expr: Expr = {
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
     <callee:Expr> "(" <args:List<Expr>> ")"
-        => Expr::App{callee: Box::new(callee), args}
+        => Expr::App{callee: Box::new(callee), args, types: vec![]},
+    <callee:Expr> "<" <types:List<Type>> ">" "(" <args:List<Expr>> ")"
+        => Expr::App{callee: Box::new(callee), args, types},
         
 };
 
 BaseType: Type = {
-    "i32"  => Type::I32,
-    "bool" => Type::Bool,
-    "()"   => Type::Unit,
-    Ident  => Type::TyCon(<>)
+    "i32"  => I32,
+    "bool" => Bool,
+    "()"   => Unit,
+    Ident  => TyCon(<>)
 };
 
 Type: Type = {
@@ -79,8 +82,8 @@ Type: Type = {
 
 ArrowType: Type = {
     <p:Type> "->" <r:BaseType> 
-        => Type::Function{ params_ty: vec![p], return_ty: Box::new(r) },
+        => Function{ params_ty: vec![p], return_ty: Box::new(r) },
     "(" <p:List<Type>> ")" "->" <r:BaseType> 
-        => Type::Function{ params_ty: p, return_ty: Box::new(r) }
+        => Function{ params_ty: p, return_ty: Box::new(r) }
 };
 

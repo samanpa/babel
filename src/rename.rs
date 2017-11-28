@@ -1,5 +1,6 @@
 use ast;
 use hir;
+use types::Type;
 use {VecUtil,Result,Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
@@ -41,23 +42,24 @@ impl Rename {
     }
     
     fn rename_ty(&mut self, ty: &ast::Type) -> Result<hir::Type> {
+        use types::Type::*;
         let ty = match *ty {
-            ast::Type::Bool => hir::Type::Bool,
-            ast::Type::I32  => hir::Type::I32,
-            ast::Type::Unit => hir::Type::Unit,
-            ast::Type::TyVar(ref _v) => hir::Type::TyVar(self.new_count()),
-            ast::Type::TyCon(ref tycon) => {
+            Bool => Bool,
+            I32  => I32,
+            Unit => Unit,
+            TyVar(ref _v) => TyVar(self.new_count()),
+            TyCon(ref tycon) => {
                 match self.ty_names.get(tycon) {
                     Some(ref ty) => (*ty).clone(),
                     None => { let msg = format!("TyCon [{}] not found", tycon);
                               return Err(Error::new(msg)) }
                 }
             }
-            ast::Type::Function{ ref params_ty, ref return_ty } => {
+            Function{ ref params_ty, ref return_ty } => {
                 let params_ty = VecUtil::map(params_ty,
                                              |ty| self.rename_ty(ty))?;
                 let return_ty = Box::new(self.rename_ty(return_ty)?);
-                hir::Type::Function{ params_ty, return_ty }
+                Function{ params_ty, return_ty }
             }
         };
         Ok(ty)
@@ -82,7 +84,7 @@ impl Rename {
     
     fn add_tyvar(&mut self, nm: &String) -> Result<u32> {
         let id = self.new_count();
-        match self.ty_names.insert(nm.clone(), hir::Type::TyVar(id)) {
+        match self.ty_names.insert(nm.clone(), Type::TyVar(id)) {
             None    => Ok(id),
             Some(_) => Err(Error::new(format!("TyVar {} already declared", nm)))
         }
@@ -150,10 +152,10 @@ impl Rename {
                 let if_expr = hir::If::new(self.rename(e.cond())?,
                                            self.rename(e.texpr())?,
                                            self.rename(e.fexpr())?,
-                                           hir::Type::TyVar(0)); //dummy type
+                                           Type::TyVar(0)); //dummy type var
                 hir::Expr::If(Box::new(if_expr))
             }
-            App{ref callee, ref args} => {
+            App{ref callee, ref args, ref types} => {
                 let callee = Box::new(self.rename(callee)?);
                 let args = VecUtil::map(args, |arg| self.rename(arg))?;
                 hir::Expr::App{callee, args}                

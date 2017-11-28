@@ -26,14 +26,7 @@ pub struct Ident {
     ty: Type,
 }
 
-#[derive(Debug,Clone,Hash)]
-pub enum Type {
-    Bool,
-    I32,
-    Unit,
-    Function{ params_ty: Vec<Type>, return_ty: Box<Type> },
-    TyVar(u32),
-}
+pub type Type = ::types::Type<u32>;
 
 #[derive(Debug)]
 pub struct Lam {
@@ -107,28 +100,6 @@ impl FnProto {
         &self.ty_vars
     }
 }
-
-impl PartialEq for Type {
-    fn eq(&self, rhs: &Type) -> bool {
-        use self::Type::*;
-        match (self, rhs) {
-            (&Bool, &Bool) => true,
-            (&I32,  &I32)  => true,
-            (&Unit, &Unit) => true,
-            (&TyVar(_), _) => true,
-            (_, &TyVar(_)) => true,
-            (&Function{params_ty: ref lparam, return_ty: ref lreturn},
-             &Function{params_ty: ref rparam, return_ty: ref rreturn}) => {
-                lreturn == rreturn &&
-                    lparam.len() == rparam.len() &&
-                    lparam.iter().zip(rparam)
-                       .fold(true, |prev, (lty, rty)| prev && (lty == rty))
-            },
-            _ => false,
-        }
-    }
-}
-impl Eq for Type {}
 
 impl Lam {
     pub fn new(proto: FnProto, body: Expr) -> Self {

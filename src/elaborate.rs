@@ -65,12 +65,13 @@ impl Elaborate {
     }
 
     fn elab_ty(ty: &hir::Type) -> ir::Type {
-        use hir::Type::*;
+        use types::Type::*;
         match *ty {
             Unit => ir::Type::Unit,
             I32  => ir::Type::I32,
             Bool => ir::Type::Bool,
             TyVar(_) => unimplemented!(),
+            TyCon(_) => unimplemented!(),
             Function{ ref params_ty, ref return_ty } => {
                 let params_ty = params_ty.iter()
                     .map( Self::elab_ty )

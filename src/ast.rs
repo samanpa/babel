@@ -18,15 +18,7 @@ pub struct FnProto {
     ty_vars: Vec<String>,
 }
 
-#[derive(Debug,Clone)]
-pub enum Type {
-    Bool,
-    I32,
-    Unit,
-    TyCon(String),
-    Function{ params_ty: Vec<Type>, return_ty: Box<Type> },
-    TyVar(String),
-}
+pub type Type = ::types::Type<String>;
 
 #[derive(Debug)]
 pub struct Param {
@@ -50,7 +42,7 @@ pub struct If {
 #[derive(Debug)]
 pub enum Expr {
     Lam(Box<Lam>),
-    App{callee: Box<Expr>, args: Vec<Expr> },
+    App{callee: Box<Expr>, types: Vec<Type>, args: Vec<Expr> },
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
@@ -86,11 +78,12 @@ impl FnProto {
         &self.ty_vars
     }
     pub fn ty(&self) -> Type {
+        use ::types::Type::Function;
         let params_ty = self.params.iter()
             .map(|ref param| param.ty.clone())
             .collect();
         let return_ty = Box::new(self.return_ty.clone());
-        Type::Function{ params_ty, return_ty }
+        ::types::Type::Function{ params_ty, return_ty }
     }
 }
 
