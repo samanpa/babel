@@ -155,10 +155,11 @@ impl Rename {
                                            Type::TyVar(0)); //dummy type var
                 hir::Expr::If(Box::new(if_expr))
             }
-            App{ref callee, ref args, ref types} => {
+            App{ref callee, ref args, ref ty_args} => {
                 let callee = Box::new(self.rename(callee)?);
                 let args = VecUtil::map(args, |arg| self.rename(arg))?;
-                hir::Expr::App{callee, args}                
+                let ty_args = VecUtil::map(ty_args, |arg| self.rename_ty(arg))?;
+                hir::Expr::App{callee, args, ty_args}
             }
             Var(ref nm) => {
                 match self.names.get(nm) {

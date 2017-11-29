@@ -42,7 +42,7 @@ pub struct If {
 #[derive(Debug)]
 pub enum Expr {
     Lam(Box<Lam>),
-    App{callee: Box<Expr>, types: Vec<Type>, args: Vec<Expr> },
+    App{callee: Box<Expr>, ty_args: Vec<Type>, args: Vec<Expr> },
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
@@ -78,7 +78,6 @@ impl FnProto {
         &self.ty_vars
     }
     pub fn ty(&self) -> Type {
-        use ::types::Type::Function;
         let params_ty = self.params.iter()
             .map(|ref param| param.ty.clone())
             .collect();

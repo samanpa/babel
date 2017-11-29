@@ -62,10 +62,9 @@ pub Expr: Expr = {
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
     <callee:Expr> "(" <args:List<Expr>> ")"
-        => Expr::App{callee: Box::new(callee), args, types: vec![]},
-    <callee:Expr> "<" <types:List<Type>> ">" "(" <args:List<Expr>> ")"
-        => Expr::App{callee: Box::new(callee), args, types},
-        
+        => Expr::App{callee: Box::new(callee), args, ty_args: vec![]},
+    <callee:Expr> "<" <ty_args:List<Type>> ">" "(" <args:List<Expr>> ")"
+        => Expr::App{callee: Box::new(callee), args, ty_args},
 };
 
 BaseType: Type = {

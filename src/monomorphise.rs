@@ -85,11 +85,11 @@ impl Monomorphise {
             Var(ref v) => {
                 Var(v.clone())
             }
-            App{ref callee, ref args} => {
+            App{ref callee, ref args, ref ty_args} => {
                 let callee = Box::new(self.mono_expr(callee, toplevel)?);
                 let args = 
                     VecUtil::map(args, |arg| self.mono_expr(arg, toplevel))?;
-                App{callee, args}
+                App{callee, args, ty_args: vec![]}
             }
             If(ref e)  => {
                 let cond  = self.mono_expr(e.cond(), toplevel)?;
@@ -103,7 +103,6 @@ impl Monomorphise {
                             unimplemented!() },
         };
         Ok(res)
-
     }
 
 }
