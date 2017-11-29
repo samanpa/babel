@@ -119,7 +119,6 @@ fn tc_expr(expr: &Expr) -> Result<(Expr,Type<u32>)> {
         BoolLit(b) => (BoolLit(b), Bool),
         Var(ref v) => (Var(v.clone()), v.ty().clone()),
         App{ref callee, ref args, ref ty_args} => {
-            println!("FDSAF {:?} {:?}", callee, ty_args);
             let callee_ty = tc_app(callee, args)?;
             let (mut callee, _) = tc_expr(callee)?;
             let args    = VecUtil::map(args, |arg| Ok(tc_expr(arg)?.0))?;
