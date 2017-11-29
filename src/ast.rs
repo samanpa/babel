@@ -13,9 +13,8 @@ pub enum TopDecl {
 #[derive(Debug)]
 pub struct FnProto {
     name: String,
-    params: Vec<Param>,
-    return_ty: Type,
-    ty_vars: Vec<String>,
+    params: Vec<String>,
+    ty: ::types::Function<String>,
 }
 
 pub type Type = ::types::Type<String>;
@@ -63,26 +62,26 @@ impl TopLevel {
 impl FnProto {
     pub fn new(name: String, params: Vec<Param>, return_ty: Type
                , ty_vars: Vec<String> ) -> Self {
-        FnProto{name, params, return_ty, ty_vars}
+        let mut params_ty = Vec::with_capacity(params.len());
+        let mut params_nm = Vec::with_capacity(params.len());
+        for p in params {
+            params_nm.push(p.name);
+            params_ty.push(p.ty);
+        }
+        let ty_vars = ty_vars.into_iter()
+            .map( |ty_var| ::types::Type::TyVar(ty_var))
+            .collect();
+        let ty = ::types::Function::new(ty_vars, params_ty, return_ty);
+        FnProto{name, params: params_nm, ty}
     }
     pub fn name(&self) -> &String {
         &self.name
     }
-    pub fn return_ty(&self) -> &Type {
-        &self.return_ty
-    }
-    pub fn params(&self) -> &Vec<Param> {
+    pub fn params(&self) -> &Vec<String> {
         &self.params
     }
-    pub fn ty_vars(&self) -> &Vec<String> {
-        &self.ty_vars
-    }
-    pub fn ty(&self) -> Type {
-        let params_ty = self.params.iter()
-            .map(|ref param| param.ty.clone())
-            .collect();
-        let return_ty = Box::new(self.return_ty.clone());
-        ::types::Type::Function{ params_ty, return_ty }
+    pub fn ty(&self) -> &::types::Function<String> {
+        &self.ty
     }
 }
 
@@ -102,12 +101,12 @@ impl Lam {
         &self.proto.name
     }
     pub fn return_ty(&self) -> &Type {
-        &self.proto.return_ty
+        &self.proto.ty().return_ty()
     }
-    pub fn ty(&self) -> Type {
+    pub fn ty(&self) -> &::types::Function<String> {
         self.proto.ty()
     }
-    pub fn params(&self) -> &Vec<Param> {
+    pub fn params(&self) -> &Vec<String> {
         &self.proto.params
     }
 }

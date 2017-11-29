@@ -42,7 +42,7 @@ impl Monomorphise {
         use hir::TopDecl::*;
         match decl {
             Extern(proto) => {
-                if proto.ty_vars().len() > 0 {
+                if proto.ty().ty_vars().len() > 0 {
                     let msg = format!("Extern func can not be polymorphic {:?}"
                                       , proto.ident());
                     return Err(Error::new(msg))
@@ -61,7 +61,7 @@ impl Monomorphise {
     fn mono_lam(&mut self, lam: Lam
                 , toplevel: &mut TopLevel) -> Result<Option<Lam>>
     {
-        let res = match lam.proto().ty_vars().len() {
+        let res = match lam.proto().ty().ty_vars().len() {
             0 => {
                 let expr = self.mono_expr(lam.body(), toplevel)?;
                 let lam  = Lam::new(lam.proto().clone(), expr);

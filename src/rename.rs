@@ -55,11 +55,15 @@ impl Rename {
                               return Err(Error::new(msg)) }
                 }
             }
-            Function{ ref params_ty, ref return_ty } => {
-                let params_ty = VecUtil::map(params_ty,
+            Func(ref func_ty) => {
+                use types::Function;
+                let params_ty = VecUtil::map(func_ty.params_ty(),
                                              |ty| self.rename_ty(ty))?;
-                let return_ty = Box::new(self.rename_ty(return_ty)?);
-                Function{ params_ty, return_ty }
+                let return_ty = self.rename_ty(func_ty.return_ty())?;
+                let ty_vars = VecUtil::map(func_ty.ty_vars(),
+                                           |ty| self.rename_ty(ty))?;
+                let func_ty = Function::new(ty_vars, params_ty, return_ty);
+                Func( Box::new(func_ty) )
             }
         };
         Ok(ty)
@@ -82,8 +86,15 @@ impl Rename {
         Ok(ident)
     }
     
-    fn add_tyvar(&mut self, nm: &String) -> Result<u32> {
+    fn add_tyvar(&mut self, ty: &Type<String>) -> Result<u32> {
         let id = self.new_count();
+        let nm = match *ty {
+            Type::TyVar(ref nm) => nm,
+            _ => {
+                let msg = format!("Expected TyVar got {:?}", *ty);
+                return  Err(Error::new(msg))
+            }
+        };
         match self.ty_names.insert(nm.clone(), Type::TyVar(id)) {
             None    => Ok(id),
             Some(_) => Err(Error::new(format!("TyVar {} already declared", nm)))
@@ -102,19 +113,24 @@ impl Rename {
     fn rename_lam(&mut self, proto: &ast::FnProto, body: &ast::Expr)
                   -> Result<hir::Lam> {
         self.ty_names.begin_scope();
-        let ty_vars = VecUtil::map(proto.ty_vars(), |ty| self.add_tyvar(ty))?;
-
-        let ty        = self.rename_ty(&proto.ty())?;
+        //Add type variables associated with function to the new scope
+        let _ = VecUtil::map(proto.ty().ty_vars(), |ty| self.add_tyvar(ty))?;
+        let ty_vars   = VecUtil::map(proto.ty().ty_vars()
+                                     , |ty| self.rename_ty(ty))?;
+        let params_ty = VecUtil::map(proto.ty().params_ty()
+                                     , |ty| self.rename_ty(ty))?;
+        let return_ty = self.rename_ty(proto.ty().return_ty())?;
+        let func_ty   = ::types::Function::new(ty_vars, params_ty.clone(), return_ty);
+        let ty        = Type::Func(Box::new(func_ty.clone()));
         let funcid    = self.add_ident(proto.name(), ty)?;
-        let return_ty = self.rename_ty(proto.return_ty())?;        
 
         self.names.begin_scope();
 
-        let params = VecUtil::map(proto.params(), |param| {
-            let ty = self.rename_ty(param.ty())?;
-            self.add_ident(param.name(), ty)
-        })?;
-        let proto   = hir::FnProto::new(funcid, params, ty_vars, return_ty);
+        let params = proto.params().iter().zip(params_ty)
+            .collect();
+        let params = VecUtil::map(&params
+                , |&(param, ref ty)| self.add_ident(param, ty.clone()))?;
+        let proto   = hir::FnProto::new(funcid, params, func_ty);
         let body    = self.rename(body)?;
         self.names.end_scope();
         self.ty_names.end_scope();
@@ -127,7 +143,7 @@ impl Rename {
         let res = match *decl {
             Extern(ref proto) => {
                 let lam = self.rename_lam(proto, &ast::Expr::UnitLit)?;
-                hir::TopDecl::Extern(lam.proto1()) //RENAME
+                hir::TopDecl::Extern(lam.proto().clone()) //RENAME
             }
             Lam(ref lam) => {
                 let lam = self.rename_lam(lam.proto(), lam.body())?;

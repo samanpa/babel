@@ -72,11 +72,11 @@ impl Elaborate {
             Bool => ir::Type::Bool,
             TyVar(_) => unimplemented!(),
             TyCon(_) => unimplemented!(),
-            Function{ ref params_ty, ref return_ty } => {
-                let params_ty = params_ty.iter()
+            Func(ref fn_ty) => {
+                let params_ty = fn_ty.params_ty().iter()
                     .map( Self::elab_ty )
                     .collect();
-                let return_ty = Box::new(Self::elab_ty(return_ty));
+                let return_ty = Box::new(Self::elab_ty(fn_ty.return_ty()));
                 ir::Type::Function{ params_ty, return_ty }
             }
         }

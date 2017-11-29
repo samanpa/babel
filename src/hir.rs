@@ -1,4 +1,6 @@
 use std::rc::Rc;
+pub type Type = ::types::Type<u32>;
+use types::Function;
 
 #[derive(Debug)]
 pub struct TopLevel {
@@ -9,8 +11,7 @@ pub struct TopLevel {
 pub struct FnProto {
     ident: Ident,
     params: Vec<Ident>,
-    return_ty: Type,
-    ty_vars: Vec<u32>,
+    ty: Function<u32>,
 }
 
 #[derive(Debug)]
@@ -26,7 +27,6 @@ pub struct Ident {
     ty: Type,
 }
 
-pub type Type = ::types::Type<u32>;
 
 #[derive(Debug)]
 pub struct Lam {
@@ -83,21 +83,17 @@ impl Ident {
 }
 
 impl FnProto {
-    pub fn new(ident: Ident, params: Vec<Ident>, ty_vars: Vec<u32>
-               , return_ty: Type) -> Self {
-        FnProto{ ident, params, ty_vars, return_ty }
+    pub fn new(ident: Ident, params: Vec<Ident>, ty: Function<u32>) -> Self {
+        FnProto{ ident, params, ty }
     }
     pub fn ident(&self) -> &Ident {
         &self.ident
     }
-    pub fn return_ty(&self) -> &Type {
-        &self.return_ty
+    pub fn ty(&self) -> &Function<u32> {
+        &self.ty
     }
     pub fn params(&self) -> &Vec<Ident> {
         &self.params
-    }
-    pub fn ty_vars(&self) -> &Vec<u32> {
-        &self.ty_vars
     }
 }
 
@@ -108,7 +104,7 @@ impl Lam {
     pub fn proto(&self) -> &FnProto {
         &self.proto
     }
-    pub fn proto1(self) -> FnProto {
+    pub fn take_proto(self) -> FnProto {
         self.proto
     }
     pub fn body(&self) -> &Expr {
@@ -116,12 +112,6 @@ impl Lam {
     }
     pub fn ident(&self) -> &Ident {
         &self.proto.ident
-    }
-    pub fn return_ty(&self) -> &Type {
-        &self.proto.return_ty
-    }
-    pub fn params(&self) -> &Vec<Ident> {
-        &self.proto.params
     }
 }
 

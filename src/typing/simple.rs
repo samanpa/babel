@@ -54,18 +54,19 @@ fn tc_proto(proto: &FnProto) -> Result<FnProto> {
 
 fn tc_lam(lam: Lam) -> Result<Lam> {
     let body_ty = get_type(lam.body())?;
-    ty_compare(&body_ty, lam.return_ty()
+    ty_compare(&body_ty, lam.proto().ty().return_ty()
                , format!("lamba {:?}", lam.ident()))?;
-    let expr = tc_expr(lam.body())?;
+    let (expr, _)  = tc_expr(lam.body())?;
     let proto = tc_proto(lam.proto())?;
     Ok(Lam::new(proto, expr))
 }
 
-fn tc_app(callee: &Expr, args: &Vec<Expr>)-> Result<Type<u32>> {
-    use ::types::Type::Function;
+fn tc_app(callee: &Expr, args: &Vec<Expr>)-> Result<::types::Function<u32>> {
     let callee_ty = get_type(callee)?;
     let args_ty   = VecUtil::map(args, get_type)?;
-    if let Function{ref params_ty, ref return_ty} = callee_ty {
+    if let ::types::Type::Func(ref func_ty) = callee_ty {
+        let params_ty = func_ty.params_ty();
+        let return_ty = func_ty.return_ty();
         if params_ty.len() != args_ty.len() {
             let msg = format!("Invalid number of args to {:?}", callee);
             return Err(Error::new(msg))
@@ -76,7 +77,9 @@ fn tc_app(callee: &Expr, args: &Vec<Expr>)-> Result<Type<u32>> {
             let msg = format!("param type {} to {:?}", i, callee);
             ty_compare(arg, param, msg)?
         }
-        return Ok((**return_ty).clone());
+        return Ok(::types::Function::new(func_ty.ty_vars().clone()
+                                         , params_ty.clone()
+                                         , return_ty.clone()));
     }
     return Err(Error::new(format!("Only functions can be applied {:?}"
                                   , callee)))
@@ -90,7 +93,7 @@ fn get_type(expr: &Expr) -> Result<Type<u32>> {
         I32Lit(_)  => I32,
         BoolLit(_) => Bool,
         Var(ref v) => v.ty().clone(),
-        App{ref callee, ref args, ..} => tc_app(callee, args)?,
+        App{ref callee, ref args, ..} => tc_app(callee, args)?.return_ty().clone(),
         If(ref e)  => {
             let cond_ty  = get_type(e.cond())?;
             let texpr_ty = get_type(e.texpr())?;
@@ -105,26 +108,34 @@ fn get_type(expr: &Expr) -> Result<Type<u32>> {
     Ok(res)
 }
 
-fn tc_expr(expr: &Expr) -> Result<Expr> {
+fn tc_expr(expr: &Expr) -> Result<(Expr,Type<u32>)> {
+    use super::explicate::infer_ty_args;
     use ::hir::Expr::*;
+    use ::types::Type::*;
+
     let res = match *expr {
-        UnitLit    => UnitLit,
-        I32Lit(n)  => I32Lit(n),
-        BoolLit(b) => BoolLit(b),
-        Var(ref v) => Var(v.clone()),
+        UnitLit    => (UnitLit, Unit),
+        I32Lit(n)  => (I32Lit(n), I32),
+        BoolLit(b) => (BoolLit(b), Bool),
+        Var(ref v) => (Var(v.clone()), v.ty().clone()),
         App{ref callee, ref args, ref ty_args} => {
-            let _ = tc_app(callee, args)?;
-            let callee = tc_expr(callee)?;
-            let args = VecUtil::map(args, tc_expr)?;
-            App{callee: Box::new(callee), args, ty_args: vec![]}
+            println!("FDSAF {:?} {:?}", callee, ty_args);
+            let callee_ty = tc_app(callee, args)?;
+            let (mut callee, _) = tc_expr(callee)?;
+            let args    = VecUtil::map(args, |arg| Ok(tc_expr(arg)?.0))?;
+            let ty_args = infer_ty_args(&mut callee, &callee_ty, &args, ty_args)?;
+            let app = App{callee: Box::new(callee), args, ty_args};
+            (app, callee_ty.return_ty().clone())
         }
         If(ref e)  => {
+            let ty = get_type(expr)?;
+            let (cond, _)   = tc_expr(e.cond())?;
+            let (texpr, _)  = tc_expr(e.texpr())?;
+            let (fexpr, ty) = tc_expr(e.fexpr())?;
+            
             //FIXME: why do I need the self::
-            let if_expr = self::If::new(tc_expr(e.cond())?,
-                                        tc_expr(e.texpr())?,
-                                        tc_expr(e.fexpr())?,
-                                        get_type(e.fexpr())?);
-            If(Box::new(if_expr))
+            let if_expr = self::If::new(cond, texpr, fexpr, ty.clone());
+            (If(Box::new(if_expr)), ty)
         },
         ref expr   => { println!("NOTHANDLED\n{:?} not handled", expr);
                         unimplemented!() },

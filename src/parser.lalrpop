@@ -1,6 +1,7 @@
 use ast::*;
 use std::str::FromStr;
 use types::Type::*;
+use types::Function;
 
 grammar;
 
@@ -81,8 +82,8 @@ Type: Type = {
 
 ArrowType: Type = {
     <p:Type> "->" <r:BaseType> 
-        => Function{ params_ty: vec![p], return_ty: Box::new(r) },
+        => Func(Box::new(Function::new(vec![], vec![p], r))),
     "(" <p:List<Type>> ")" "->" <r:BaseType> 
-        => Function{ params_ty: p, return_ty: Box::new(r) }
+        => Func(Box::new(Function::new(vec![], p, r)))
 };
 
