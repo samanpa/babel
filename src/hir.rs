@@ -45,7 +45,7 @@ pub struct If {
 #[derive(Debug)]
 pub enum Expr {
     Lam(Box<Lam>),
-    App{callee: Box<Expr>, args: Vec<Expr>, ty_args: Vec<Type> },
+    App{callee: Box<Expr>, args: Vec<Expr>, subst: ::subst::Subst },
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),

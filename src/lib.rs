@@ -7,9 +7,11 @@ pub mod ir;
 pub mod monomorphise;
 pub mod elaborate;
 pub mod codegen;
-pub mod types;
 pub mod typing;
 pub (crate) mod scoped_map;
+
+pub use typing::types;
+pub use typing::subst;
 
 #[derive(Debug)]
 pub struct Error{

@@ -172,10 +172,14 @@ impl Rename {
                 hir::Expr::If(Box::new(if_expr))
             }
             App{ref callee, ref args, ref ty_args} => {
-                let callee = Box::new(self.rename(callee)?);
-                let args = VecUtil::map(args, |arg| self.rename(arg))?;
-                let ty_args = VecUtil::map(ty_args, |arg| self.rename_ty(arg))?;
-                hir::Expr::App{callee, args, ty_args}
+                let callee    = Box::new(self.rename(callee)?);
+                let args      = VecUtil::map(args, |arg| self.rename(arg))?;
+                let mut subst = ::subst::Subst::new();
+                for (i, tyarg) in ty_args.iter().enumerate() {
+                    subst.bind(::subst::SubType::Positional(i as u32)
+                              , self.rename_ty(tyarg)?);
+                }
+                hir::Expr::App{callee, args, subst}
             }
             Var(ref nm) => {
                 match self.names.get(nm) {

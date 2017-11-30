@@ -21,8 +21,8 @@ impl ::Pass for SimpleTypeChecker {
 }
 
 fn ty_compare<T: Into<String>>(t1: &Type<u32>, t2: &Type<u32>, msg: T) -> Result<()> {
-    if t1 != t2 {
-        let msg = format!("Types don't match {}: {:?} != {:?}",
+    if ::types::unifiable(t1, t2) == false {
+        let msg = format!("Types are not unifiable in {}:\n\t{:?}\n\t{:?}",
                           msg.into(), t1, t2);
         Err(Error::new(msg))
     }
@@ -118,12 +118,12 @@ fn tc_expr(expr: &Expr) -> Result<(Expr,Type<u32>)> {
         I32Lit(n)  => (I32Lit(n), I32),
         BoolLit(b) => (BoolLit(b), Bool),
         Var(ref v) => (Var(v.clone()), v.ty().clone()),
-        App{ref callee, ref args, ref ty_args} => {
+        App{ref callee, ref args, ref subst} => {
             let callee_ty = tc_app(callee, args)?;
             let (mut callee, _) = tc_expr(callee)?;
             let args    = VecUtil::map(args, |arg| Ok(tc_expr(arg)?.0))?;
-            let ty_args = infer_ty_args(&mut callee, &callee_ty, &args, ty_args)?;
-            let app = App{callee: Box::new(callee), args, ty_args};
+            let subst = infer_ty_args(&mut callee, &callee_ty, &args, subst)?;
+            let app = App{callee: Box::new(callee), args, subst};
             (app, callee_ty.return_ty().clone())
         }
         If(ref e)  => {

@@ -3,8 +3,8 @@ use {Result,Error,VecUtil};
 use scoped_map::ScopedMap;
 
 pub struct Monomorphise {
-    poly_funcs: ScopedMap<u32,Lam>,
-    mono_funcs: ScopedMap<Vec<Type>,Lam>,
+    poly_vars: ScopedMap<u32,Expr>,
+    instantiated: ScopedMap<(u32,Vec<Type>),()>,
     toplevels: Vec<TopLevel>,
 }
 
@@ -24,8 +24,8 @@ impl Monomorphise {
     pub fn new() -> Self {
         Monomorphise{
             toplevels: vec![],
-            poly_funcs: ScopedMap::new(),
-            mono_funcs: ScopedMap::new(),
+            poly_vars: ScopedMap::new(),
+            instantiated: ScopedMap::new(),
         }
     }
 
@@ -61,22 +61,24 @@ impl Monomorphise {
     fn mono_lam(&mut self, lam: Lam
                 , toplevel: &mut TopLevel) -> Result<Option<Lam>>
     {
-        let res = match lam.proto().ty().ty_vars().len() {
-            0 => {
+        let res = match lam.proto().ty().is_monotype() {
+            true => {
                 let expr = self.mono_expr(lam.body(), toplevel)?;
                 let lam  = Lam::new(lam.proto().clone(), expr);
                 Some(lam)
             }
-            _ => {
-                self.poly_funcs.insert(lam.ident().id(), lam);
+            false => {
+                self.poly_vars.insert(lam.ident().id()
+                                      , Expr::Lam(Box::new(lam)));
                 None
             }
         };
         Ok(res)
     }
     
-    fn mono_expr(&mut self, expr: &Expr
-                    , toplevel: &mut TopLevel) -> Result<Expr> {
+    fn mono_expr(&mut self
+                 , expr: &Expr
+                 , toplevel: &mut TopLevel) -> Result<Expr> {
         use hir::Expr::*;
         let res = match *expr {
             UnitLit    => UnitLit,
@@ -85,11 +87,11 @@ impl Monomorphise {
             Var(ref v) => {
                 Var(v.clone())
             }
-            App{ref callee, ref args, ref ty_args} => {
+            App{ref callee, ref args, ref subst} => {
                 let callee = Box::new(self.mono_expr(callee, toplevel)?);
                 let args = 
                     VecUtil::map(args, |arg| self.mono_expr(arg, toplevel))?;
-                App{callee, args, ty_args: vec![]}
+                App{callee, args, subst: ::subst::Subst::new()}
             }
             If(ref e)  => {
                 let cond  = self.mono_expr(e.cond(), toplevel)?;

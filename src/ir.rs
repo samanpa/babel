@@ -45,7 +45,6 @@ pub struct Lambda {
 
 #[derive(Debug)]
 pub enum Expr {
-    //Convert these into Type constants ?
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
