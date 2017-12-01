@@ -118,12 +118,11 @@ fn tc_expr(expr: &Expr) -> Result<(Expr,Type<u32>)> {
         I32Lit(n)  => (I32Lit(n), I32),
         BoolLit(b) => (BoolLit(b), Bool),
         Var(ref v) => (Var(v.clone()), v.ty().clone()),
-        App{ref callee, ref args, ref subst} => {
+        App{ref callee, ref args} => {
             let callee_ty = tc_app(callee, args)?;
             let (mut callee, _) = tc_expr(callee)?;
             let args    = VecUtil::map(args, |arg| Ok(tc_expr(arg)?.0))?;
-            let subst = infer_ty_args(&mut callee, &callee_ty, &args, subst)?;
-            let app = App{callee: Box::new(callee), args, subst};
+            let app = App{callee: Box::new(callee), args};
             (app, callee_ty.return_ty().clone())
         }
         If(ref e)  => {
