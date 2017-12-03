@@ -102,7 +102,7 @@ impl Elaborate {
             UnitLit    => ir::Expr::UnitLit,
             I32Lit(n)  => ir::Expr::I32Lit(n),
             BoolLit(b) => ir::Expr::BoolLit(b),
-            Var(ref v) => ir::Expr::Var(Self::elab_ident(v)),
+            Var(ref v, ref ty) => ir::Expr::Var(Self::elab_ident(v)),
             App{ref callee, ref args} => {
                 let callee = Box::new(self.trans(callee)?);
                 let args = VecUtil::map(args, |arg| self.trans(arg))?;

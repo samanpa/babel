@@ -45,7 +45,7 @@ pub enum Expr {
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Var(String),
+    Var(String, Vec<Type>),
     If(Box<If>)
 }
 

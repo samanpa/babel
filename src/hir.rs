@@ -49,7 +49,7 @@ pub enum Expr {
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Var(Ident),
+    Var(Ident, Vec<Type>),
     If(Box<If>)
 }
 

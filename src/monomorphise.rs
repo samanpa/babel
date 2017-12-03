@@ -84,8 +84,8 @@ impl Monomorphise {
             UnitLit    => UnitLit,
             I32Lit(n)  => I32Lit(n),
             BoolLit(b) => BoolLit(b),
-            Var(ref v) => {
-                Var(v.clone())
+            Var(ref v, ref ty) => {
+                Var(v.clone(), ty.clone())
             }
             App{ref callee, ref args} => {
                 let callee = Box::new(self.mono_expr(callee, toplevel)?);

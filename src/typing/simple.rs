@@ -92,7 +92,7 @@ fn get_type(expr: &Expr) -> Result<Type<u32>> {
         UnitLit    => Unit,
         I32Lit(_)  => I32,
         BoolLit(_) => Bool,
-        Var(ref v) => v.ty().clone(),
+        Var(ref v, ref _ty) => v.ty().clone(), //FIXME: do substition
         App{ref callee, ref args, ..} => tc_app(callee, args)?.return_ty().clone(),
         If(ref e)  => {
             let cond_ty  = get_type(e.cond())?;
@@ -117,7 +117,7 @@ fn tc_expr(expr: &Expr) -> Result<(Expr,Type<u32>)> {
         UnitLit    => (UnitLit, Unit),
         I32Lit(n)  => (I32Lit(n), I32),
         BoolLit(b) => (BoolLit(b), Bool),
-        Var(ref v) => (Var(v.clone()), v.ty().clone()),
+        Var(ref v, ref ty) => (Var(v.clone(), ty.clone()), v.ty().clone()),
         App{ref callee, ref args} => {
             let callee_ty = tc_app(callee, args)?;
             let (mut callee, _) = tc_expr(callee)?;

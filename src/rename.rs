@@ -176,9 +176,10 @@ impl Rename {
                 let args      = VecUtil::map(args, |arg| self.rename(arg))?;
                 hir::Expr::App{callee, args}
             }
-            Var(ref nm) => {
+            Var(ref nm, ref ty) => {
+                let ty = VecUtil::map(ty, |ty| self.rename_ty(ty))?;
                 match self.names.get(nm) {
-                    Some(v) => hir::Expr::Var(v.clone()),
+                    Some(v) => hir::Expr::Var(v.clone(), ty),
                     None => {
                         let msg = format!("Could not find variable {}", nm);
                         return Err(Error::new(msg))

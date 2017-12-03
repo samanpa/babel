@@ -3,7 +3,7 @@ fn id<a>(a: a) -> a {
 }
 
 fn max(n: i32, m: i32) -> i32 {
-    if i32_lt(id(n), id(m)) { 
+    if i32_lt(id<i32>(n), id<i32>(m)) { 
         n
     } else {
         m

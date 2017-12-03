@@ -58,7 +58,8 @@ pub Expr: Expr = {
     "true"  => Expr::BoolLit(true),
     "false" => Expr::BoolLit(false),
     "()"    => Expr::UnitLit,
-    Ident   => Expr::Var(<>),
+    Ident   => Expr::Var(<>, vec![]),
+    <Ident> "<" <List<Type>> ">" => Expr::Var(<>),
     "(" <t:Expr> ")" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
