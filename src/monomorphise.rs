@@ -42,7 +42,7 @@ impl Monomorphise {
         use hir::TopDecl::*;
         match decl {
             Extern(proto) => {
-                if proto.ty().ty_vars().len() > 0 {
+                if !proto.ty().is_monotype() {
                     let msg = format!("Extern func can not be polymorphic {:?}"
                                       , proto.ident());
                     return Err(Error::new(msg))

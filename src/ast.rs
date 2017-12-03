@@ -10,14 +10,15 @@ pub enum TopDecl {
     Lam(Lam),
 }
 
+pub type ForAll = ::types::ForAll<String>;
+pub type Type = ::types::Type<String>;
+
 #[derive(Debug)]
 pub struct FnProto {
     name: String,
-    params: Vec<String>,
-    ty: ::types::Function<String>,
+    params: Vec<Param>,
+    ty: ForAll,
 }
-
-pub type Type = ::types::Type<String>;
 
 #[derive(Debug)]
 pub struct Param {
@@ -62,26 +63,28 @@ impl TopLevel {
 impl FnProto {
     pub fn new(name: String, params: Vec<Param>, return_ty: Type
                , ty_vars: Vec<String> ) -> Self {
-        let mut params_ty = Vec::with_capacity(params.len());
-        let mut params_nm = Vec::with_capacity(params.len());
-        for p in params {
-            params_nm.push(p.name);
-            params_ty.push(p.ty);
-        }
-        let ty_vars = ty_vars.into_iter()
-            .map( |ty_var| ::types::Type::TyVar(ty_var))
+        use ::types::*;
+        let params_ty = params.iter()
+            .map( |p| p.ty.clone() )
             .collect();
-        let ty = ::types::Function::new(ty_vars, params_ty, return_ty);
-        FnProto{name, params: params_nm, ty}
+        let fn_ty = Type::Func(Box::new(Function::new(params_ty, return_ty)));
+        let ty    = ::types::ForAll::new(ty_vars, fn_ty);
+        FnProto{name, params, ty}
     }
     pub fn name(&self) -> &String {
         &self.name
     }
-    pub fn params(&self) -> &Vec<String> {
+    pub fn params(&self) -> &Vec<Param> {
         &self.params
     }
-    pub fn ty(&self) -> &::types::Function<String> {
+    pub fn ty(&self) -> &ForAll {
         &self.ty
+    }
+    pub fn return_ty(&self) -> &Type {
+        if let ::types::Type::Func(ref f) = *self.ty.ty() {
+            return f.return_ty()
+        }
+        panic!("A function proto should always have a func type")
     }
 }
 
@@ -101,12 +104,12 @@ impl Lam {
         &self.proto.name
     }
     pub fn return_ty(&self) -> &Type {
-        &self.proto.ty().return_ty()
+        &self.proto.return_ty()
     }
-    pub fn ty(&self) -> &::types::Function<String> {
+    pub fn ty(&self) -> &ForAll {
         self.proto.ty()
     }
-    pub fn params(&self) -> &Vec<String> {
+    pub fn params(&self) -> &Vec<Param> {
         &self.proto.params
     }
 }

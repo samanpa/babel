@@ -1,5 +1,6 @@
 use std::rc::Rc;
 pub type Type = ::types::Type<u32>;
+pub type ForAll = ::types::ForAll<u32>;
 use types::Function;
 
 #[derive(Debug)]
@@ -11,7 +12,7 @@ pub struct TopLevel {
 pub struct FnProto {
     ident: Ident,
     params: Vec<Ident>,
-    ty: Function<u32>,
+    ty: ForAll,
 }
 
 #[derive(Debug)]
@@ -83,14 +84,20 @@ impl Ident {
 }
 
 impl FnProto {
-    pub fn new(ident: Ident, params: Vec<Ident>, ty: Function<u32>) -> Self {
+    pub fn new(ident: Ident, params: Vec<Ident>, ty: ForAll) -> Self {
         FnProto{ ident, params, ty }
     }
     pub fn ident(&self) -> &Ident {
         &self.ident
     }
-    pub fn ty(&self) -> &Function<u32> {
+    pub fn ty(&self) -> &ForAll {
         &self.ty
+    }
+    pub fn return_ty(&self) -> &Type {
+        if let ::types::Type::Func(ref f) = *self.ty.ty() {
+            return f.return_ty()
+        }
+        panic!("A function proto should always have a func type")
     }
     pub fn params(&self) -> &Vec<Ident> {
         &self.params

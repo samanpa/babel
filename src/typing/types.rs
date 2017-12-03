@@ -5,7 +5,28 @@ pub enum Type<T> {
     Unit,
     TyCon(T),
     Func(Box<Function<T>>),
-    TyVar(T),
+    TyVar(T)
+}
+
+#[derive(Debug,Clone,Hash,Eq,PartialEq)]
+pub struct ForAll<T> {
+    bound_vars: Vec<T>,
+    ty: Type<T>
+}
+
+impl <T> ForAll<T> {
+    pub fn new(bound_vars: Vec<T>, ty: Type<T>) -> Self {
+        ForAll{ bound_vars, ty }
+    }
+    pub fn bound_vars(&self) -> &Vec<T> {
+        &self.bound_vars
+    }
+    pub fn ty(&self) -> &Type<T> {
+        &self.ty
+    }
+    pub fn is_monotype(&self) -> bool {
+        self.bound_vars.len() == 0
+    }
 }
 
 impl <T> Type<T> {
@@ -17,7 +38,7 @@ impl <T> Type<T> {
             Unit => true,
             TyCon(_)     => true, //FIXME
             Func(ref f)  => f.is_monotype(), //FIXME
-            TyVar(_)     => false
+            TyVar(_)     => false,
         }
     }
 }
@@ -26,11 +47,11 @@ impl <T> Type<T> {
 pub fn unifiable<T>(lhs: &Type<T>, rhs: &Type<T>) -> bool {
     use types::Type::*;
     match (lhs, rhs) {
-        (&Bool, &Bool) => true,
-        (&I32,  &I32)  => true,
-        (&Unit, &Unit) => true,
-        (&TyVar(_), _) => true,
-        (_, &TyVar(_)) => true,
+        (&Bool, &Bool)    => true,
+        (&I32,  &I32)     => true,
+        (&Unit, &Unit)    => true,
+        (&TyVar(_), _)    => true,
+        (_, &TyVar(_))    => true,
         (&Func(ref lhs), &Func(ref rhs)) => {
             unifiable(&lhs.return_ty, &rhs.return_ty) &&
                 lhs.params_ty().len() == rhs.params_ty().len() &&
@@ -44,14 +65,12 @@ pub fn unifiable<T>(lhs: &Type<T>, rhs: &Type<T>) -> bool {
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
 pub struct Function<T> {
     params_ty: Vec<Type<T>>,
-    return_ty: Type<T>,
-    ty_vars:   Vec<Type<T>>
+    return_ty: Type<T>
 }
 
 impl <T> Function<T> {
-    pub fn new(ty_vars: Vec<Type<T>>, params_ty: Vec<Type<T>>
-               , return_ty: Type<T>) -> Self {
-        Self{ params_ty, return_ty, ty_vars }
+    pub fn new(params_ty: Vec<Type<T>>, return_ty: Type<T>) -> Self {
+        Self{ params_ty, return_ty }
     }
     
     pub fn params_ty(&self) -> &Vec<Type<T>> {
@@ -61,12 +80,10 @@ impl <T> Function<T> {
     pub fn return_ty(&self) -> &Type<T> {
         &self.return_ty
     }
-    
-    pub fn ty_vars(&self) -> &Vec<Type<T>> {
-        &self.ty_vars
-    }
 
     pub fn is_monotype(&self) -> bool {
-        self.ty_vars.len() == 0
+        self.params_ty.iter()
+            .fold( self.return_ty.is_monotype(),
+                   | prev, ty | prev && ty.is_monotype())
     }
 }

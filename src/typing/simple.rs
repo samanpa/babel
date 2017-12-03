@@ -54,7 +54,7 @@ fn tc_proto(proto: &FnProto) -> Result<FnProto> {
 
 fn tc_lam(lam: Lam) -> Result<Lam> {
     let body_ty = get_type(lam.body())?;
-    ty_compare(&body_ty, lam.proto().ty().return_ty()
+    ty_compare(&body_ty, lam.proto().return_ty()
                , format!("lamba {:?}", lam.ident()))?;
     let (expr, _)  = tc_expr(lam.body())?;
     let proto = tc_proto(lam.proto())?;
@@ -77,8 +77,7 @@ fn tc_app(callee: &Expr, args: &Vec<Expr>)-> Result<::types::Function<u32>> {
             let msg = format!("param type {} to {:?}", i, callee);
             ty_compare(arg, param, msg)?
         }
-        return Ok(::types::Function::new(func_ty.ty_vars().clone()
-                                         , params_ty.clone()
+        return Ok(::types::Function::new(params_ty.clone()
                                          , return_ty.clone()));
     }
     return Err(Error::new(format!("Only functions can be applied {:?}"

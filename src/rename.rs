@@ -60,15 +60,31 @@ impl Rename {
                 let params_ty = VecUtil::map(func_ty.params_ty(),
                                              |ty| self.rename_ty(ty))?;
                 let return_ty = self.rename_ty(func_ty.return_ty())?;
-                let ty_vars = VecUtil::map(func_ty.ty_vars(),
-                                           |ty| self.rename_ty(ty))?;
-                let func_ty = Function::new(ty_vars, params_ty, return_ty);
+                let func_ty = Function::new(params_ty, return_ty);
                 Func( Box::new(func_ty) )
             }
         };
         Ok(ty)
     }
 
+    fn add_tyvar(&mut self, nm: &String) -> Result<u32> {
+        let id = self.new_count();
+        match self.ty_names.insert(nm.clone(), Type::TyVar(id)) {
+            None    => Ok(id),
+            Some(_) => Err(Error::new(format!("TyVar {} already declared", nm)))
+        }
+    }
+
+    fn rename_ty_scheme(&mut self, forall: &ast::ForAll) -> Result<hir::ForAll>
+    {
+        //Get numeric identifies for the bound variables and add them as TyVar
+        //  to self.ty_names
+        let ty_vars = VecUtil::map(forall.bound_vars(),
+                                   |ty| self.add_tyvar(ty))?;
+        let ty      = self.rename_ty(forall.ty())?;
+        Ok(::types::ForAll::new(ty_vars, ty))
+    }
+                        
     fn insert_ident(&mut self, nm: &String, ident: &hir::Ident) -> Result<()> {
         match self.names.insert(nm.clone(), ident.clone()) {
             None => Ok(()),
@@ -86,21 +102,6 @@ impl Rename {
         Ok(ident)
     }
     
-    fn add_tyvar(&mut self, ty: &Type<String>) -> Result<u32> {
-        let id = self.new_count();
-        let nm = match *ty {
-            Type::TyVar(ref nm) => nm,
-            _ => {
-                let msg = format!("Expected TyVar got {:?}", *ty);
-                return  Err(Error::new(msg))
-            }
-        };
-        match self.ty_names.insert(nm.clone(), Type::TyVar(id)) {
-            None    => Ok(id),
-            Some(_) => Err(Error::new(format!("TyVar {} already declared", nm)))
-        }
-    }
-
     fn rename_toplevel(&mut self, toplevel: &ast::TopLevel)
                        -> Result<hir::TopLevel>
     {
@@ -110,28 +111,21 @@ impl Rename {
         Ok(hir::TopLevel::new(decls?))
     }
 
+    //body type is &UnitLit when renaming an external declaration
     fn rename_lam(&mut self, proto: &ast::FnProto, body: &ast::Expr)
-                  -> Result<hir::Lam> {
+                  -> Result<hir::Lam>
+    {
         self.ty_names.begin_scope();
-        //Add type variables associated with function to the new scope
-        let _ = VecUtil::map(proto.ty().ty_vars(), |ty| self.add_tyvar(ty))?;
-        let ty_vars   = VecUtil::map(proto.ty().ty_vars()
-                                     , |ty| self.rename_ty(ty))?;
-        let params_ty = VecUtil::map(proto.ty().params_ty()
-                                     , |ty| self.rename_ty(ty))?;
-        let return_ty = self.rename_ty(proto.ty().return_ty())?;
-        let func_ty   = ::types::Function::new(ty_vars, params_ty.clone(), return_ty);
-        let ty        = Type::Func(Box::new(func_ty.clone()));
-        let funcid    = self.add_ident(proto.name(), ty)?;
+        let scheme = self.rename_ty_scheme(proto.ty())?;
+        let ty     = scheme.ty().clone();
+        let funcid = self.add_ident(proto.name(), ty)?;
 
         self.names.begin_scope();
-
-        let params = proto.params().iter().zip(params_ty)
-            .collect();
-        let params = VecUtil::map(&params
-                , |&(param, ref ty)| self.add_ident(param, ty.clone()))?;
-        let proto   = hir::FnProto::new(funcid, params, func_ty);
-        let body    = self.rename(body)?;
+        let params = VecUtil::map(proto.params()
+                                  , |p| { let ty = self.rename_ty(p.ty())?;
+                                          self.add_ident(p.name(), ty) })?;
+        let proto  = hir::FnProto::new(funcid, params, scheme);
+        let body   = self.rename(body)?;
         self.names.end_scope();
         self.ty_names.end_scope();
         

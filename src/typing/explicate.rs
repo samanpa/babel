@@ -11,7 +11,7 @@ pub fn infer_ty_args(callee: &Expr
                      , callee_ty: &::types::Function<u32>
                      , args: &Vec<Expr>
                      , subst: &Subst)-> Result<Subst> {
-    if callee_ty.ty_vars().len() == 0 {
+    if callee_ty.is_monotype() {
         return Ok(Subst::new())
     }
 

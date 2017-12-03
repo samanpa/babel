@@ -33,10 +33,7 @@ impl Subst {
                 let params_ty = func_ty.params_ty().iter()
                     .map( |pty| self.subst(pty))
                     .collect();
-                let ty_vars = func_ty.ty_vars().iter()
-                    .map( |ty_var| self.subst(ty_var) )
-                    .collect();
-                let func = Function::new(ty_vars, params_ty, return_ty);
+                let func = Function::new(params_ty, return_ty);
                 Func(Box::new(func))
             }
             TyVar(id) => {

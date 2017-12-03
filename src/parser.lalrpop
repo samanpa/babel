@@ -81,8 +81,8 @@ Type: Type = {
 
 ArrowType: Type = {
     <p:Type> "->" <r:BaseType> 
-        => Func(Box::new(Function::new(vec![], vec![p], r))),
+        => Func(Box::new(Function::new(vec![p], r))),
     "(" <p:List<Type>> ")" "->" <r:BaseType> 
-        => Func(Box::new(Function::new(vec![], p, r)))
+        => Func(Box::new(Function::new(p, r)))
 };
 
