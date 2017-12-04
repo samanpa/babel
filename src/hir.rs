@@ -18,7 +18,7 @@ pub struct FnProto {
 #[derive(Debug)]
 pub enum TopDecl {
     Extern(FnProto),
-    Lam(Lam),
+    Lam(Rc<Lam>),
 }
 
 #[derive(Debug,Clone)]
@@ -45,7 +45,7 @@ pub struct If {
 
 #[derive(Debug)]
 pub enum Expr {
-    Lam(Box<Lam>),
+    Lam(Rc<Lam>),
     App{callee: Box<Expr>, args: Vec<Expr>},
     UnitLit,
     I32Lit(i32),

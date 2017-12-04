@@ -141,7 +141,7 @@ impl Rename {
             }
             Lam(ref lam) => {
                 let lam = self.rename_lam(lam.proto(), lam.body())?;
-                hir::TopDecl::Lam(lam)
+                hir::TopDecl::Lam(Rc::new(lam))
             }
             Use{..}           => unimplemented!(),
         };
@@ -156,7 +156,7 @@ impl Rename {
             BoolLit(b)   => hir::Expr::BoolLit(b),
             Lam(ref lam) => {
                 let lam = self.rename_lam(lam.proto(), lam.body())?;
-                hir::Expr::Lam(Box::new(lam))
+                hir::Expr::Lam(Rc::new(lam))
             }
             If(ref e)    => {
                 let if_expr = hir::If::new(self.rename(e.cond())?,

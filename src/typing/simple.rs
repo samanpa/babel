@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use ::hir::*;
 use ::types::Type;
 use ::{Result,Error,VecUtil};
@@ -52,13 +53,13 @@ fn tc_proto(proto: &FnProto) -> Result<FnProto> {
     Ok(proto.clone())
 }
 
-fn tc_lam(lam: Lam) -> Result<Lam> {
+fn tc_lam(lam: Rc<Lam>) -> Result<Rc<Lam>> {
     let body_ty = get_type(lam.body())?;
     ty_compare(&body_ty, lam.proto().return_ty()
                , format!("lamba {:?}", lam.ident()))?;
     let (expr, _)  = tc_expr(lam.body())?;
     let proto = tc_proto(lam.proto())?;
-    Ok(Lam::new(proto, expr))
+    Ok(Rc::new(Lam::new(proto, expr)))
 }
 
 fn tc_app(callee: &Expr, args: &Vec<Expr>)-> Result<::types::Function<u32>> {

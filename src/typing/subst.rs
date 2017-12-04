@@ -1,15 +1,9 @@
 use std::collections::HashMap;
 use super::types::{Type,Function};
 
-#[derive(Hash,Eq,PartialEq,Debug)]
-pub enum SubType {
-    Positional(u32),
-    Explicit(u32),
-}
-
 #[derive(Debug)]
 pub struct Subst {
-    map: HashMap<SubType,Type<u32>>
+    map: HashMap<u32,Type<u32>>
 }
 
 impl Subst {
@@ -17,11 +11,11 @@ impl Subst {
         Subst{ map: HashMap::new() }
     }
 
-    pub fn bind(&mut self, var: SubType, ty: Type<u32>) {
-        self.map.insert(var, ty);
+    pub fn bind(&mut self, tyvar: u32, ty: Type<u32>) {
+        self.map.insert(tyvar, ty);
     }
     
-    pub fn subst(&mut self, ty: &Type<u32>) -> Type<u32> {
+    pub fn subst(&self, ty: &Type<u32>) -> Type<u32> {
         use types::Type::*;
         match *ty {
             Bool => Bool,
@@ -37,7 +31,7 @@ impl Subst {
                 Func(Box::new(func))
             }
             TyVar(id) => {
-                match self.map.get(&SubType::Explicit(id)) {
+                match self.map.get(&id) {
                     Some(ref ty) => (*ty).clone(),
                     None         => TyVar(id),
                 }

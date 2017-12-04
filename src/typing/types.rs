@@ -28,6 +28,16 @@ impl <T> ForAll<T> {
         self.bound_vars.len() == 0
     }
 }
+impl ForAll<u32> {
+    pub fn mk_subst(&self, monotypes: &Vec<Type<u32>>) -> super::subst::Subst {
+        let mut subst = super::subst::Subst::new();
+        for (bound_var, monoty) in self.bound_vars.iter().zip(monotypes) {
+            subst.bind(*bound_var, (*monoty).clone());
+        }
+        subst
+    }
+    
+}
 
 impl <T> Type<T> {
     pub fn is_monotype(&self) -> bool {
