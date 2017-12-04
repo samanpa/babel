@@ -13,6 +13,35 @@ pub struct ScopedMap<K,V> where K : Hash + Eq {
     inner: Box<Inner<K,V>>,
 }
 
+impl <K: Hash + Eq,V> Inner<K,V> {
+    fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V>  where
+        K: Borrow<Q>,
+        Q: Hash + Eq
+    {
+        match self.curr_map.get(k) {
+            None => (),
+            v => return v
+        }
+        match self.prev_scope {
+            None => None,
+            Some(ref prev) => prev.curr_map.get(k)
+        }
+    }
+    fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V>  where
+        K: Borrow<Q>,
+        Q: Hash + Eq
+    {
+        match self.curr_map.get_mut(k) {
+            None => (),
+            v => return v
+        }
+        match self.prev_scope {
+            None => None,
+            Some(ref mut prev) => prev.curr_map.get_mut(k)
+        }
+    }
+}
+
 impl <K: Hash + Eq,V> ScopedMap<K,V> {
     pub fn new() -> Self {
         let inner = Inner{curr_map: HashMap::new(), prev_scope: None };
@@ -37,15 +66,13 @@ impl <K: Hash + Eq,V> ScopedMap<K,V> {
         K: Borrow<Q>,
         Q: Hash + Eq
     {
-        match self.inner.curr_map.get(k) {
-            None => {
-                match self.inner.prev_scope {
-                    None => None,
-                    Some(ref prev) => prev.curr_map.get(k)
-                }
-            },
-            v => v
-        }
+        self.inner.get(k)
+    }
+    pub fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V>  where
+        K: Borrow<Q>,
+        Q: Hash + Eq
+    {
+        self.inner.get_mut(k)
     }
 }
         

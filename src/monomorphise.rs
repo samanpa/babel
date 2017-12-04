@@ -8,8 +8,7 @@ use std::collections::HashMap;
 
 pub struct Monomorphise {
     curr_id: u32,
-    //Hate the use of RefCell but can't get ScopedMap::get_mut to work;
-    instantiations: ScopedMap<u32, RefCell<InstanceMap>>,
+    instantiations: ScopedMap<u32, InstanceMap>,
     toplevels: Vec<TopLevel>,
 }
 
@@ -80,8 +79,7 @@ impl Monomorphise {
     }
 
     fn record_poly(&mut self, id: &Ident, expr: Expr) -> Result<()> {
-        let val = RefCell::new(InstanceMap::new(expr));
-        match self.instantiations.insert(id.id(), val) {
+        match self.instantiations.insert(id.id(), InstanceMap::new(expr)) {
             Some(_) => {
                 let msg = format!("{:?} is already marked as poly", id);
                 Err(Error::new(msg))
@@ -160,13 +158,12 @@ impl Monomorphise {
     fn instantiate_var(&mut self, id: &Ident, monotypes: &Vec<Type>
                        , toplevel: &mut TopLevel) -> Result<Expr>
     {
-        match self.instantiations.get(&id.id()) {
+        match self.instantiations.get_mut(&id.id()) {
             None => {
                 let var = Expr::Var((*id).clone(), vec![]);
                 return Ok(var)
             },
-            Some(ref poly_expr) => {
-                let mut inst_map = poly_expr.borrow_mut();
+            Some(ref mut inst_map) => {
                 match inst_map.map.get(monotypes) {
                     Some(ident) => return Ok(Expr::Var(id.clone(), vec![])),
                     None => {}
