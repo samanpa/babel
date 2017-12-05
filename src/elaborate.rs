@@ -98,6 +98,7 @@ impl Elaborate {
 
     fn trans(&mut self, expr: &hir::Expr) -> Result<ir::Expr> {
         use hir::Expr::*;
+        //println!("{:?}", expr);
         let res = match *expr {
             UnitLit    => ir::Expr::UnitLit,
             I32Lit(n)  => ir::Expr::I32Lit(n),
