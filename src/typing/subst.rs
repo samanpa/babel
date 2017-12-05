@@ -1,14 +1,23 @@
 use std::collections::HashMap;
+use std::fmt;
 use super::types::{Type,Function};
 
 #[derive(Debug)]
 pub struct Subst {
-    map: HashMap<u32,Type<u32>>
+    map: HashMap<u32,Type<u32>>,
+    range: Vec<Type<u32>>
 }
+/*
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+*/
 
 impl Subst {
     pub fn new() -> Self {
-        Subst{ map: HashMap::new() }
+        Subst{ map: HashMap::new(), range: vec![] }
     }
 
     pub fn bind(&mut self, tyvar: u32, ty: Type<u32>) {
@@ -37,6 +46,10 @@ impl Subst {
                 }
             }
         }
+    }
+
+    pub fn range(&self) -> &Vec<Type<u32>> {
+        &self.range
     }
 
     /*

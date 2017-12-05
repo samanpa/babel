@@ -7,7 +7,6 @@ use scoped_map::ScopedMap;
 use std::collections::HashMap;
 
 pub struct Monomorphise {
-    instances: Instances,
     curr_id: u32,
     toplevels: Vec<TopLevel>,
 }
@@ -24,70 +23,67 @@ impl ::Pass for Monomorphise {
     }
 }
 
-struct GenericExprCache {
-    cache: ScopedMap<u32, (InstanceId,Expr)>,
-    curr_id: u32
+struct Cache {
+    entries: ScopedMap<u32, Instances>,
 }
 
-impl GenericExprCache {
+impl Cache {
     fn new() -> Self {
-        Self{ cache: ScopedMap::new() }
+        Self{ entries: ScopedMap::new()}
     }
 
     fn begin_scope(&mut self) {
-        self.cache.begin_scope();
+        self.entries.begin_scope();
     }
 
     fn end_scope(&mut self) {
-        self.cache.end_scope();
+        self.entries.end_scope();
     }
 
-    fn insert(&mut self, id: InstanceId, ident: &Ident, expr: Expr) -> Result<()> {
-        match self.cache.insert(ident.id(), (id, expr)) {
-            Some(_) => {
-                let msg = format!("{:?} is already marked as poly", ident);
-                Err(Error::new(msg))
-            }
-            None => Ok(())
-        }
+    fn insert_expr(&mut self, ident: &Ident, expr: Expr) {
+        self.entries.entry(ident.id())
+            .or_insert_with( || Instances::new(Some(expr)) );
     }
 
-    fn get(&self, id: &Ident) -> Option<&(InstanceId, Expr)> {
-        self.cache.get(&id.id())
+    fn insert_instance(&mut self, ident: &Ident, ty: &Vec<Type>
+                       , instance: Ident) {
+        self.entries.entry(ident.id())
+            .or_insert_with( || Instances::new(None) )
+            .insert(ty.clone(), instance);
+    }
+
+    fn get(&self, id: &Ident) -> Option<&Instances> {
+        self.entries.get(&id.id())
+    }
+
+    fn get_mut(&mut self, id: &Ident) -> Option<&mut Instances> {
+        self.entries.get_mut(&id.id())
     }
 }
 
-
-struct InstanceId(usize)
 struct Instances {
-    inner: Vec<ScopedMap<Vec<Type>, Ident>>,
+    expr: Option<Rc<Expr>>,
+    inner: HashMap<Vec<Type>, Ident>,
 }
 
 impl Instances {
-    fn new() -> Self {
-        Self{ inner: vec![] }
+    fn new(expr: Option<Expr>) -> Self {
+        let expr = expr.map( |expr| Rc::new(expr) );
+        Self{ expr, inner: HashMap::new() }
+    }
+    fn inner(&self) -> &Rc<RefCell<ScopedMap<Vec<Type>, Ident>>> {
+        &self.inner()
+    }
+    fn expr(&self) -> &Option<Rc<Expr>> {
+        &self.expr
     }
 
-    fn add(&mut self) -> InstanceId {
-        let size = inner.size();
-        inner.push(ScopedMap::new());
-        InstanceId(size)
+    fn insert(&mut self, ty: Vec<Type>, ident: Ident) {
+        self.inner.insert(ty, ident);
     }
 
-    fn begin_scope(&mut self, id: InstanceId) {
-        unsafe{self.inner[id.0]}.begin_scope();
-    }
-
-    fn end_scope(&mut self, id: InstanceId) {
-        unsafe{self.inner[id.0]}.end_scope();
-    }
-
-    fn insert(&mut self, id: InstanceId, ty: Vec<Type>, id: Ident) {
-        unsafe{self.inner[id.0]}.insert(ty, id);
-    }
-
-    fn get(&mut self, id: InstanceId, ty: &Vec<Type>) -> Option<&Ident>{
-        unsafe{self.inner[id.0]}.get(ty);
+    fn get(&mut self, ty: &Vec<Type>) -> Option<&Ident> {
+        self.inner.get(ty)
     }
 }
 
@@ -95,13 +91,12 @@ impl Monomorphise {
     pub fn new() -> Self {
         Monomorphise{
             curr_id: 100000,
-            toplevels: vec![],
-            instances: Instances::new(),
+            toplevels: vec![]
         }
     }
 
     fn mono_toplevel(&mut self, toplevel: TopLevel) -> Result<()> {
-        let mut cache = GenericExprCache::new();
+        let mut cache = Cache::new();
         let mut tl = TopLevel::new(vec![]);
         let _ = VecUtil::mapt(toplevel.decls()
                               , |decl| self.mono_decl(decl, &mut cache, &mut tl));
@@ -110,7 +105,7 @@ impl Monomorphise {
     }
     
     fn mono_decl(&mut self, decl: TopDecl
-                 , cache: &mut GenericExprCache
+                 , cache: &mut Cache
                  , toplevel: &mut TopLevel) -> Result<()> {
         use hir::TopDecl::*;
         match decl {
@@ -139,32 +134,37 @@ impl Monomorphise {
     }
 
     fn instantiate_ident(&mut self, ident: &Ident, subst: &Subst
-                         , i: InstanceId) -> Ident
+                         , cache: &mut Cache) -> Ident
     {
         if ident.ty().is_monotype() {
             ident.clone()
         }
         else {
-            let name  = format!("{}<{:?}>", ident.name(), subst);
-            let ty    = subst.subst(ident.ty());
-            let ident = Ident::new(Rc::new(name), ty, self.new_id());
-            self.instances.insert(i, ident.id(), ident.clone());
-            ident
+            if let Some(ref inst) = cache.get(ident) {
+                if let Some(ref ident) = inst.get(subst.range()) {
+                    return (*ident).clone();
+                }
+            }
+            let name   = format!("{}<{:?}>", ident.name(), subst.range());
+            let ty     = subst.subst(ident.ty());
+            let ident_ = Ident::new(Rc::new(name), ty, self.new_id());
+            cache.insert_instance(ident, subst.range(), ident_.clone());
+            ident_
         }
     }
     
     fn instantiate_fn_proto(&mut self, proto: &FnProto
-                            , subst: &Subst, i: InstanceId) -> FnProto
+                            , subst: &Subst, cache: &mut Cache) -> FnProto
     {
-        let ident  = self.instantiate_ident(proto.ident(), subst, i);
+        let ident  = self.instantiate_ident(proto.ident(), subst, cache);
         let params = proto.params().iter()
-            .map(| ident| self.instantiate_ident(ident, subst, i))
+            .map(| ident| self.instantiate_ident(ident, subst, cache))
             .collect();
         let ty     = ::types::ForAll::new(vec![], ident.ty().clone());
         FnProto::new(ident, params, ty)
     }
 
-    fn instantiate(&mut self, expr: &Expr,subst: &Subst, i: InstanceId)
+    fn instantiate(&mut self, expr: &Expr,subst: &Subst, cache: &mut Cache)
                    -> Result<Expr>
     {
         use hir::Expr::*;
@@ -174,16 +174,20 @@ impl Monomorphise {
             I32Lit(n)  => I32Lit(n),
             BoolLit(b) => BoolLit(b),
             Var(ref id, ref tys) => {
-                let id = match self.instances.get(i, &id.id()) {
-                    Some(ident) => ident.clone(),
-                    None        => id.clone(),
+                let id = match cache.get(id) {
+                    None => id.clone(),
+                    Some(instance) => 
+                        match instance.get(subst.range()) {
+                            Some(id) => id.clone(),
+                            None     => id.clone()
+                        }
                 };
-                let id = self.instantiate_ident(&id, subst, i);
+                let id = self.instantiate_ident(&id, subst, cache);
                 Var(id, vec![])
             }
             Lam(ref lam) => {
-                let proto = self.instantiate_fn_proto(lam.proto(), subst, i);
-                let body  = self.instantiate(lam.body(), subst, i)?;
+                let proto = self.instantiate_fn_proto(lam.proto(), subst, cache);
+                let body  = self.instantiate(lam.body(), subst, cache)?;
                 let lam   = Lam(Rc::new(::hir::Lam::new(proto, body)));
                 lam
             }
@@ -205,46 +209,47 @@ impl Monomorphise {
     }
 
     fn instantiate_var(&mut self, id: &Ident, monotypes: &Vec<Type>
-                       , cache: &mut GenericExprCache
+                       , cache: &mut Cache
                        , toplevel: &mut TopLevel) -> Result<Expr>
     {
-        match cache.get(&id) {
+        let rc_expr = match cache.get(&id) {
             None => {
+                //Monomorphic
                 let var = Expr::Var((*id).clone(), vec![]);
                 return Ok(var)
             },
-            Some(&(i, ref gen_expr)) => {
-                unsafe {
-                    match self.instances.get(i, monotypes) {
-                        Some(ident) => return Ok(Expr::Var(ident.clone(), vec![])),
-                        None => {}
-                    }
+            Some(&instances) => {
+                match instances.get(monotypes) {
+                    Some(ident) => return Ok(Expr::Var(ident.clone(), vec![])),
+                    None => {}
                 }
-                let expr  = {
-                    let subst = self.get_subst(monotypes, &gen_expr)?;
-                    self.instantiate(&gen_expr, &subst, i)?
-                };
-                match expr {
-                    Expr::Lam(ref lam) => {
-                        let id = lam.proto().ident().clone(); 
-                        unsafe {
-                            self.instantiations.get_unchecked_mut(i)
-                                .insert(monotypes.clone(), id.clone());
-                        }
-                        toplevel.add_decl(TopDecl::Lam(lam.clone()));
-                        Ok(Expr::Var(id.clone(), vec![]))
-                    },
-                    ref other => {
-                        let msg = format!("Cannot do var subst for non lambda {:?}"
-                                          , expr);
-                        Err(Error::new(msg))
-                    }
+                match instances.expr {
+                    Some(rc_expr) => rc_expr.clone(),
+                    None => panic!("Can not instantiate non expr")
                 }
+            }
+        };
+        
+        let subst = self.get_subst(monotypes, &*rc_expr)?;
+        let expr  = self.instantiate(&*rc_expr, &subst, cache)?;
+        match expr {
+            Expr::Lam(ref lam) => {
+                let instance = lam.proto().ident().clone();
+                cache.get_mut(id)
+                    .unwrap()
+                    .insert(subst.range().clone(), instance.clone());
+                toplevel.add_decl(TopDecl::Lam(lam.clone()));
+                Ok(Expr::Var(instance, vec![]))
+            },
+            ref other => {
+                let msg = format!("Cannot do var subst for non lambda {:?}"
+                                  , expr);
+                Err(Error::new(msg))
             }
         }
     }
     
-    fn mono_expr(&mut self, expr: &Expr, cache: &mut GenericExprCache
+    fn mono_expr(&mut self, expr: &Expr, cache: &mut Cache
                  , toplevel: &mut TopLevel) -> Result<Expr> {
         use hir::Expr::*;
         let res = match *expr {
@@ -275,9 +280,8 @@ impl Monomorphise {
                     Lam(::std::rc::Rc::new(lam))
                 }
                 else {
-                    let size = self.instantiations.len();
-                    cache.insert(size, lam.ident(), Expr::Lam(lam.clone()))?;
-                    self.instantiations.push(HashMap::new());
+                    cache.insert_expr(lam.ident()
+                                      , Expr::Lam(lam.clone()));
                     //Return a non Expr::Lam so result is not put in toplevel
                     UnitLit
                 }

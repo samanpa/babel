@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::mem;
 use std::borrow::Borrow;
 use std::hash::Hash;
@@ -60,6 +61,10 @@ impl <K: Hash + Eq,V> ScopedMap<K,V> {
 
     pub fn insert(&mut self, k: K, v: V) -> Option<V> {
         self.inner.curr_map.insert(k, v)
+    }
+
+    pub fn entry(&mut self, k: K) -> Entry<K,V> {
+        self.inner.curr_map.entry(k)
     }
 
     pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V>  where
