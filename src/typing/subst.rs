@@ -7,13 +7,6 @@ pub struct Subst {
     map: HashMap<u32,Type<u32>>,
     range: Vec<Type<u32>>
 }
-/*
-impl fmt::Display for Point {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({}, {})", self.x, self.y)
-    }
-}
-*/
 
 impl Subst {
     pub fn new() -> Self {
@@ -21,6 +14,7 @@ impl Subst {
     }
 
     pub fn bind(&mut self, tyvar: u32, ty: Type<u32>) {
+        self.range.push(ty.clone());
         self.map.insert(tyvar, ty);
     }
     
@@ -51,25 +45,4 @@ impl Subst {
     pub fn range(&self) -> &Vec<Type<u32>> {
         &self.range
     }
-
-    /*
-    pub fn unify(&mut self, lhs: &Type<u32>, rhs: &Type<u32>) -> Result<bool> {
-        use types::Type::*;
-        let res = match (lhs, rhs) {
-            (&Bool, &Bool) => true,
-            (&I32,  &I32)  => true,
-            (&Unit, &Unit) => true,
-            (&TyVar(t), _) => {self.bind(true,
-            (_, &TyVar(_)) => true,
-            (&Func(ref lhs), &Func(ref rhs)) => {
-                lhs.return_ty == rhs.return_ty &&
-                    lhs.params_ty().len() == rhs.params_ty().len() &&
-                    lhs.params_ty().iter().zip(rhs.params_ty())
-                       .fold(true, |prev, (lty, rty)| prev && (lty == rty))
-            },
-            _ => false,
-        };       
-        Ok<res>
-    }
-     */
 }

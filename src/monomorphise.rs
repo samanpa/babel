@@ -82,7 +82,7 @@ impl Instances {
         self.inner.insert(ty, ident);
     }
 
-    fn get(&mut self, ty: &Vec<Type>) -> Option<&Ident> {
+    fn get(&self, ty: &Vec<Type>) -> Option<&Ident> {
         self.inner.get(ty)
     }
 }
@@ -168,7 +168,6 @@ impl Monomorphise {
                    -> Result<Expr>
     {
         use hir::Expr::*;
-        println!("HANDLE \n{:?}", expr);
         let res = match *expr {
             UnitLit    => UnitLit,
             I32Lit(n)  => I32Lit(n),
@@ -193,7 +192,6 @@ impl Monomorphise {
             }
             ref expr  => panic!("Can not Instantiate {:?}", expr)
         };
-        println!("Instantiation \n{:?}", res);
 
         Ok(res)
     }
@@ -218,13 +216,13 @@ impl Monomorphise {
                 let var = Expr::Var((*id).clone(), vec![]);
                 return Ok(var)
             },
-            Some(&instances) => {
+            Some(ref instances) => {
                 match instances.get(monotypes) {
                     Some(ident) => return Ok(Expr::Var(ident.clone(), vec![])),
                     None => {}
                 }
                 match instances.expr {
-                    Some(rc_expr) => rc_expr.clone(),
+                    Some(ref rc_expr) => rc_expr.clone(),
                     None => panic!("Can not instantiate non expr")
                 }
             }
