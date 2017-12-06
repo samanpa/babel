@@ -1,14 +1,13 @@
 use hir::*;
 use subst::Subst;
 use std::rc::Rc;
-use std::cell::RefCell;
-use {Result,Error,VecUtil};
+use {Result,Error,Vector};
 use scoped_map::ScopedMap;
 use std::collections::HashMap;
 
 pub struct Monomorphise {
     curr_id: u32,
-    toplevels: Vec<TopLevel>,
+    cache: Cache,
 }
 
 impl ::Pass for Monomorphise {
@@ -16,10 +15,9 @@ impl ::Pass for Monomorphise {
     type Output = Vec<TopLevel>;
 
     fn run(mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
-        for toplevel in toplevel_vec {
-            self.mono_toplevel(toplevel)?;
-        }
-        Ok(self.toplevels)
+        let toplevels = Vector::mapt(toplevel_vec
+                                     , |tl| self.mono_toplevel(tl))?;
+        Ok(toplevels)
     }
 }
 
@@ -29,7 +27,7 @@ struct Cache {
 
 impl Cache {
     fn new() -> Self {
-        Self{ entries: ScopedMap::new()}
+        Self{ entries: ScopedMap::new() }
     }
 
     fn begin_scope(&mut self) {
@@ -71,13 +69,6 @@ impl Instances {
         let expr = expr.map( |expr| Rc::new(expr) );
         Self{ expr, inner: HashMap::new() }
     }
-    fn inner(&self) -> &Rc<RefCell<ScopedMap<Vec<Type>, Ident>>> {
-        &self.inner()
-    }
-    fn expr(&self) -> &Option<Rc<Expr>> {
-        &self.expr
-    }
-
     fn insert(&mut self, ty: Vec<Type>, ident: Ident) {
         self.inner.insert(ty, ident);
     }
@@ -89,23 +80,16 @@ impl Instances {
 
 impl Monomorphise {
     pub fn new() -> Self {
-        Monomorphise{
-            curr_id: 100000,
-            toplevels: vec![]
-        }
+        Monomorphise{ curr_id: 100000, cache: Cache::new() }
     }
 
-    fn mono_toplevel(&mut self, toplevel: TopLevel) -> Result<()> {
-        let mut cache = Cache::new();
+    fn mono_toplevel(&mut self, toplevel: TopLevel) -> Result<TopLevel> {
         let mut tl = TopLevel::new(vec![]);
-        let _ = VecUtil::mapt(toplevel.decls()
-                              , |decl| self.mono_decl(decl, &mut cache, &mut tl));
-        self.toplevels.push(tl);
-        Ok(())
+        Vector::mapt(toplevel.decls(), |decl| self.mono_decl(decl, &mut tl))?;
+        Ok(tl)
     }
     
     fn mono_decl(&mut self, decl: TopDecl
-                 , cache: &mut Cache
                  , toplevel: &mut TopLevel) -> Result<()> {
         use hir::TopDecl::*;
         match decl {
@@ -119,7 +103,7 @@ impl Monomorphise {
             },
             Lam(lam) => {
                 let lam_expr = Expr::Lam(lam.clone());
-                match self.mono_expr(&lam_expr, cache, toplevel)? {
+                match self.mono_expr(&lam_expr, toplevel)? {
                     Expr::Lam(lam) => toplevel.add_decl(Lam(lam.clone())),
                     _ => {}
                 }
@@ -129,18 +113,17 @@ impl Monomorphise {
     }
 
     fn new_id(&mut self) -> u32 {
-        self.curr_id = self.curr_id + 1;
+        self.curr_id += 1;
         self.curr_id
     }
 
-    fn instantiate_ident(&mut self, ident: &Ident, subst: &Subst
-                         , cache: &mut Cache) -> Ident
+    fn instantiate_ident(&mut self, ident: &Ident, subst: &Subst) -> Ident
     {
         if ident.ty().is_monotype() {
             ident.clone()
         }
         else {
-            if let Some(ref inst) = cache.get(ident) {
+            if let Some(ref inst) = self.cache.get(ident) {
                 if let Some(ref ident) = inst.get(subst.range()) {
                     return (*ident).clone();
                 }
@@ -148,32 +131,31 @@ impl Monomorphise {
             let name   = format!("{}<{:?}>", ident.name(), subst.range());
             let ty     = subst.subst(ident.ty());
             let ident_ = Ident::new(Rc::new(name), ty, self.new_id());
-            cache.insert_instance(ident, subst.range(), ident_.clone());
+            self.cache.insert_instance(ident, subst.range(), ident_.clone());
             ident_
         }
     }
     
     fn instantiate_fn_proto(&mut self, proto: &FnProto
-                            , subst: &Subst, cache: &mut Cache) -> FnProto
+                            , subst: &Subst) -> FnProto
     {
-        let ident  = self.instantiate_ident(proto.ident(), subst, cache);
+        let ident  = self.instantiate_ident(proto.ident(), subst);
         let params = proto.params().iter()
-            .map(| ident| self.instantiate_ident(ident, subst, cache))
+            .map(| ident| self.instantiate_ident(ident, subst))
             .collect();
         let ty     = ::types::ForAll::new(vec![], ident.ty().clone());
         FnProto::new(ident, params, ty)
     }
 
-    fn instantiate(&mut self, expr: &Expr,subst: &Subst, cache: &mut Cache)
-                   -> Result<Expr>
+    fn instantiate(&mut self, expr: &Expr,subst: &Subst) -> Result<Expr>
     {
         use hir::Expr::*;
         let res = match *expr {
             UnitLit    => UnitLit,
             I32Lit(n)  => I32Lit(n),
             BoolLit(b) => BoolLit(b),
-            Var(ref id, ref tys) => {
-                let id = match cache.get(id) {
+            Var(ref id, _) => {
+                let id = match self.cache.get(id) {
                     None => id.clone(),
                     Some(instance) => 
                         match instance.get(subst.range()) {
@@ -181,16 +163,31 @@ impl Monomorphise {
                             None     => id.clone()
                         }
                 };
-                let id = self.instantiate_ident(&id, subst, cache);
+                let id = self.instantiate_ident(&id, subst);
                 Var(id, vec![])
             }
+            App{ref callee, ref args} => {
+                let callee = Box::new(self.instantiate(callee, subst)?);
+                let args   = Vector::map(args, |arg|
+                                         self.instantiate(arg, subst))?;
+                App{callee, args}
+            }
+            If(ref e)  => {
+                let cond  = self.instantiate(e.cond(),  subst)?;
+                let texpr = self.instantiate(e.texpr(), subst)?;
+                let fexpr = self.instantiate(e.fexpr(), subst)?;
+                let ty    = e.res_ty().clone(); //FIXME
+                let ifexpr = self::If::new(cond, texpr, fexpr, ty);
+                If(Box::new(ifexpr))
+            }
             Lam(ref lam) => {
-                let proto = self.instantiate_fn_proto(lam.proto(), subst, cache);
-                let body  = self.instantiate(lam.body(), subst, cache)?;
+                self.cache.begin_scope();
+                let proto = self.instantiate_fn_proto(lam.proto(), subst);
+                let body  = self.instantiate(lam.body(), subst)?;
                 let lam   = Lam(Rc::new(::hir::Lam::new(proto, body)));
+                self.cache.end_scope();
                 lam
             }
-            ref expr  => panic!("Can not Instantiate {:?}", expr)
         };
 
         Ok(res)
@@ -199,7 +196,7 @@ impl Monomorphise {
     fn get_subst(&self, monotypes: &Vec<Type>, expr: &Expr) -> Result<Subst> {
         match *expr {
             Expr::Lam(ref lam) => Ok(lam.proto().ty().mk_subst(monotypes)),
-            ref other => {
+            _ => {
                 let msg = format!("Cannot do subst for non lambda {:?}", expr);
                 Err(Error::new(msg))
             }
@@ -207,10 +204,9 @@ impl Monomorphise {
     }
 
     fn instantiate_var(&mut self, id: &Ident, monotypes: &Vec<Type>
-                       , cache: &mut Cache
                        , toplevel: &mut TopLevel) -> Result<Expr>
     {
-        let rc_expr = match cache.get(&id) {
+        let rc_expr = match self.cache.get(&id) {
             None => {
                 //Monomorphic
                 let var = Expr::Var((*id).clone(), vec![]);
@@ -229,17 +225,17 @@ impl Monomorphise {
         };
         
         let subst = self.get_subst(monotypes, &*rc_expr)?;
-        let expr  = self.instantiate(&*rc_expr, &subst, cache)?;
+        let expr  = self.instantiate(&*rc_expr, &subst)?;
         match expr {
             Expr::Lam(ref lam) => {
                 let instance = lam.proto().ident().clone();
-                cache.get_mut(id)
+                self.cache.get_mut(id)
                     .unwrap()
                     .insert(subst.range().clone(), instance.clone());
                 toplevel.add_decl(TopDecl::Lam(lam.clone()));
                 Ok(Expr::Var(instance, vec![]))
             },
-            ref other => {
+            _ => {
                 let msg = format!("Cannot do var subst for non lambda {:?}"
                                   , expr);
                 Err(Error::new(msg))
@@ -247,7 +243,7 @@ impl Monomorphise {
         }
     }
     
-    fn mono_expr(&mut self, expr: &Expr, cache: &mut Cache
+    fn mono_expr(&mut self, expr: &Expr
                  , toplevel: &mut TopLevel) -> Result<Expr> {
         use hir::Expr::*;
         let res = match *expr {
@@ -255,39 +251,36 @@ impl Monomorphise {
             I32Lit(n)  => I32Lit(n),
             BoolLit(b) => BoolLit(b),
             Var(ref v, ref ty_vars) => {
-                self.instantiate_var(v, ty_vars, cache, toplevel)?
+                self.instantiate_var(v, ty_vars, toplevel)?
             }
             App{ref callee, ref args} => {
-                let callee = Box::new(self.mono_expr(callee, cache, toplevel)?);
-                let args = VecUtil::map(args, |arg|
-                                        self.mono_expr(arg, cache, toplevel))?;
+                let callee = Box::new(self.mono_expr(callee, toplevel)?);
+                let args = Vector::map(args, |arg|
+                                        self.mono_expr(arg, toplevel))?;
                 App{callee, args}
             }
             If(ref e)  => {
-                let cond  = self.mono_expr(e.cond(),  cache, toplevel)?;
-                let texpr = self.mono_expr(e.texpr(), cache, toplevel)?;
-                let fexpr = self.mono_expr(e.fexpr(), cache, toplevel)?;
+                let cond  = self.mono_expr(e.cond(), toplevel)?;
+                let texpr = self.mono_expr(e.texpr(), toplevel)?;
+                let fexpr = self.mono_expr(e.fexpr(), toplevel)?;
                 let ty    = e.res_ty().clone();
                 let ifexpr = self::If::new(cond, texpr, fexpr, ty);
                 If(Box::new(ifexpr))
             }
             Lam(ref lam) => {
                 if lam.proto().ty().is_monotype() {
-                    let expr = self.mono_expr(lam.body(), cache, toplevel)?;
+                    let expr = self.mono_expr(lam.body(), toplevel)?;
                     let lam  = ::hir::Lam::new(lam.proto().clone(), expr);
                     Lam(::std::rc::Rc::new(lam))
                 }
                 else {
-                    cache.insert_expr(lam.ident()
-                                      , Expr::Lam(lam.clone()));
+                    self.cache.insert_expr(lam.ident()
+                                           , Expr::Lam(lam.clone()));
                     //Return a non Expr::Lam so result is not put in toplevel
                     UnitLit
                 }
             }
-            ref expr   => { println!("NOTHANDLED\n{:?} not handled", expr);
-                            unimplemented!() },
         };
         Ok(res)
     }
-
 }

@@ -1,7 +1,6 @@
 use std::rc::Rc;
 pub type Type = ::types::Type<u32>;
 pub type ForAll = ::types::ForAll<u32>;
-use types::Function;
 
 #[derive(Debug)]
 pub struct TopLevel {

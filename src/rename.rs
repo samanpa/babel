@@ -1,7 +1,7 @@
 use ast;
 use hir;
 use types::Type;
-use {VecUtil,Result,Error};
+use {Vector,Result,Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
 use std::collections::HashMap;
@@ -20,7 +20,7 @@ impl ::Pass for Rename {
     type Output = Vec<hir::TopLevel>;
 
     fn run(mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
-        let result = VecUtil::map(&toplevel_vec, |toplevel|
+        let result = Vector::map(&toplevel_vec, |toplevel|
                                   self.rename_toplevel(toplevel));
         Ok(result?)
     }
@@ -57,7 +57,7 @@ impl Rename {
             }
             Func(ref func_ty) => {
                 use types::Function;
-                let params_ty = VecUtil::map(func_ty.params_ty(),
+                let params_ty = Vector::map(func_ty.params_ty(),
                                              |ty| self.rename_ty(ty))?;
                 let return_ty = self.rename_ty(func_ty.return_ty())?;
                 let func_ty = Function::new(params_ty, return_ty);
@@ -79,7 +79,7 @@ impl Rename {
     {
         //Get numeric identifies for the bound variables and add them as TyVar
         //  to self.ty_names
-        let ty_vars = VecUtil::map(forall.bound_vars(),
+        let ty_vars = Vector::map(forall.bound_vars(),
                                    |ty| self.add_tyvar(ty))?;
         let ty      = self.rename_ty(forall.ty())?;
         Ok(::types::ForAll::new(ty_vars, ty))
@@ -105,7 +105,7 @@ impl Rename {
     fn rename_toplevel(&mut self, toplevel: &ast::TopLevel)
                        -> Result<hir::TopLevel>
     {
-        let decls = VecUtil::map(toplevel.decls(), |decl| {
+        let decls = Vector::map(toplevel.decls(), |decl| {
             self.rename_topdecl(decl)
         });
         Ok(hir::TopLevel::new(decls?))
@@ -121,7 +121,7 @@ impl Rename {
         let funcid = self.add_ident(proto.name(), ty)?;
 
         self.names.begin_scope();
-        let params = VecUtil::map(proto.params()
+        let params = Vector::map(proto.params()
                                   , |p| { let ty = self.rename_ty(p.ty())?;
                                           self.add_ident(p.name(), ty) })?;
         let proto  = hir::FnProto::new(funcid, params, scheme);
@@ -167,11 +167,11 @@ impl Rename {
             }
             App{ref callee, ref args} => {
                 let callee    = Box::new(self.rename(callee)?);
-                let args      = VecUtil::map(args, |arg| self.rename(arg))?;
+                let args      = Vector::map(args, |arg| self.rename(arg))?;
                 hir::Expr::App{callee, args}
             }
             Var(ref nm, ref ty) => {
-                let ty = VecUtil::map(ty, |ty| self.rename_ty(ty))?;
+                let ty = Vector::map(ty, |ty| self.rename_ty(ty))?;
                 match self.names.get(nm) {
                     Some(v) => hir::Expr::Var(v.clone(), ty),
                     None => {
