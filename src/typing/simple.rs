@@ -3,7 +3,6 @@ use ::hir::*;
 use ::types::Type;
 use ::{Result,Error,Vector};
 
-
 pub struct SimpleTypeChecker {}
 
 impl SimpleTypeChecker {

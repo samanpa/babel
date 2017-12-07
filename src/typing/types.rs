@@ -3,7 +3,7 @@ pub enum Type<T> {
     Bool,
     I32,
     Unit,
-    TyCon(T),
+    TyCon(String),
     Func(Box<Function<T>>),
     TyVar(T)
 }
@@ -57,11 +57,12 @@ impl <T> Type<T> {
 pub fn unifiable<T>(lhs: &Type<T>, rhs: &Type<T>) -> bool {
     use types::Type::*;
     match (lhs, rhs) {
-        (&Bool, &Bool)    => true,
-        (&I32,  &I32)     => true,
-        (&Unit, &Unit)    => true,
-        (&TyVar(_), _)    => true,
-        (_, &TyVar(_))    => true,
+        (&Bool, &Bool) => true,
+        (&I32,  &I32)  => true,
+        (&Unit, &Unit) => true,
+        (&TyVar(_), _) => true,
+        (_, &TyVar(_)) => true,
+        (&TyCon(ref a), &TyCon(ref b)) => a == b,
         (&Func(ref lhs), &Func(ref rhs)) => {
             unifiable(&lhs.return_ty, &rhs.return_ty) &&
                 lhs.params_ty().len() == rhs.params_ty().len() &&

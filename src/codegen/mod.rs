@@ -3,6 +3,7 @@ extern crate llvm_sys;
 mod transform;
 mod llvm_pass;
 mod prelude;
+mod emit;
 
 use ::ir;
 use ::Result;
@@ -11,7 +12,6 @@ use self::llvm_sys::prelude::*;
 use self::llvm_sys::core::*;
 use self::transform::LowerToLlvm;
 use self::llvm_pass::PassRunner;
-
 
 pub struct Module {
     module: LLVMModuleRef,
@@ -28,6 +28,7 @@ impl <'a> Drop for Module {
 
 pub struct CodeGen {
     context: LLVMContextRef,
+    output_file: String,
 }
 
 impl ::Pass for CodeGen {
@@ -43,10 +44,10 @@ impl ::Pass for CodeGen {
 }
 
 impl CodeGen {
-    pub fn new() -> Self {
+    pub fn new(output_file: String) -> Self {
         unsafe {
             target::LLVM_InitializeNativeTarget();
-            CodeGen{context: LLVMContextCreate(),}
+            CodeGen{context: LLVMContextCreate(), output_file}
         }
     }
 
@@ -63,8 +64,11 @@ impl CodeGen {
         
         let module = codegen.module();
         pass_runner.run(module)?;
+      
+        unsafe{ LLVMDumpModule(module)};
 
         //LLVMPrintModuleToFile (module, const char *Filename, char **ErrorMessage)
+        emit::emit(module, &self.output_file)?;
         Ok(())
     }
 }

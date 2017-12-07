@@ -15,7 +15,7 @@ fn compile(file: File) -> babel::Result<()> {
     let typecheck    = babel::typing::SimpleTypeChecker::new();
     let monomorphise = babel::monomorphise::Monomorphise::new();
     let elaborate    = babel::elaborate::Elaborate::new("module".to_string());
-    let codegen      = babel::codegen::CodeGen::new();
+    let codegen      = babel::codegen::CodeGen::new("module.o".to_string());
 
     use babel::Pass;
     let asts  = vec![babel::parser::parse_TopLevel(&file_contents)?];

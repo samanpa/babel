@@ -40,8 +40,6 @@ impl PassRunner {
             }
             LLVMRunPassManager(pm, module);
 
-            LLVMDumpModule(module);
-
             LLVMDisposePassManager(fpm);
         }
 
