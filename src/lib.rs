@@ -8,6 +8,7 @@ pub mod monomorphise;
 pub mod elaborate;
 pub mod codegen;
 pub mod typing;
+pub mod link;
 pub (crate) mod scoped_map;
 
 pub use typing::types;

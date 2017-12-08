@@ -6,7 +6,7 @@ mod prelude;
 mod emit;
 
 use ::ir;
-use ::Result;
+use ::{Result,Vector};
 use self::llvm_sys::target;
 use self::llvm_sys::prelude::*;
 use self::llvm_sys::core::*;
@@ -33,13 +33,11 @@ pub struct CodeGen {
 
 impl ::Pass for CodeGen {
     type Input  = Vec<ir::Module>; 
-    type Output = Vec<()>;
+    type Output = Vec<String>;
 
     fn run(mut self, modules: Self::Input) -> Result<Self::Output> {
-        for module in modules {
-            self.codegen_module(&module)?;
-        }
-        Ok(vec![])
+        Vector::map( &modules,
+                      |module| self.codegen_module(&module) )
     }
 }
 
@@ -51,7 +49,7 @@ impl CodeGen {
         }
     }
 
-    fn codegen_module(&mut self, module: &ir::Module) -> Result<()> {
+    fn codegen_module(&mut self, module: &ir::Module) -> Result<String> {
         let mut codegen = LowerToLlvm::new(module.name(), &mut self.context);
         let pass_runner = PassRunner::new();
 
@@ -68,8 +66,8 @@ impl CodeGen {
         unsafe{ LLVMDumpModule(module)};
 
         //LLVMPrintModuleToFile (module, const char *Filename, char **ErrorMessage)
-        emit::emit(module, &self.output_file)?;
-        Ok(())
+        let object_file = emit::emit(module, &self.output_file)?;
+        Ok(object_file)
     }
 }
 

@@ -10,10 +10,12 @@ use std::ffi::{CStr, CString};
 extern "C" fn fatal_error(reason: *const self::libc::c_char) {
     println!("LLVM Fatal error {:?}", reason);
 }
-pub fn emit(module: LLVMModuleRef, output_file: &String) -> Result<()> {
+
+pub fn emit(module: LLVMModuleRef, output_file: &String) -> Result<String> {
     let cpu = CString::new("x86-64").expect("invalid cpu");
     let feature = CString::new("").expect("invalid feature");
-    let output_file = CString::new(output_file.as_str())
+    let object_file = output_file.clone() + ".o";
+    let output_file = CString::new(object_file.as_str())
         .expect("invalid file");
 
     unsafe {
@@ -62,13 +64,17 @@ pub fn emit(module: LLVMModuleRef, output_file: &String) -> Result<()> {
         let target_machine = LLVMCreateTargetMachine(target, triple, cpu.as_ptr(), feature.as_ptr(), opt_level, reloc_mode, code_model);
         let file_type = LLVMCodeGenFileType::LLVMObjectFile;
 
-        let res = LLVMTargetMachineEmitToFile(target_machine, module, output_file.as_ptr() as *mut i8, file_type, &mut error_str);
+        let res = LLVMTargetMachineEmitToFile(target_machine
+                                              , module
+                                              , output_file.as_ptr() as *mut i8
+                                              , file_type
+                                              , &mut error_str);
         if res == 1 {
             let x = CStr::from_ptr(error_str);
             println!("Could not emit file! {:?}", x);
             LLVMDisposeMessage(error_str);
         }
     }
-
-    Ok(())
+    
+    Ok(object_file)
 }
