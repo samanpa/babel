@@ -5,7 +5,13 @@ pub enum Type<T> {
     Unit,
     TyCon(String),
     Func(Box<Function<T>>),
-    TyVar(T)
+    TyVar(T, TyVarFlavour)
+}
+
+#[derive(Debug,Clone,Hash,Eq,PartialEq,Copy)]
+pub enum TyVarFlavour {
+    Bound,
+    Free,
 }
 
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
@@ -47,8 +53,8 @@ impl <T> Type<T> {
             I32  |
             Unit => true,
             TyCon(_)     => true, //FIXME
+            TyVar(_, _)  => false,
             Func(ref f)  => f.is_monotype(), //FIXME
-            TyVar(_)     => false,
         }
     }
 }
@@ -57,11 +63,11 @@ impl <T> Type<T> {
 pub fn unifiable<T>(lhs: &Type<T>, rhs: &Type<T>) -> bool {
     use types::Type::*;
     match (lhs, rhs) {
-        (&Bool, &Bool) => true,
-        (&I32,  &I32)  => true,
-        (&Unit, &Unit) => true,
-        (&TyVar(_), _) => true,
-        (_, &TyVar(_)) => true,
+        (&Bool, &Bool)   => true,
+        (&I32,  &I32)    => true,
+        (&Unit, &Unit)   => true,
+        (&TyVar(_,_), _) => true,
+        (_, &TyVar(_,_)) => true,
         (&TyCon(ref a), &TyCon(ref b)) => a == b,
         (&Func(ref lhs), &Func(ref rhs)) => {
             unifiable(&lhs.return_ty, &rhs.return_ty) &&

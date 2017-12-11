@@ -1,6 +1,6 @@
 use ast;
 use hir;
-use types::Type;
+use types::{Type,TyVarFlavour};
 use {Vector,Result,Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
@@ -47,7 +47,7 @@ impl Rename {
             Bool => Bool,
             I32  => I32,
             Unit => Unit,
-            TyVar(ref _v) => TyVar(self.new_count()),
+            TyVar(ref _v, ref fl) => TyVar(self.new_count(), fl.clone()),
             TyCon(ref tycon) => {
                 match self.ty_names.get(tycon) {
                     Some(ref ty) => (*ty).clone(),
@@ -69,7 +69,8 @@ impl Rename {
 
     fn add_tyvar(&mut self, nm: &String) -> Result<u32> {
         let id = self.new_count();
-        match self.ty_names.insert(nm.clone(), Type::TyVar(id)) {
+        let ty = Type::TyVar(id, TyVarFlavour::Bound);
+        match self.ty_names.insert(nm.clone(), ty) {
             None    => Ok(id),
             Some(_) => Err(Error::new(format!("TyVar {} already declared", nm)))
         }
@@ -159,10 +160,12 @@ impl Rename {
                 hir::Expr::Lam(Rc::new(lam))
             }
             If(ref e)    => {
+                //dummy type var
+                let ty = Type::TyVar(0, TyVarFlavour::Bound);
                 let if_expr = hir::If::new(self.rename(e.cond())?,
                                            self.rename(e.texpr())?,
                                            self.rename(e.fexpr())?,
-                                           Type::TyVar(0)); //dummy type var
+                                           ty);
                 hir::Expr::If(Box::new(if_expr))
             }
             App{ref callee, ref args} => {

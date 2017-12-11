@@ -32,10 +32,10 @@ impl Subst {
                 let func = Function::new(params_ty, return_ty);
                 Func(Box::new(func))
             }
-            TyVar(id) => {
+            TyVar(id, fl) => {
                 match self.map.get(&id) {
                     Some(ref ty) => (*ty).clone(),
-                    None         => TyVar(id),
+                    None         => TyVar(id, fl),
                 }
             }
         }
