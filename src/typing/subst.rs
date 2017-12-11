@@ -16,6 +16,13 @@ impl Subst {
         self.range.push(ty.clone());
         self.map.insert(tyvar, ty);
     }
+
+    pub fn compose(&mut self, rhs: &Subst) {
+        for (tyvar, ty) in &rhs.map {
+            self.range.push(ty.clone());
+            self.map.insert(*tyvar, ty.clone());
+        }
+    }
     
     pub fn subst(&self, ty: &Type<u32>) -> Type<u32> {
         use types::Type::*;

@@ -49,33 +49,51 @@ impl <T> Type<T> {
     pub fn is_monotype(&self) -> bool {
         use self::Type::*;
         match *self {
-            Bool |
-            I32  |
-            Unit => true,
-            TyCon(_)     => true, //FIXME
+            Bool     |
+            I32      |
+            TyCon(_) | // FIXME: What about list<K>
+            Unit         => true,
             TyVar(_, _)  => false,
-            Func(ref f)  => f.is_monotype(), //FIXME
+            Func(ref f)  => {
+                f.params_ty
+                    .iter()
+                    .fold( f.return_ty.is_monotype(),
+                           | prev, ty | prev && ty.is_monotype())
+            }
+        }
+    }
+
+    pub fn free_tyvars(&self) -> Vec<T>
+        where T: Clone
+    {
+        use self::Type::*;
+        use self::TyVarFlavour::*;
+        match *self {
+            Bool     |
+            I32      |
+            Unit     |
+            TyCon(_) | //FIXME
+            TyVar(_, Bound) => vec![],
+            TyVar(ref k, Free)  => vec![k.clone()],
+            Func(ref f)  => {
+                f.params_ty
+                    .iter()
+                    .fold( f.return_ty.free_tyvars(),
+                           | mut ftv, ty | {
+                               ftv.append(&mut ty.free_tyvars());
+                               ftv
+                           })
+            }
         }
     }
 }
 
 //We should be implemententing a unifiable trait
-pub fn unifiable<T>(lhs: &Type<T>, rhs: &Type<T>) -> bool {
-    use types::Type::*;
-    match (lhs, rhs) {
-        (&Bool, &Bool)   => true,
-        (&I32,  &I32)    => true,
-        (&Unit, &Unit)   => true,
-        (&TyVar(_,_), _) => true,
-        (_, &TyVar(_,_)) => true,
-        (&TyCon(ref a), &TyCon(ref b)) => a == b,
-        (&Func(ref lhs), &Func(ref rhs)) => {
-            unifiable(&lhs.return_ty, &rhs.return_ty) &&
-                lhs.params_ty().len() == rhs.params_ty().len() &&
-                lhs.params_ty().iter().zip(rhs.params_ty())
-                .fold(true, |prev, (lty, rty)| prev && unifiable(lty, rty))
-        },
-        _ => false,
+pub fn unifiable(lhs: &Type<u32>, rhs: &Type<u32>) -> bool {
+    let res = super::unify(lhs, rhs);
+    match res {
+        Err(e) => { println!("{}", e); false }
+        Ok(_)  => { true }
     }
 }
 
@@ -96,11 +114,5 @@ impl <T> Function<T> {
 
     pub fn return_ty(&self) -> &Type<T> {
         &self.return_ty
-    }
-
-    pub fn is_monotype(&self) -> bool {
-        self.params_ty.iter()
-            .fold( self.return_ty.is_monotype(),
-                   | prev, ty | prev && ty.is_monotype())
     }
 }
