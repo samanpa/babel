@@ -104,10 +104,10 @@ impl Elaborate {
             I32Lit(n)     => ir::Expr::I32Lit(n),
             BoolLit(b)    => ir::Expr::BoolLit(b),
             Var(ref v, _) => ir::Expr::Var(Self::elab_ident(v)),
-            App{ref callee, ref args} => {
+            App(ref callee, ref args) => {
                 let callee = Box::new(self.trans(callee)?);
                 let args = Vector::map(args, |arg| self.trans(arg))?;
-                ir::Expr::App{callee, args}
+                ir::Expr::App(callee, args)
             }
             If(ref e)  => {
                 let cond  = self.trans(e.cond())?;

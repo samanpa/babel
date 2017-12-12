@@ -131,7 +131,7 @@ impl <'a> LowerToLlvm<'a> {
                     let ty = self.get_type(&Bool, false);
                     LLVMConstInt(ty, b as u64, false as i32)
                 },
-                App{ref callee, ref args} => {
+                App(ref callee, ref args) => {
                     let callee = self.emit(callee, bb, func)?; 
                     let mut llargs = Vec::new();
                     for arg in args {

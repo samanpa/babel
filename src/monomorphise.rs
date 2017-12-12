@@ -4,9 +4,9 @@ use std::rc::Rc;
 use {Result,Error,Vector};
 use scoped_map::ScopedMap;
 use std::collections::HashMap;
+use fresh_id;
 
 pub struct Monomorphise {
-    curr_id: u32,
     cache: Cache,
 }
 
@@ -80,7 +80,7 @@ impl Instances {
 
 impl Monomorphise {
     pub fn new() -> Self {
-        Monomorphise{ curr_id: 100000, cache: Cache::new() }
+        Monomorphise{ cache: Cache::new() }
     }
 
     fn mono_toplevel(&mut self, toplevel: TopLevel) -> Result<TopLevel> {
@@ -112,11 +112,6 @@ impl Monomorphise {
         Ok(())
     }
 
-    fn new_id(&mut self) -> u32 {
-        self.curr_id += 1;
-        self.curr_id
-    }
-
     fn instantiate_ident(&mut self, ident: &Ident, subst: &Subst) -> Ident
     {
         if ident.ty().is_monotype() {
@@ -129,8 +124,8 @@ impl Monomorphise {
                 }
             }
             let name   = format!("{}<{:?}>", ident.name(), subst.range());
-            let ty     = subst.subst(ident.ty());
-            let ident_ = Ident::new(Rc::new(name), ty, self.new_id());
+            let ty     = subst.apply(ident.ty());
+            let ident_ = Ident::new(Rc::new(name), ty, fresh_id());
             self.cache.insert_instance(ident, subst.range(), ident_.clone());
             ident_
         }
@@ -166,11 +161,11 @@ impl Monomorphise {
                 let id = self.instantiate_ident(&id, subst);
                 Var(id, vec![])
             }
-            App{ref callee, ref args} => {
+            App(ref callee, ref args) => {
                 let callee = Box::new(self.instantiate(callee, subst)?);
                 let args   = Vector::map(args, |arg|
                                          self.instantiate(arg, subst))?;
-                App{callee, args}
+                App(callee, args)
             }
             If(ref e)  => {
                 let cond  = self.instantiate(e.cond(),  subst)?;
@@ -253,11 +248,11 @@ impl Monomorphise {
             Var(ref v, ref ty_vars) => {
                 self.instantiate_var(v, ty_vars, toplevel)?
             }
-            App{ref callee, ref args} => {
+            App(ref callee, ref args) => {
                 let callee = Box::new(self.mono_expr(callee, toplevel)?);
                 let args = Vector::map(args, |arg|
                                         self.mono_expr(arg, toplevel))?;
-                App{callee, args}
+                App(callee, args)
             }
             If(ref e)  => {
                 let cond  = self.mono_expr(e.cond(), toplevel)?;

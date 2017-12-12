@@ -20,7 +20,7 @@ impl ::Pass for Link {
         let command = command
             .arg("-o")
             .arg(self.name);
-        object_files.iter()
+        let _ = object_files.iter()
             .fold( command, |cmd, arg| cmd.arg(arg))
             .output();
         Ok(())

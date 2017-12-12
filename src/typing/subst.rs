@@ -24,7 +24,7 @@ impl Subst {
         }
     }
     
-    pub fn subst(&self, ty: &Type<u32>) -> Type<u32> {
+    pub fn apply(&self, ty: &Type<u32>) -> Type<u32> {
         use types::Type::*;
         match *ty {
             Bool => Bool,
@@ -32,9 +32,9 @@ impl Subst {
             Unit => Unit,
             TyCon(_) => unimplemented!(),
             Func(ref func_ty) => {
-                let return_ty = self.subst(func_ty.return_ty());
+                let return_ty = self.apply(func_ty.return_ty());
                 let params_ty = func_ty.params_ty().iter()
-                    .map( |pty| self.subst(pty))
+                    .map( |pty| self.apply(pty))
                     .collect();
                 let func = Function::new(params_ty, return_ty);
                 Func(Box::new(func))

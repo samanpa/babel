@@ -82,6 +82,14 @@ impl Vector {
     }
 }
 
+static mut COUNT: u32 = 0;
+pub fn fresh_id() -> u32 {
+    unsafe {
+        COUNT += 1 ; 
+        COUNT
+    }
+}
+
 #[macro_export]
 macro_rules! passes {
     ( $expr:expr => $($pass:expr) => + ) => {

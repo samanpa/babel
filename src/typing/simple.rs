@@ -92,7 +92,7 @@ fn get_type(expr: &Expr) -> Result<Type<u32>> {
         I32Lit(_)  => I32,
         BoolLit(_) => Bool,
         Var(ref v, ref _ty) => v.ty().clone(), //FIXME: do substition
-        App{ref callee, ref args, ..} => tc_app(callee, args)?.return_ty().clone(),
+        App(ref callee, ref args) => tc_app(callee, args)?.return_ty().clone(),
         If(ref e)  => {
             let cond_ty  = get_type(e.cond())?;
             let texpr_ty = get_type(e.texpr())?;
@@ -116,11 +116,11 @@ fn tc_expr(expr: &Expr) -> Result<(Expr,Type<u32>)> {
         I32Lit(n)  => (I32Lit(n), I32),
         BoolLit(b) => (BoolLit(b), Bool),
         Var(ref v, ref ty) => (Var(v.clone(), ty.clone()), v.ty().clone()),
-        App{ref callee, ref args} => {
+        App(ref callee, ref args) => {
             let callee_ty   = tc_app(callee, args)?;
             let (callee, _) = tc_expr(callee)?;
             let args        = Vector::map(args, |arg| Ok(tc_expr(arg)?.0))?;
-            let app         = App{callee: Box::new(callee), args};
+            let app         = App(Box::new(callee), args);
             (app, callee_ty.return_ty().clone())
         }
         If(ref e)  => {

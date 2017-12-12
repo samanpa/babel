@@ -50,7 +50,7 @@ pub enum Expr {
     BoolLit(bool),
 
     Lambda(Box<Lambda>),
-    App{callee: Box<Expr>, args: Vec<Expr> },
+    App(Box<Expr>, Vec<Expr>),
     Var(Ident),
     //FIXME: introduce an If struct to reduce number or allocations
     If{cond: Box<Expr>, texpr: Box<Expr>, fexpr: Box<Expr>, ty: Type }

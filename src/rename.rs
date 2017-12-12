@@ -5,9 +5,9 @@ use {Vector,Result,Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
 use std::collections::HashMap;
+use fresh_id;
 
 pub struct Rename {
-    count: u32,
     names: ScopedMap<String, hir::Ident>,
     ty_names: ScopedMap<String, hir::Type>,
     //Store uniq names across all scopes to reduce memory.
@@ -28,17 +28,10 @@ impl ::Pass for Rename {
 
 impl Rename {
     pub fn new() -> Self {
-        Rename{count: 0,
-               names: ScopedMap::new(),
+        Rename{names: ScopedMap::new(),
                uniq_names: HashMap::new(),
                ty_names: ScopedMap::new(),
         }
-    }
-
-    fn new_count(&mut self) -> u32 {
-        let count = self.count;
-        self.count = count + 1;
-        count
     }
     
     fn rename_ty(&mut self, ty: &ast::Type) -> Result<hir::Type> {
@@ -47,7 +40,7 @@ impl Rename {
             Bool => Bool,
             I32  => I32,
             Unit => Unit,
-            TyVar(ref _v, ref fl) => TyVar(self.new_count(), fl.clone()),
+            TyVar(ref _v, ref fl) => TyVar(fresh_id(), fl.clone()),
             TyCon(ref tycon) => {
                 match self.ty_names.get(tycon) {
                     Some(ref ty) => (*ty).clone(),
@@ -68,7 +61,7 @@ impl Rename {
     }
 
     fn add_tyvar(&mut self, nm: &String) -> Result<u32> {
-        let id = self.new_count();
+        let id = fresh_id();
         let ty = Type::TyVar(id, TyVarFlavour::Bound);
         match self.ty_names.insert(nm.clone(), ty) {
             None    => Ok(id),
@@ -98,7 +91,7 @@ impl Rename {
             .entry(nm.clone())
             .or_insert(Rc::new(nm.clone()))
             .clone();
-        let ident = hir::Ident::new(ident_name, ty, self.new_count());
+        let ident = hir::Ident::new(ident_name, ty, fresh_id());
         self.insert_ident(nm, &ident)?;
         Ok(ident)
     }
@@ -171,7 +164,7 @@ impl Rename {
             App{ref callee, ref args} => {
                 let callee    = Box::new(self.rename(callee)?);
                 let args      = Vector::map(args, |arg| self.rename(arg))?;
-                hir::Expr::App{callee, args}
+                hir::Expr::App(callee, args)
             }
             Var(ref nm, ref ty) => {
                 let ty = Vector::map(ty, |ty| self.rename_ty(ty))?;
