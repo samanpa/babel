@@ -1,5 +1,11 @@
 extern i32_lt(a: i32, b: i32) -> bool;
 extern i32_add(a: i32, b: i32) -> i32;
 extern i32_sub(a: i32, b: i32) -> i32;
-extern i32_print(a: i32) -> i32;
+extern i32_mul(a: i32, b: i32) -> i32;
+extern i32_mod(a: i32, b: i32) -> i32;
+extern i32_div(a: i32, b: i32) -> i32;
+extern putchar(a: i32) -> i32;
+fn i32_print(a: i32) -> i32 {
+    putchar(a)
+}
 
