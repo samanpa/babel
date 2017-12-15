@@ -5,13 +5,7 @@ pub enum Type<T> {
     Unit,
     TyCon(String),
     Func(Box<Function<T>>),
-    TyVar(T, TyVarFlavour)
-}
-
-#[derive(Debug,Clone,Hash,Eq,PartialEq,Copy)]
-pub enum TyVarFlavour {
-    Bound,
-    Free,
+    TyVar(T)
 }
 
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
@@ -42,18 +36,25 @@ impl ForAll<u32> {
         }
         subst
     }
-    
+
+    pub fn instantiate(&self) -> Type<u32> {
+        let mut subst = super::subst::Subst::new();
+        for bv in &self.bound_vars {
+            subst.bind(*bv, Type::TyVar(::fresh_id()));
+        }
+        subst.apply(self.ty())
+    }
 }
 
-impl <T> Type<T> {
+impl Type<u32> {
     pub fn is_monotype(&self) -> bool {
         use self::Type::*;
         match *self {
             Bool     |
             I32      |
             TyCon(_) | // FIXME: What about list<K>
-            Unit         => true,
-            TyVar(_, _)  => false,
+            Unit     => true,
+            TyVar(_) => false,
             Func(ref f)  => {
                 f.params_ty
                     .iter()
@@ -63,18 +64,15 @@ impl <T> Type<T> {
         }
     }
 
-    pub fn free_tyvars(&self) -> Vec<T>
-        where T: Clone
+    pub fn free_tyvars(&self) -> Vec<u32>
     {
         use self::Type::*;
-        use self::TyVarFlavour::*;
         match *self {
             Bool     |
             I32      |
             Unit     |
-            TyCon(_) | //FIXME
-            TyVar(_, Bound) => vec![],
-            TyVar(ref k, Free)  => vec![k.clone()],
+            TyCon(_) => vec![], //FIXME
+            TyVar(k) => vec![k],
             Func(ref f)  => {
                 f.params_ty
                     .iter()

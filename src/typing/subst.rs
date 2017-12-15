@@ -7,6 +7,7 @@ pub struct Subst {
     range: Vec<Type<u32>>
 }
 
+
 impl Subst {
     pub fn new() -> Self {
         Subst{ map: HashMap::new(), range: vec![] }
@@ -17,11 +18,13 @@ impl Subst {
         self.map.insert(tyvar, ty);
     }
 
-    pub fn compose(&mut self, rhs: &Subst) {
+    pub fn compose(self, rhs: &Subst) -> Subst {
+        let mut subst = self;
         for (tyvar, ty) in &rhs.map {
-            self.range.push(ty.clone());
-            self.map.insert(*tyvar, ty.clone());
+            subst.range.push(ty.clone());
+            subst.map.insert(*tyvar, ty.clone());
         }
+        subst
     }
     
     pub fn apply(&self, ty: &Type<u32>) -> Type<u32> {
@@ -39,10 +42,10 @@ impl Subst {
                 let func = Function::new(params_ty, return_ty);
                 Func(Box::new(func))
             }
-            TyVar(id, fl) => {
+            TyVar(id) => {
                 match self.map.get(&id) {
                     Some(ref ty) => (*ty).clone(),
-                    None         => TyVar(id, fl),
+                    None         => TyVar(id),
                 }
             }
         }

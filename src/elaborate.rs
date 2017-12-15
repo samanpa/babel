@@ -70,7 +70,7 @@ impl Elaborate {
             Unit => ir::Type::Unit,
             I32  => ir::Type::I32,
             Bool => ir::Type::Bool,
-            TyVar(_, _) => unimplemented!(),
+            TyVar(_) => unimplemented!(),
             TyCon(_) => unimplemented!(),
             Func(ref fn_ty) => {
                 let params_ty = fn_ty.params_ty().iter()
