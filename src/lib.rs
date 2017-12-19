@@ -1,18 +1,9 @@
 pub mod ast;
 pub mod prelude;
-pub mod parser;
-pub mod hir;
-pub mod rename;
-pub mod ir;
-pub mod monomorphise;
-pub mod elaborate;
-pub mod codegen;
+//pub mod parser;
 pub mod typing;
-pub mod link;
-pub (crate) mod scoped_map;
 
 pub use typing::types;
-pub use typing::subst;
 
 #[derive(Debug)]
 pub struct Error{

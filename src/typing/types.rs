@@ -1,10 +1,7 @@
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
 pub enum Type<T> {
-    Bool,
-    I32,
-    Unit,
     TyCon(String),
-    Func(Box<Function<T>>),
+    TyApp(String, Vec<Type<T>>),
     TyVar(T)
 }
 
@@ -28,6 +25,7 @@ impl <T> ForAll<T> {
         self.bound_vars.len() == 0
     }
 }
+    /*
 impl ForAll<u32> {
     pub fn mk_subst(&self, monotypes: &Vec<Type<u32>>) -> super::subst::Subst {
         let mut subst = super::subst::Subst::new();
@@ -114,3 +112,4 @@ impl <T> Function<T> {
         &self.return_ty
     }
 }
+*/

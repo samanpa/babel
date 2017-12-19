@@ -1,34 +1,23 @@
 #[derive(Debug)]
-pub struct TopLevel {
-    decls: Vec<TopDecl>,
+pub enum Type {
+    TyApp(String, Vec<Type>),
+    TVar(String)
 }
 
 #[derive(Debug)]
-pub enum TopDecl {
-    Extern(FnProto),
-    Use(String),
-    Lam(Lam),
-}
-
-pub type ForAll = ::types::ForAll<String>;
-pub type Type = ::types::Type<String>;
-
-#[derive(Debug)]
-pub struct FnProto {
-    name: String,
-    params: Vec<Param>,
-    ty: ForAll,
+pub struct Module {
+    decls: Vec<Decl>,
 }
 
 #[derive(Debug)]
-pub struct Param {
-    name: String,
-    ty: Type,
+pub enum Decl {
+    Extern(String, Type),
+    Func(String, Lam),
 }
 
 #[derive(Debug)]
 pub struct Lam {
-    proto: FnProto,
+    param: String,
     body:  Expr
 }
 
@@ -42,89 +31,38 @@ pub struct If {
 #[derive(Debug)]
 pub enum Expr {
     Lam(Box<Lam>),
-    App{callee: Box<Expr>, args: Vec<Expr>},
+    App(Box<Expr>, Box<Expr>),
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
     Var(String, Vec<Type>),
-    If(Box<If>)
+    If(Box<If>),
+    Let(String,Box<Expr>, Box<Expr>)
 }
 
-impl TopLevel {
-    pub fn new(decls: Vec<TopDecl>) -> Self {
+impl Module {
+    pub fn new(decls: Vec<Decl>) -> Self {
         Self{decls}
     }
 
-    pub fn decls(&self) -> &Vec<TopDecl> {
+    pub fn decls(&self) -> &Vec<Decl> {
         &self.decls
     }
 }
 
-impl FnProto {
-    pub fn new(name: String, params: Vec<Param>, return_ty: Type
-               , ty_vars: Vec<String> ) -> Self {
-        use ::types::*;
-        let params_ty = params.iter()
-            .map( |p| p.ty.clone() )
-            .collect();
-        let fn_ty = Type::Func(Box::new(Function::new(params_ty, return_ty)));
-        let ty    = ::types::ForAll::new(ty_vars, fn_ty);
-        FnProto{name, params, ty}
-    }
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-    pub fn params(&self) -> &Vec<Param> {
-        &self.params
-    }
-    pub fn ty(&self) -> &ForAll {
-        &self.ty
-    }
-    pub fn return_ty(&self) -> &Type {
-        if let ::types::Type::Func(ref f) = *self.ty.ty() {
-            return f.return_ty()
-        }
-        panic!("A function proto should always have a func type")
-    }
+fn make_func(param: Type, ret: Type) -> Type {
+    Type::TyApp("->".to_string(), vec![param, ret])
 }
 
 impl Lam {
-    pub fn new(name: String, params: Vec<Param>, return_ty: Type
-               , ty_vars: Vec<String>, body: Expr) -> Self {
-        let proto = FnProto::new(name, params, return_ty, ty_vars);
-        Lam{proto, body}
-    }
-    pub fn proto(&self) -> &FnProto {
-        &self.proto
+    pub fn new(param: String, body: Expr) -> Self {
+        Lam{param, body}
     }
     pub fn body(&self) -> &Expr {
         &self.body
     }
-    pub fn name(&self) -> &String {
-        &self.proto.name
-    }
-    pub fn return_ty(&self) -> &Type {
-        &self.proto.return_ty()
-    }
-    pub fn ty(&self) -> &ForAll {
-        self.proto.ty()
-    }
-    pub fn params(&self) -> &Vec<Param> {
-        &self.proto.params
-    }
-}
-
-impl Param {
-    pub fn new(name: String, ty: Type) -> Self {
-        Param{name, ty}
-    }
-
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    pub fn ty(&self) -> &Type {
-        &self.ty
+    pub fn param(&self) -> &String {
+        &self.param
     }
 }
 

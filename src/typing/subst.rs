@@ -4,9 +4,7 @@ use super::types::{Type,Function};
 #[derive(Debug)]
 pub struct Subst {
     map: HashMap<u32,Type<u32>>,
-    range: Vec<Type<u32>>
 }
-
 
 impl Subst {
     pub fn new() -> Self {
@@ -14,17 +12,16 @@ impl Subst {
     }
 
     pub fn bind(&mut self, tyvar: u32, ty: Type<u32>) {
-        self.range.push(ty.clone());
         self.map.insert(tyvar, ty);
     }
 
-    pub fn compose(self, rhs: &Subst) -> Subst {
+    pub fn compose(self, rhs: &Subst) -> Result<Subst> {
         let mut subst = self;
         for (tyvar, ty) in &rhs.map {
             subst.range.push(ty.clone());
             subst.map.insert(*tyvar, ty.clone());
         }
-        subst
+        Ok(subst)
     }
     
     pub fn apply(&self, ty: &Type<u32>) -> Type<u32> {
@@ -51,7 +48,7 @@ impl Subst {
         }
     }
 
-    pub fn range(&self) -> &Vec<Type<u32>> {
+    pub fn range(&self) -> &Option<Type<u32>> {
         &self.range
     }
 }
