@@ -1,24 +1,26 @@
+use std::rc::Rc;
+
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
-pub enum Type<T> {
-    TyCon(String),
-    TyApp(String, Vec<Type<T>>),
-    TyVar(T)
+pub enum Type {
+    TyCon(Rc<String>),
+    TyApp(Box<Type>, Vec<Type>),
+    TyVar(u32)
 }
 
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
-pub struct ForAll<T> {
-    bound_vars: Vec<T>,
-    ty: Type<T>
+pub struct ForAll {
+    bound_vars: Vec<u32>,
+    ty: Type
 }
 
-impl <T> ForAll<T> {
-    pub fn new(bound_vars: Vec<T>, ty: Type<T>) -> Self {
+impl ForAll {
+    pub fn new(bound_vars: Vec<u32>, ty: Type) -> Self {
         ForAll{ bound_vars, ty }
     }
-    pub fn bound_vars(&self) -> &Vec<T> {
+    pub fn bound_vars(&self) -> &Vec<u32> {
         &self.bound_vars
     }
-    pub fn ty(&self) -> &Type<T> {
+    pub fn ty(&self) -> &Type {
         &self.ty
     }
     pub fn is_monotype(&self) -> bool {

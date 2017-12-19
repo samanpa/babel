@@ -1,7 +1,5 @@
 use ast::*;
 use std::str::FromStr;
-use types::Type::*;
-use types::Function;
 
 grammar;
 
@@ -28,11 +26,10 @@ pub Module: Module = {
 
 pub Decl: Decl = {
     "extern" <name:Ident> "(" <params:List<Param>> ")" "->" <ty:Type> ";" =>
-        Decl::Extern(FnProto::new(name, params, ty, vec![])),
+        Decl::external(name, params, ty),
     "extern" <name:Ident> "()" "->" <ty:Type> ";" =>
-        TopDecl::Extern(FnProto::new(name, vec![], ty, vec![])),
-    "use" <name:Ident> ";" => TopDecl::Use(<>),
-    Lambda                 => TopDecl::Lam(<>),
+        Decl::external(name, vec![], ty),
+    Func => { let (name, lam) = <>; Decl::Func(name, lam) },
 };
 
 pub LamTyVars: Vec<String> = {
@@ -40,13 +37,13 @@ pub LamTyVars: Vec<String> = {
                                   => vec![]
 };
 
-pub Lambda: Lam = {
-    "fn" <name:Ident> <tv:LamTyVars> "(" <p:List<Param>> ")" "->" <ty:Type> "{"
-        <body: Expr>
-     "}" => Lam::new(name, p, ty, tv, body),
-    "fn" <name:Ident> <tv:LamTyVars> "()" "->" <ty:Type> "{"
-        <body: Expr>
-     "}" => Lam::new(name, vec![], ty, tv, body),
+pub Func: (String,Lam) = {
+    "fn" <name:Ident> "(" <p:List<Ident>> ")" "{" <body: Expr> "}" => {
+        (name, Lam::new(p, body))
+    },
+    "fn" <name:Ident> "()" "{" <body: Expr> "}" => {
+        (name, Lam::new(vec![], body))
+    }
 };
 
 pub Param: (String,Type) = {
@@ -58,20 +55,18 @@ pub Expr: Expr = {
     "true"  => Expr::BoolLit(true),
     "false" => Expr::BoolLit(false),
     "()"    => Expr::UnitLit,
-    Ident   => Expr::Var(<>, vec![]),
-    <Ident> "<" <List<Type>> ">" => Expr::Var(<>),
+    Ident   => Expr::Var(<>),
+    //<Ident> "<" <List<Type>> ">" => Expr::Var(<>),
     "(" <t:Expr> ")" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
-    <callee:Expr> "(" <args:List<Expr>> ")"
-        => Expr::App{callee: Box::new(callee), args},
+    <callee:Expr> "(" <args:List<Expr>> ")" 
+        => mk_app(callee, args),
 };
 
 BaseType: Type = {
-    "i32"  => I32,
-    "bool" => Bool,
-    "()"   => Unit,
-    Ident  => TyCon(<>)
+    "()"   => Type::TyCon("unit".to_string()),
+    Ident  => Type::TyCon(<>)
 };
 
 Type: Type = {
@@ -80,9 +75,7 @@ Type: Type = {
 };
 
 ArrowType: Type = {
-    <p:Type> "->" <r:BaseType> 
-        => Func(Box::new(Function::new(vec![p], r))),
-    "(" <p:List<Type>> ")" "->" <r:BaseType> 
-        => Func(Box::new(Function::new(p, r)))
+    <p:Type> "->" <r:BaseType>               => make_func(vec![p], r),
+    "(" <p:List<Type>> ")" "->" <r:BaseType> => make_func(p, r),
 };
 

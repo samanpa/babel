@@ -1,23 +1,21 @@
 use std::rc::Rc;
-pub type Type = ::types::Type<u32>;
-pub type ForAll = ::types::ForAll<u32>;
+use ::types::Type;
 
 #[derive(Debug)]
-pub struct TopLevel {
-    decls: Vec<TopDecl>,
+pub struct Module {
+    name:  String,
+    decls: Vec<Decl>,
 }
 
 #[derive(Debug,Clone)]
 pub struct FnProto {
-    ident: Ident,
-    params: Vec<Ident>,
-    ty: ForAll,
+    params: Vec<Ident>
 }
 
 #[derive(Debug)]
-pub enum TopDecl {
-    Extern(FnProto),
-    Lam(Rc<Lam>),
+pub enum Decl {
+    Extern(Ident, Type),
+    Func(Ident, Rc<Lam>),
 }
 
 #[derive(Debug,Clone)]
@@ -27,7 +25,6 @@ pub struct Ident {
     ty: Type,
 }
 
-
 #[derive(Debug)]
 pub struct Lam {
     proto: FnProto,
@@ -35,34 +32,45 @@ pub struct Lam {
 }
 
 #[derive(Debug)]
+pub struct Let {
+    id:   Ident,
+    bind: Expr,
+    expr: Expr,
+}
+
+#[derive(Debug)]
 pub struct If {
     cond:  Expr,
     texpr: Expr,
     fexpr: Expr,
-    res_ty: Type,
 }
 
 #[derive(Debug)]
 pub enum Expr {
     Lam(Rc<Lam>),
-    App(Box<Expr>, Vec<Expr>),
+    App(Box<Expr>, Box<Expr>),
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Var(Ident, Vec<Type>),
-    If(Box<If>)
+    Var(Ident),
+    If(Box<If>),
+    Let(Box<Let>),
 }
 
-impl TopLevel {
-    pub fn new(decls: Vec<TopDecl>) -> Self {
-        Self{decls}
+impl Module {
+    pub fn new(name: String, decls: Vec<Decl>) -> Self {
+        Self{name, decls}
     }
 
-    pub fn decls(self) -> Vec<TopDecl> {
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn decls(self) -> Vec<Decl> {
         self.decls
     }
 
-    pub fn add_decl(&mut self, decl: TopDecl) {
+    pub fn add_decl(&mut self, decl: Decl) {
         self.decls.push(decl)
     }
 }
@@ -83,20 +91,8 @@ impl Ident {
 }
 
 impl FnProto {
-    pub fn new(ident: Ident, params: Vec<Ident>, ty: ForAll) -> Self {
-        FnProto{ ident, params, ty }
-    }
-    pub fn ident(&self) -> &Ident {
-        &self.ident
-    }
-    pub fn ty(&self) -> &ForAll {
-        &self.ty
-    }
-    pub fn return_ty(&self) -> &Type {
-        if let ::types::Type::Func(ref f) = *self.ty.ty() {
-            return f.return_ty()
-        }
-        panic!("A function proto should always have a func type")
+    pub fn new(params: Vec<Ident>) -> Self {
+        FnProto{ params }
     }
     pub fn params(&self) -> &Vec<Ident> {
         &self.params
@@ -110,20 +106,17 @@ impl Lam {
     pub fn proto(&self) -> &FnProto {
         &self.proto
     }
-    pub fn take_proto(self) -> FnProto {
-        self.proto
-    }
+//    pub fn take_proto(self) -> FnProto {
+//        self.proto
+//    }
     pub fn body(&self) -> &Expr {
         &self.body
-    }
-    pub fn ident(&self) -> &Ident {
-        &self.proto.ident
     }
 }
 
 impl If {
-    pub fn new(cond: Expr, texpr: Expr, fexpr: Expr, res_ty: Type) -> Self {
-        If{cond, texpr, fexpr, res_ty}
+    pub fn new(cond: Expr, texpr: Expr, fexpr: Expr) -> Self {
+        If{cond, texpr, fexpr}
     }
     pub fn cond(&self) -> &Expr {
         &self.cond
@@ -134,7 +127,19 @@ impl If {
     pub fn fexpr(&self) -> &Expr {
         &self.fexpr
     }
-    pub fn res_ty(&self) -> &Type {
-        &self.res_ty
+}
+
+impl Let {
+    pub fn new(id: Ident, bind: Expr, expr: Expr) -> Self {
+        Let{id, bind, expr}
+    }
+    pub fn id(&self) -> &Ident {
+        &self.id
+    }
+    pub fn bind(&self) -> &Expr {
+        &self.bind
+    }
+    pub fn expr(&self) -> &Expr {
+        &self.expr
     }
 }

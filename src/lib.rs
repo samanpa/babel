@@ -1,7 +1,10 @@
 pub mod ast;
 pub mod prelude;
-//pub mod parser;
+pub mod parser;
+pub mod hir;
+pub mod rename;
 pub mod typing;
+pub (crate) mod scoped_map;
 
 pub use typing::types;
 

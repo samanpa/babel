@@ -9,19 +9,19 @@ use fresh_id;
 
 pub struct Rename {
     names: ScopedMap<String, hir::Ident>,
-    ty_names: ScopedMap<String, hir::Type>,
     //Store uniq names across all scopes to reduce memory.
     // FIXME: Is this even worth it?
     uniq_names: HashMap<String, Rc<String>>, 
 }
 
 impl ::Pass for Rename {
-    type Input  = Vec<ast::TopLevel>; //A list of parsed files
-    type Output = Vec<hir::TopLevel>;
+    type Input  = Vec<ast::Module>; //A list of parsed files
+    type Output = Vec<hir::Module>;
 
-    fn run(mut self, toplevel_vec: Self::Input) -> Result<Self::Output> {
-        let result = Vector::map(&toplevel_vec, |toplevel|
-                                  self.rename_toplevel(toplevel));
+    fn run(mut self, mod_vec: Self::Input) -> Result<Self::Output> {
+        let result = Vector::map(&mod_vec, |module|
+                                  self.rename_module(module));
+        println!("{:?}", result);
         Ok(result?)
     }
 }
@@ -30,55 +30,34 @@ impl Rename {
     pub fn new() -> Self {
         Rename{names: ScopedMap::new(),
                uniq_names: HashMap::new(),
-               ty_names: ScopedMap::new(),
         }
     }
     
-    fn rename_ty(&mut self, ty: &ast::Type) -> Result<hir::Type> {
-        use types::Type::*;
+    fn rename_ty(&mut self, ty: &ast::Type) -> Result<Type> {
+        use ast::Type::*;
         let ty = match *ty {
-            Bool => Bool,
-            I32  => I32,
-            Unit => Unit,
-            TyVar(ref _v) => TyVar(fresh_id()),
-            TyCon(ref tycon) => {
-                match self.ty_names.get(tycon) {
-                    Some(ref ty) => (*ty).clone(),
-                    None => { let msg = format!("TyCon [{}] not found", tycon);
-                              return Err(Error::new(msg)) }
-                }
-            }
-            Func(ref func_ty) => {
-                use types::Function;
-                let params_ty = Vector::map(func_ty.params_ty(),
-                                             |ty| self.rename_ty(ty))?;
-                let return_ty = self.rename_ty(func_ty.return_ty())?;
-                let func_ty = Function::new(params_ty, return_ty);
-                Func( Box::new(func_ty) )
+            TyVar(ref _v)    => Type::TyVar(fresh_id()),
+            TyCon(ref tycon) => Type::TyCon(self.mk_tycon(tycon)),
+            TyApp(ref con, ref args) => {
+                let con  = self.rename_ty(con)?;
+                let args = Vector::map(args, |ty| self.rename_ty(ty))?;
+                Type::TyApp(Box::new(con), args)
             }
         };
         Ok(ty)
     }
 
-    fn add_tyvar(&mut self, nm: &String) -> Result<u32> {
-        let id = fresh_id();
-        let ty = Type::TyVar(id);
-        match self.ty_names.insert(nm.clone(), ty) {
-            None    => Ok(id),
-            Some(_) => Err(Error::new(format!("TyVar {} already declared", nm)))
-        }
+    fn add_uniq_name(&mut self, nm: &String) -> Rc<String>{
+        self.uniq_names
+            .entry(nm.clone())
+            .or_insert(Rc::new(nm.clone()))
+            .clone()
+    }
+        
+    fn mk_tycon(&mut self, nm: &String) -> Rc<String> {
+        self.add_uniq_name(nm)
     }
 
-    fn rename_ty_scheme(&mut self, forall: &ast::ForAll) -> Result<hir::ForAll>
-    {
-        //Get numeric identifies for the bound variables and add them as TyVar
-        //  to self.ty_names
-        let ty_vars = Vector::map(forall.bound_vars(),
-                                   |ty| self.add_tyvar(ty))?;
-        let ty      = self.rename_ty(forall.ty())?;
-        Ok(::types::ForAll::new(ty_vars, ty))
-    }
-                        
     fn insert_ident(&mut self, nm: &String, ident: &hir::Ident) -> Result<()> {
         match self.names.insert(nm.clone(), ident.clone()) {
             None => Ok(()),
@@ -86,58 +65,58 @@ impl Rename {
         }
     }
 
-    fn add_ident(&mut self, nm: &String, ty: hir::Type) -> Result<hir::Ident> {
-        let ident_name = self.uniq_names
-            .entry(nm.clone())
-            .or_insert(Rc::new(nm.clone()))
-            .clone();
+    fn add_ident(&mut self, nm: &String, ty: Type) -> Result<hir::Ident> {
+        let ident_name = self.add_uniq_name(nm);
         let ident = hir::Ident::new(ident_name, ty, fresh_id());
         self.insert_ident(nm, &ident)?;
         Ok(ident)
     }
     
-    fn rename_toplevel(&mut self, toplevel: &ast::TopLevel)
-                       -> Result<hir::TopLevel>
+    fn rename_module(&mut self, module: &ast::Module) -> Result<hir::Module>
     {
-        let decls = Vector::map(toplevel.decls(), |decl| {
-            self.rename_topdecl(decl)
+        let decls = Vector::map(module.decls(), |decl| {
+            self.rename_decl(decl)
         });
-        Ok(hir::TopLevel::new(decls?))
+        Ok(hir::Module::new(module.name().clone(), decls?))
     }
 
-    //body type is &UnitLit when renaming an external declaration
-    fn rename_lam(&mut self, proto: &ast::FnProto, body: &ast::Expr)
-                  -> Result<hir::Lam>
+    fn rename_extern(&mut self, name: &String, ty: &ast::Type)
+                     -> Result<hir::Decl>
     {
-        self.ty_names.begin_scope();
-        let scheme = self.rename_ty_scheme(proto.ty())?;
-        let ty     = scheme.ty().clone();
-        let funcid = self.add_ident(proto.name(), ty)?;
-
-        self.names.begin_scope();
-        let params = Vector::map(proto.params()
-                                  , |p| { let ty = self.rename_ty(p.ty())?;
-                                          self.add_ident(p.name(), ty) })?;
-        let proto  = hir::FnProto::new(funcid, params, scheme);
-        let body   = self.rename(body)?;
-        self.names.end_scope();
-        self.ty_names.end_scope();
+        let ty     = self.rename_ty(ty)?;
+        let funcid = self.add_ident(name, ty.clone())?;
         
+        Ok(hir::Decl::Extern(funcid, ty))
+    }
+    
+    fn new_tyvar() -> Type {
+        Type::TyVar(fresh_id())
+    }
+
+    fn rename_lam(&mut self, lam: &ast::Lam) ->  Result<hir::Lam>
+    {
+        self.names.begin_scope();
+        let params = Vector::map(lam.params()
+                                 , |p| self.add_ident(p, Self::new_tyvar()))?;
+        let body   = self.rename(lam.body())?;
+        self.names.end_scope();
+     
+        let proto = hir::FnProto::new(params);
         Ok(hir::Lam::new(proto, body))
     }
     
-    fn rename_topdecl(&mut self, decl: &ast::TopDecl) -> Result<hir::TopDecl> {
-        use ast::TopDecl::*;
+    fn rename_decl(&mut self, decl: &ast::Decl) -> Result<hir::Decl> {
+        use ast::Decl::*;
         let res = match *decl {
-            Extern(ref proto) => {
-                let lam = self.rename_lam(proto, &ast::Expr::UnitLit)?;
-                hir::TopDecl::Extern(lam.proto().clone()) //RENAME
+            Extern(ref name, ref ty) => {
+                self.rename_extern(name, ty)?
             }
-            Lam(ref lam) => {
-                let lam = self.rename_lam(lam.proto(), lam.body())?;
-                hir::TopDecl::Lam(Rc::new(lam))
+            Func(ref name, ref lam) => {
+                let fnty = Self::new_tyvar();
+                let fnid = self.add_ident(name, fnty)?;
+                let lam = self.rename_lam(lam)?;
+                hir::Decl::Func(fnid, Rc::new(lam))
             }
-            Use{..}           => unimplemented!(),
         };
         Ok(res)
     }
@@ -149,32 +128,36 @@ impl Rename {
             I32Lit(n)    => hir::Expr::I32Lit(n),
             BoolLit(b)   => hir::Expr::BoolLit(b),
             Lam(ref lam) => {
-                let lam = self.rename_lam(lam.proto(), lam.body())?;
+                let lam = self.rename_lam(lam)?;
                 hir::Expr::Lam(Rc::new(lam))
             }
             If(ref e)    => {
-                //dummy type var
-                let ty = Type::TyVar(0);
                 let if_expr = hir::If::new(self.rename(e.cond())?,
                                            self.rename(e.texpr())?,
-                                           self.rename(e.fexpr())?,
-                                           ty);
+                                           self.rename(e.fexpr())?);
                 hir::Expr::If(Box::new(if_expr))
             }
-            App{ref callee, ref args} => {
-                let callee    = Box::new(self.rename(callee)?);
-                let args      = Vector::map(args, |arg| self.rename(arg))?;
-                hir::Expr::App(callee, args)
+            App(ref callee, ref arg) => {
+                let callee = Box::new(self.rename(callee)?);
+                let arg    = Box::new(self.rename(arg)?);
+                hir::Expr::App(callee, arg)
             }
-            Var(ref nm, ref ty) => {
-                let ty = Vector::map(ty, |ty| self.rename_ty(ty))?;
+            Var(ref nm) => {
                 match self.names.get(nm) {
-                    Some(v) => hir::Expr::Var(v.clone(), ty),
+                    Some(v) => hir::Expr::Var(v.clone()),
                     None => {
                         let msg = format!("Could not find variable {}", nm);
                         return Err(Error::new(msg))
                     }
                 }
+            }
+            Let(ref name, ref bind, ref expr) => {
+                let letty = Self::new_tyvar();
+                let id    = self.add_ident(name, letty)?;
+                let bind  = self.rename(bind)?;
+                let expr  = self.rename(expr)?;
+                let let_  = hir::Let::new(id, bind, expr);
+                hir::Expr::Let(Box::new(let_))
             }
         };
         Ok(res)

@@ -1,4 +1,4 @@
-fn fib(n: i32) -> i32 {
+fn fib(n) {
     if i32_lt(n, 2) {
         1
     }
@@ -8,11 +8,11 @@ fn fib(n: i32) -> i32 {
     }
 }
 
-fn fib_print(n: i32, print: i32 -> i32 ) -> i32 {
+fn fib_print(n, print) {
    print(fib(n))
 }
 
-fn main() -> i32 {
+fn main() {
     fib_print(10, i32_print)
 }
 
