@@ -47,9 +47,6 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type)> {
 fn infer_lam(mut gamma: Env, lam: &Lam) -> Result<(Subst, Type)> {
     use self::Type::*;
     use self::Expr::*;
-    //HACK to handle recursion we should use Y combinator instead
-    //let fn_ty = ForAll::new(vec![], TyVar(fresh_id()));
-    //gamma.extend(lam.proto().ident(), fn_ty);
     let params_ty = lam.proto().params()
         .iter()
         .map(| id | {
@@ -67,13 +64,13 @@ fn infer_lam(mut gamma: Env, lam: &Lam) -> Result<(Subst, Type)> {
 fn infer_app(gamma: &mut Env, callee: &Box<Expr>, arg: &Box<Expr>)
              -> Result<(Subst, Type)>
 {
-    let tv = Type::TyVar(fresh_id());
     let (s1, t1)  = infer(gamma, callee)?;
     let mut gamma = gamma.apply_subst(&s1);
     let (s2, t2)  = infer(&mut gamma, arg)?;
-    let fnty      = mk_func(vec![t2], tv.clone());
+    let retty = Type::TyVar(fresh_id());
+    let fnty      = mk_func(vec![t2], retty.clone());
     let s3        = unify(&s2.apply(&t1), &fnty)?;
-    let t         = s3.apply(&tv);
+    let t         = s3.apply(&retty);
     let subst     = s3.compose(&s2)?.
         compose(&s1)?;
     Ok((subst, t))
@@ -90,19 +87,18 @@ fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type)>
     Ok((s, t))
 }
 
+pub (super) fn infer_fn(gamma: &mut Env, id: &Ident, e: &Expr) ->
+    Result<(Subst, Type)> {
+    infer_letrec(gamma, id, e)
+}
+
 fn infer_letrec(gamma: &mut Env, id: &Ident, e: &Expr) -> Result<(Subst, Type)>
 {
-    /*
-    //let (s1, t)   = infer(
-    let (s1, t1)   = infer(gamma, let_exp.bind())?;
-    let mut gamma1 = gamma.apply_subst(&s1);
-    let t2         = generalize(t1, &gamma1);
-    gamma1.extend(let_exp.id(), t2);
-    let (s2, t)    = infer(&mut gamma1, let_exp.expr())?;
-    let s          = s2.compose(&s1)?;
-    Ok((s, t))
-     */
-    unimplemented!();
+    let beta = ForAll::new(vec![], Type::TyVar(fresh_id()));
+    gamma.extend(id, beta);
+
+    let (s1, t1)    = infer(gamma, e)?;
+    Ok((s1,t1))
 }
 
 fn infer_if(gamma: &mut Env, if_expr: &If) -> Result<(Subst, Type)>

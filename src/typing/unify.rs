@@ -36,7 +36,8 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<Subst>
             
             let mut sub = unify(lty, rty)?;
             for (l, r) in larg.iter().zip(rarg.iter()) {
-                sub = unify(& sub.apply(l), & sub.apply(r))?;
+                let sub1 = unify(& sub.apply(l), & sub.apply(r))?;
+                sub = sub1.compose(&sub)?;
             }
             sub
         }
@@ -51,7 +52,7 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<Subst>
             subst
         }
         _ => {
-            let msg = format!("Can not unify \n{:?} with \n{:?}", lhs, rhs);
+            let msg = format!("Can not unify\n\t- {:?} \n\t- {:?}", lhs, rhs);
             return Err(Error::new(msg))
         }
     };

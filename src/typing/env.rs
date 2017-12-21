@@ -4,7 +4,7 @@ use hir::Ident;
 use super::types::ForAll;
 use super::subst::Subst;
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub (super) struct Env {
     map: HashMap<u32, ForAll> 
 }
@@ -28,7 +28,7 @@ impl Env {
     pub fn apply_subst(&self, sub: &Subst) -> Env {
         let mut env = self.clone();
         for val in env.map.values_mut() {
-            *val = val.apply_subst(sub)
+            val.apply_subst(sub)
         }
         env
     }
@@ -36,7 +36,7 @@ impl Env {
     pub fn free_tyvars(&self) -> HashSet<u32>{
         let mut ftv = HashSet::new();
         for (_,sigma) in &self.map {
-            ftv.union(&sigma.free_tyvars());
+            ftv = &ftv | &sigma.free_tyvars();
         }
         ftv
     }

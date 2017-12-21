@@ -21,7 +21,6 @@ impl ::Pass for Rename {
     fn run(mut self, mod_vec: Self::Input) -> Result<Self::Output> {
         let result = Vector::map(&mod_vec, |module|
                                   self.rename_module(module));
-        println!("{:?}", result);
         Ok(result?)
     }
 }

@@ -66,8 +66,8 @@ impl Module {
         &self.name
     }
 
-    pub fn decls(self) -> Vec<Decl> {
-        self.decls
+    pub fn decls(&self) -> &Vec<Decl> {
+        &self.decls
     }
 
     pub fn add_decl(&mut self, decl: Decl) {

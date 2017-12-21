@@ -17,6 +17,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         .unwrap()
         .to_string();
     let rename       = babel::rename::Rename::new();
+    let typecheck    = babel::typing::TypeChecker::new();
 
 
     use babel::Pass;
@@ -28,6 +29,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     let _ = passes![
         modules
         => rename
+        => typecheck            
     ];
 
     Ok(())

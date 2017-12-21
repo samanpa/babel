@@ -80,13 +80,8 @@ impl ForAll {
         }
         subst.apply(self.ty())
     }
-    pub fn apply_subst(&self, subst: &Subst ) -> Self {
-        let ty = subst.apply(self.ty());
-        let bound_vars = ty.free_tyvars()
-            .iter()
-            .map( |tyvar| *tyvar)
-            .collect();
-        ForAll{ bound_vars, ty}
+    pub fn apply_subst(&mut self, subst: &Subst ) {
+        self.ty = subst.apply(self.ty());
     }
     /*
     pub fn mk_subst(&self, monotypes: &Vec<Type<u32>>) -> super::subst::Subst {
