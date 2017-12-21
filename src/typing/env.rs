@@ -1,11 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{HashMap,HashSet};
 use ::{Result,Error};
 use hir::Ident;
 use super::types::ForAll;
+use super::subst::Subst;
 
 #[derive(Clone)]
 pub (super) struct Env {
-    map: HashMap<u32, ForAll<u32>> 
+    map: HashMap<u32, ForAll> 
 }
 
 impl Env {
@@ -13,15 +14,31 @@ impl Env {
         Self{ map: HashMap::new() }
     }
     
-    pub fn lookup(&self, id: &Ident) -> Result<ForAll<u32>> {
+    pub fn lookup(&self, id: &Ident) -> Result<ForAll> {
         match self.map.get(&id.id()) {
             Some(ref ty) => Ok((*ty).clone()),
             None         => Err(Error::new(format!("Could not find {:?}", id)))
         }
     }
 
-    pub fn extend(&mut self, id: &Ident, ty: ForAll<u32>) {
+    pub fn extend(&mut self, id: &Ident, ty: ForAll) {
         self.map.insert(id.id(), ty);
+    }
+
+    pub fn apply_subst(&self, sub: &Subst) -> Env {
+        let mut env = self.clone();
+        for val in env.map.values_mut() {
+            *val = val.apply_subst(sub)
+        }
+        env
+    }
+
+    pub fn free_tyvars(&self) -> HashSet<u32>{
+        let mut ftv = HashSet::new();
+        for (_,sigma) in &self.map {
+            ftv.union(&sigma.free_tyvars());
+        }
+        ftv
     }
 
 }

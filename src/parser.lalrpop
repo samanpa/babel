@@ -50,18 +50,29 @@ pub Param: (String,Type) = {
     <id:Ident> ":" <ty:Type> => (id,ty)
 };
 
+pub Var: Expr = {
+    Ident   => Expr::Var(<>),
+    //<Ident> "<" <List<Type>> ">" => Expr::Var(<>),
+};
+
+pub Callee: Expr = {
+    Var   => <>
+};
+
 pub Expr: Expr = {
     Num     => Expr::I32Lit(<>),
     "true"  => Expr::BoolLit(true),
     "false" => Expr::BoolLit(false),
     "()"    => Expr::UnitLit,
-    Ident   => Expr::Var(<>),
-    //<Ident> "<" <List<Type>> ">" => Expr::Var(<>),
+    //Ident   => Expr::Var(<>),
+    Var     => <>,
     "(" <t:Expr> ")" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
-    <callee:Expr> "(" <args:List<Expr>> ")" 
+    <callee:Callee> "(" <args:List<Expr>> ")" 
         => mk_app(callee, args),
+    "let" <id:Ident> "=" <e1:Expr> ";" <e2:Expr>
+        => Expr::Let(id, Box::new(e1), Box::new(e2)),
 };
 
 BaseType: Type = {

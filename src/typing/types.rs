@@ -1,4 +1,6 @@
 use std::rc::Rc;
+use super::subst::Subst;
+use std::collections::HashSet;
 
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
 pub enum Type {
@@ -11,6 +13,41 @@ pub enum Type {
 pub struct ForAll {
     bound_vars: Vec<u32>,
     ty: Type
+}
+
+
+impl Type {
+    pub fn is_monotype(&self) -> bool {
+        use self::Type::*;
+        match *self {
+            TyCon(_) => true,
+            TyVar(_) => false,
+            TyApp(ref ty, ref args)  => {
+                args.iter()
+                    .fold( ty.is_monotype(),
+                           | prev, ty | prev && ty.is_monotype())
+            }
+        }
+    }
+
+    pub fn free_tyvars(&self) -> HashSet<u32>
+    {
+        use self::Type::*;
+        let mut res = HashSet::new();
+        match *self {
+            TyCon(_) => (),
+            TyVar(v) => {res.insert(v);}
+            TyApp(ref ty, ref args) => {
+                res = args.iter()
+                    .fold( ty.free_tyvars(),
+                           | mut ftv, ty | {
+                               ftv.union(& ty.free_tyvars());
+                               ftv
+                           });
+            }
+        }
+        res
+    }
 }
 
 impl ForAll {
@@ -26,9 +63,32 @@ impl ForAll {
     pub fn is_monotype(&self) -> bool {
         self.bound_vars.len() == 0
     }
-}
+    pub fn free_tyvars(&self) -> HashSet<u32>
+    {
+        let mut bound_tv = HashSet::new();
+        for v in self.bound_vars() {
+            bound_tv.insert(*v);
+        }
+        let ftv = self.ty.free_tyvars();
+        ftv.difference(&bound_tv);
+        ftv
+    }
+    pub fn instantiate(&self) -> Type {
+        let mut subst = Subst::new();
+        for bv in &self.bound_vars {
+            subst.bind(*bv, Type::TyVar(::fresh_id()));
+        }
+        subst.apply(self.ty())
+    }
+    pub fn apply_subst(&self, subst: &Subst ) -> Self {
+        let ty = subst.apply(self.ty());
+        let bound_vars = ty.free_tyvars()
+            .iter()
+            .map( |tyvar| *tyvar)
+            .collect();
+        ForAll{ bound_vars, ty}
+    }
     /*
-impl ForAll<u32> {
     pub fn mk_subst(&self, monotypes: &Vec<Type<u32>>) -> super::subst::Subst {
         let mut subst = super::subst::Subst::new();
         for (bound_var, monoty) in self.bound_vars.iter().zip(monotypes) {
@@ -36,56 +96,21 @@ impl ForAll<u32> {
         }
         subst
     }
+*/
 
-    pub fn instantiate(&self) -> Type<u32> {
-        let mut subst = super::subst::Subst::new();
-        for bv in &self.bound_vars {
-            subst.bind(*bv, Type::TyVar(::fresh_id()));
-        }
-        subst.apply(self.ty())
-    }
 }
 
-impl Type<u32> {
-    pub fn is_monotype(&self) -> bool {
-        use self::Type::*;
-        match *self {
-            Bool     |
-            I32      |
-            TyCon(_) | // FIXME: What about list<K>
-            Unit     => true,
-            TyVar(_) => false,
-            Func(ref f)  => {
-                f.params_ty
-                    .iter()
-                    .fold( f.return_ty.is_monotype(),
-                           | prev, ty | prev && ty.is_monotype())
-            }
-        }
-    }
-
-    pub fn free_tyvars(&self) -> Vec<u32>
-    {
-        use self::Type::*;
-        match *self {
-            Bool     |
-            I32      |
-            Unit     |
-            TyCon(_) => vec![], //FIXME
-            TyVar(k) => vec![k],
-            Func(ref f)  => {
-                f.params_ty
-                    .iter()
-                    .fold( f.return_ty.free_tyvars(),
-                           | mut ftv, ty | {
-                               ftv.append(&mut ty.free_tyvars());
-                               ftv
-                           })
-            }
-        }
-    }
+pub (super) fn generalize(ty: Type, env: &super::env::Env) -> ForAll {
+    let ftv1 = ty.free_tyvars();
+    let ftv2 = env.free_tyvars();
+    ftv1.difference(&ftv2);
+    let ftv  = ftv1.iter()
+        .map( |ftv| *ftv)
+        .collect();
+    ForAll::new(ftv, ty)
 }
-
+    
+/*
 //We should be implemententing a unifiable trait
 pub fn unifiable(lhs: &Type<u32>, rhs: &Type<u32>) -> bool {
     let res = super::unify(lhs, rhs);
