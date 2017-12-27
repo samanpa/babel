@@ -41,7 +41,7 @@ impl Type {
                 res = args.iter()
                     .fold( ty.free_tyvars(),
                            | mut ftv, ty | {
-                               ftv.union(& ty.free_tyvars());
+                               ftv = &ftv | & ty.free_tyvars();
                                ftv
                            });
             }
@@ -98,8 +98,7 @@ impl ForAll {
 pub (super) fn generalize(ty: Type, env: &super::env::Env) -> ForAll {
     let ftv1 = ty.free_tyvars();
     let ftv2 = env.free_tyvars();
-    ftv1.difference(&ftv2);
-    let ftv  = ftv1.iter()
+    let ftv  = ftv1.difference(&ftv2)
         .map( |ftv| *ftv)
         .collect();
     ForAll::new(ftv, ty)

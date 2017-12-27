@@ -4,6 +4,7 @@ pub mod parser;
 pub mod hir;
 pub mod rename;
 pub mod typing;
+pub mod xir;
 pub (crate) mod scoped_map;
 
 pub use typing::types;

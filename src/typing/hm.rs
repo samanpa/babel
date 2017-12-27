@@ -3,7 +3,7 @@ use super::subst::Subst;
 use super::env::Env;
 use super::unify::unify;
 use ::hir::*;
-use ::{Result,Error,Vector,fresh_id};
+use ::{Result,fresh_id};
 use std::rc::Rc;
 
 fn mk_tycon(str: &str) -> Type {
@@ -25,7 +25,6 @@ fn mk_func(param: Vec<Type>, ret: Type) -> Type {
 
 
 pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type)> {
-    use self::Type::*;
     use self::Expr::*;
     let subst = Subst::new();
     let (subst, ty) = match *expr {
@@ -46,7 +45,6 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type)> {
 
 fn infer_lam(mut gamma: Env, lam: &Lam) -> Result<(Subst, Type)> {
     use self::Type::*;
-    use self::Expr::*;
     let params_ty = lam.proto().params()
         .iter()
         .map(| id | {

@@ -1,6 +1,10 @@
+fn id(a) {
+    a
+}
+
 fn fib(n) {
     if i32_lt(n, 2) {
-        1
+        id(1)
     }
     else {
         let n_1 = i32_sub(n,1);

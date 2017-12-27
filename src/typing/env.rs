@@ -36,7 +36,7 @@ impl Env {
     pub fn free_tyvars(&self) -> HashSet<u32>{
         let mut ftv = HashSet::new();
         for (_,sigma) in &self.map {
-            ftv = &ftv | &sigma.free_tyvars();
+            ftv.extend(&sigma.free_tyvars());
         }
         ftv
     }
