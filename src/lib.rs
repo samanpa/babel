@@ -2,9 +2,8 @@ pub mod ast;
 pub mod prelude;
 pub mod parser;
 pub mod hir;
-pub mod rename;
+pub mod alpha_convert;
 pub mod typing;
-pub mod xir;
 pub (crate) mod scoped_map;
 
 pub use typing::types;
