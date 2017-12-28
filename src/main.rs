@@ -38,10 +38,10 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
 fn main() {
     let file_name = env::args().nth(1).unwrap();
     let file_name = Path::new(&file_name);
-    let file = File::open(&file_name).unwrap();
+    let file = File::open(file_name).unwrap();
     
     use std::error::Error;
-    match compile(file, &file_name) {
+    match compile(file, file_name) {
         Ok(()) => (),
         Err(e) => println!("ERROR: {}", e.description())
     }

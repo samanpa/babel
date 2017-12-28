@@ -7,6 +7,12 @@ pub struct Subst {
     map: HashMap<u32,Type>,
 }
 
+impl Default for Subst {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Subst {
     pub fn new() -> Self {
         Subst{ map: HashMap::new() }
@@ -38,8 +44,8 @@ impl Subst {
             }
             TyVar(id) => {
                 match self.map.get(&id) {
-                    Some(ref ty) => (*ty).clone(),
-                    None         => TyVar(id),
+                    Some(ty) => ty.clone(),
+                    None     => TyVar(id),
                 }
             }
         }

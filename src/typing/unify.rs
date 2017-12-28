@@ -6,7 +6,7 @@ fn occurs(tyvar: u32, ty: &Type) -> bool
 {
     use types::Type::*;
     match *ty {
-        TyCon(_) => false,
+        TyCon(_) |
         TyVar(_) => false,
         ref app @ TyApp(_, _) => {
             app.free_tyvars()
@@ -41,8 +41,8 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<Subst>
             }
             sub
         }
-        (&TyVar(tyvar), &ref ty) |
-        (&ref ty, &TyVar(tyvar)) => {
+        (&TyVar(tyvar), ty) |
+        (ty, &TyVar(tyvar)) => {
             if occurs(tyvar, ty) {
                 let msg = format!("Can not unify {:?} with {:?}", tyvar, ty);
                 return Err(Error::new(msg));

@@ -1,3 +1,5 @@
+#![allow(clippy)]
+#![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 use ast::*;
 use std::str::FromStr;
 

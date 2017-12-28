@@ -16,8 +16,8 @@ impl Env {
     
     pub fn lookup(&self, id: &Ident) -> Result<ForAll> {
         match self.map.get(&id.id()) {
-            Some(ref ty) => Ok((*ty).clone()),
-            None         => Err(Error::new(format!("Could not find {:?}", id)))
+            Some(ty) => Ok(ty.clone()),
+            None     => Err(Error::new(format!("Could not find {:?}", id)))
         }
     }
 
@@ -35,7 +35,7 @@ impl Env {
 
     pub fn free_tyvars(&self) -> HashSet<u32>{
         let mut ftv = HashSet::new();
-        for (_,sigma) in &self.map {
+        for sigma in self.map.values() {
             ftv.extend(&sigma.free_tyvars());
         }
         ftv

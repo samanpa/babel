@@ -15,11 +15,10 @@ fn mk_func(param: Vec<Type>, ret: Type) -> Type {
     let mk_fn = |ret, param| TyApp(Box::new(mk_tycon("->")), vec![param, ret]);
 
     let itr = param.into_iter().rev();
-    let ty = match itr.len() {
+    match itr.len() {
         0 => mk_fn(ret, mk_tycon("unit")),
         _ => itr.fold(ret, mk_fn),
-    };
-    ty
+    }
 }
 
 
@@ -59,7 +58,7 @@ fn infer_lam(mut gamma: Env, lam: &Lam) -> Result<(Subst, Type)> {
     Ok((s1, fnty))
 }
 
-fn infer_app(gamma: &mut Env, callee: &Box<Expr>, arg: &Box<Expr>)
+fn infer_app(gamma: &mut Env, callee: &Expr, arg: &Expr)
              -> Result<(Subst, Type)>
 {
     let (s1, t1)  = infer(gamma, callee)?;

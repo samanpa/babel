@@ -25,6 +25,12 @@ impl ::Pass for AlphaConversion {
     }
 }
 
+impl Default for AlphaConversion {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlphaConversion {
     pub fn new() -> Self {
         AlphaConversion{names: ScopedMap::new(),
@@ -49,7 +55,7 @@ impl AlphaConversion {
     fn add_uniq_name(&mut self, nm: &String) -> Rc<String>{
         self.uniq_names
             .entry(nm.clone())
-            .or_insert(Rc::new(nm.clone()))
+            .or_insert_with(|| Rc::new(nm.clone()))
             .clone()
     }
         
@@ -133,8 +139,7 @@ impl AlphaConversion {
             If(ref e)    => {
                 let if_expr = hir::If::new(self.conv(e.cond())?,
                                            self.conv(e.texpr())?,
-                                           self.conv(e.fexpr())?,
-                                           Type::TyVar(fresh_id()));
+                                           self.conv(e.fexpr())?);
                 hir::Expr::If(Box::new(if_expr))
             }
             App(ref callee, ref arg) => {

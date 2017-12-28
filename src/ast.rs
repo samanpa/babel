@@ -65,11 +65,10 @@ pub fn make_func(param: Vec<Type>, ret: Type) -> Type {
                                    , vec![param, ret]);
 
     let itr = param.into_iter().rev();
-    let ty = match itr.len() {
+    match itr.len() {
         0 => mk_fn(ret, TyCon("unit".to_string())),
         _ => itr.fold(ret, mk_fn),
-    };
-    ty
+    }
 }
 
 pub fn mk_app(expr: Expr, args: Vec<Expr>) -> Expr {

@@ -61,7 +61,7 @@ impl ForAll {
         &self.ty
     }
     pub fn is_monotype(&self) -> bool {
-        self.bound_vars.len() == 0
+        self.bound_vars.is_empty()
     }
     pub fn free_tyvars(&self) -> HashSet<u32>
     {
@@ -99,38 +99,8 @@ pub (super) fn generalize(ty: Type, env: &super::env::Env) -> ForAll {
     let ftv1 = ty.free_tyvars();
     let ftv2 = env.free_tyvars();
     let ftv  = ftv1.difference(&ftv2)
-        .map( |ftv| *ftv)
+        .cloned()
         .collect();
     ForAll::new(ftv, ty)
 }
     
-/*
-//We should be implemententing a unifiable trait
-pub fn unifiable(lhs: &Type<u32>, rhs: &Type<u32>) -> bool {
-    let res = super::unify(lhs, rhs);
-    match res {
-        Err(e) => { println!("{}", e); false }
-        Ok(_)  => { true }
-    }
-}
-
-#[derive(Debug,Clone,Hash,Eq,PartialEq)]
-pub struct Function<T> {
-    params_ty: Vec<Type<T>>,
-    return_ty: Type<T>
-}
-
-impl <T> Function<T> {
-    pub fn new(params_ty: Vec<Type<T>>, return_ty: Type<T>) -> Self {
-        Self{ params_ty, return_ty }
-    }
-    
-    pub fn params_ty(&self) -> &Vec<Type<T>> {
-        &self.params_ty
-    }
-
-    pub fn return_ty(&self) -> &Type<T> {
-        &self.return_ty
-    }
-}
-*/
