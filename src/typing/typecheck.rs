@@ -45,7 +45,7 @@ impl TypeChecker {
             }
             Func(ref id, ref lam) => {
                 let expr = Expr::Lam(lam.clone());
-                let (_, ty) = infer_fn(&mut self.gamma, id, &expr)?;
+                let (_, ty, _) = infer_fn(&mut self.gamma, id, &expr)?;
 
                 let bound_vars = ty.free_tyvars()
                     .iter()
