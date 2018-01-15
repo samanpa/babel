@@ -3,6 +3,7 @@
 //   "On The Type Structure of Standard ML" Robert Harper.
 
 use std::rc::Rc;
+use std::fmt;
 use ::types::{Type,TyVar};
 
 #[derive(Debug)]
@@ -22,7 +23,7 @@ pub enum Decl {
     Func(Ident, Rc<Lam>),
 }
 
-#[derive(Debug,Clone)]
+#[derive(Clone)]
 pub struct Ident {
     name: Rc<String>,
     id: u32,
@@ -35,7 +36,6 @@ pub struct Lam {
     body:  Expr,
 }
 
-#[derive(Debug)]
 pub struct Let {
     id:   Ident,
     bind: Expr,
@@ -59,7 +59,7 @@ pub enum Expr {
     Var(Ident),
     If(Box<If>),
     Let(Box<Let>),
-    TyAbst(Vec<TyVar>, Box<Expr>),
+    TyLam(Vec<TyVar>, Box<Expr>),
     TyApp(Box<Expr>, Vec<Type>),
 }
 
@@ -93,6 +93,12 @@ impl Ident {
     }
     pub fn id(&self) -> u32 {
         self.id
+    }
+}
+
+impl fmt::Debug for Ident {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{} :: {:?}", self.name, self.id, self.ty)
     }
 }
 
@@ -149,3 +155,10 @@ impl Let {
         &self.expr
     }
 }
+
+impl fmt::Debug for Let {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "let {:?} = {:?}\n{:?}", self.id, self.bind, self.expr)
+    }
+}
+

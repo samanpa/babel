@@ -6,9 +6,18 @@ fn foo(f, x) {
     f(x)
 }
 
-fn max(n, m) {
+fn simple(n) {
+    let a = i32_lt(n, 0);
+    a
+}
+
+fn poly(n) {
     let a = id(n);
     let b = foo(id, true);
+    b
+}
+fn max(n, m) {
+    let n1 = poly(n);
     let lt = i32_lt;
     if lt(id(n), id(m)) { 
         n

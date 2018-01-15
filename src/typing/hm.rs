@@ -8,7 +8,6 @@ use super::unify::unify;
 use ::xir::*;
 use ::Result;
 use std::rc::Rc;
-use std::collections::HashSet;
 
 fn mk_tycon(str: &str) -> Type {
     Type::Con(Rc::new(str.to_string()))
@@ -38,7 +37,7 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type, Expr)
         If(ref exp)   => infer_if(gamma, exp)?,
         Let(ref exp)  => infer_let(gamma, exp)?,
         App(ref callee, ref args) => infer_app(gamma, callee, args)?,
-        TyAbst(_, _)              => unimplemented!(),
+        TyLam(_, _)               => unimplemented!(),
         TyApp(_, _)               => unimplemented!(),
     };
     Ok((subst, ty, expr))
@@ -51,7 +50,7 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type, Expr)
 //       foo inc_i32 1
 // as
 //   (Λ a1 b1 . (foo {a1, b1})) (Λ . inc_i32 {}) 1
-//   read as TyAbst([a1,b1],
+//   read as TyLam([a1,b1],
 //              TyApp(Var(foo),
 //                     [a1, b1]))
 fn translate_var(id: &Ident, tvs: Vec<TyVar>) -> Expr {
@@ -60,7 +59,7 @@ fn translate_var(id: &Ident, tvs: Vec<TyVar>) -> Expr {
         .map( |tv| Type::Var(*tv) )
         .collect();
     let tyapp   = TyApp(Box::new(Var(id.clone())), ty_args);
-    TyAbst(tvs, Box::new(tyapp))
+    TyLam(tvs, Box::new(tyapp))
 }
 
 fn infer_var(gamma: &mut Env, id: &Ident) -> Result<(Subst, Type, Expr)> {
@@ -92,7 +91,7 @@ fn translate_lam(body: Expr, proto: &FnProto, params_ty: &Vec<Type>,
     }
     let free_tv = free_tv.into_iter().collect();
     let proto   = FnProto::new(params);    
-    let body    = Expr::TyAbst(free_tv, Box::new(body));
+    let body    = Expr::TyLam(free_tv, Box::new(body));
     let lam     = Lam::new(proto, body);
     Expr::Lam(Rc::new(lam))
 }
@@ -145,6 +144,8 @@ fn is_value(expr: &Expr) -> bool {
 fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type, Expr)>
 {
     let (s1, t1, e1) = infer(gamma, let_exp.bind())?;
+    let id           = let_exp.id();
+    let id           = Ident::new(id.name().clone(), t1.clone(), id.id());
     let mut gamma1   = gamma.apply_subst(&s1);
     // Do value restriction: Don't generalize unless the bind expr is a value
     let t2           = match is_value(let_exp.bind()) {
@@ -154,7 +155,7 @@ fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type, Expr)>
     gamma1.extend(let_exp.id(), t2);
     let (s2, t, e2)  = infer(&mut gamma1, let_exp.expr())?;
     let s            = s2.compose(&s1)?;
-    let let_exp      = Let::new(let_exp.id().clone(), e1, e2);
+    let let_exp      = Let::new(id, e1, e2);
     let expr         = Expr::Let(Box::new(let_exp));
     Ok((s, t, expr))
 }

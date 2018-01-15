@@ -1,8 +1,9 @@
 use std::rc::Rc;
 use super::subst::Subst;
 use std::collections::HashSet;
+use std::fmt;
 
-#[derive(Debug,Copy,Clone,Hash,Eq,PartialEq)]
+#[derive(Copy,Clone,Hash,Eq,PartialEq)]
 pub struct TyVar(u32);
 
 pub fn fresh_tyvar() -> TyVar {
@@ -13,7 +14,7 @@ pub fn mk_tyvar(id: u32) -> TyVar {
     TyVar(id)
 }
 
-#[derive(Debug,Clone,Hash,Eq,PartialEq)]
+#[derive(Clone,Hash,Eq,PartialEq)]
 pub enum Type {
     Con(Rc<String>),
     App(Box<Type>, Vec<Type>),
@@ -58,6 +59,23 @@ impl Type {
             }
         }
         res
+    }
+}
+
+impl fmt::Debug for Type {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Type::*;
+        match *self {
+            Con(ref str)      => write!(f, "{}", str),
+            App(ref a, ref b) => write!(f, "App({:?}, {:?})", a, b),
+            Var(v)            => write!(f, "{:?}", v),
+        }
+    }
+}
+
+impl fmt::Debug for TyVar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "'a{}", self.0)
     }
 }
 

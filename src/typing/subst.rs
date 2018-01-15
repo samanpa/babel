@@ -22,6 +22,10 @@ impl Subst {
         self.map.insert(tyvar, ty);
     }
 
+    pub fn find(&self, tyvar: TyVar) -> Option<&Type> {
+        self.map.get(&tyvar)
+    }
+
     pub fn compose(self, rhs: &Subst) -> Result<Subst> {
         let mut subst = self;
         for (tyvar, ty) in &rhs.map {
