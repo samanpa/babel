@@ -7,12 +7,13 @@ runtime system.
  - Keep semantics clear
 
 ### Features
- - [ ] static typing
+ - [x] static typing
+ - [x] parametric polymorphism
+ - [x] type inference
+ - [x] value restriction
  - [ ] C based ABI
  - [ ] C interoperability
- - [ ] parametric polymorphism
  - [ ] constrained parametric polymorphism (traits)
- - [ ] type inference
  - [ ] affine types
  - [ ] references
  - [ ] pattern matching
