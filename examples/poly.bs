@@ -1,15 +1,18 @@
-fn id<a>(a: a) -> a {
-   a
+fn id(x) {
+    x
 }
 
-fn max(n: i32, m: i32) -> i32 {
-    if i32_lt(id<i32>(n), id<i32>(m)) { 
+fn max(n, m) {
+    let a = id(n);
+    let b = id(true);
+    let lt = i32_lt;
+    if lt(id(n), id(m)) { 
         n
     } else {
         m
     }
 }
 
-fn main() -> i32 {
+fn main() {
     max(10, 4)
 }

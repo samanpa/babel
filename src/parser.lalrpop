@@ -78,8 +78,8 @@ pub Expr: Expr = {
 };
 
 BaseType: Type = {
-    "()"   => Type::TyCon("unit".to_string()),
-    Ident  => Type::TyCon(<>)
+    "()"   => Type::Con("unit".to_string()),
+    Ident  => Type::Con(<>)
 };
 
 Type: Type = {

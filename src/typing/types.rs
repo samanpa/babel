@@ -2,16 +2,27 @@ use std::rc::Rc;
 use super::subst::Subst;
 use std::collections::HashSet;
 
+#[derive(Debug,Copy,Clone,Hash,Eq,PartialEq)]
+pub struct TyVar(u32);
+
+pub fn fresh_tyvar() -> TyVar {
+    TyVar(::fresh_id())
+}
+
+pub fn mk_tyvar(id: u32) -> TyVar {
+    TyVar(id)
+}
+
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
 pub enum Type {
-    TyCon(Rc<String>),
-    TyApp(Box<Type>, Vec<Type>),
-    TyVar(u32)
+    Con(Rc<String>),
+    App(Box<Type>, Vec<Type>),
+    Var(TyVar)
 }
 
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
 pub struct ForAll {
-    bound_vars: Vec<u32>,
+    bound_vars: Vec<TyVar>,
     ty: Type
 }
 
@@ -20,9 +31,9 @@ impl Type {
     pub fn is_monotype(&self) -> bool {
         use self::Type::*;
         match *self {
-            TyCon(_) => true,
-            TyVar(_) => false,
-            TyApp(ref ty, ref args)  => {
+            Con(_) => true,
+            Var(_) => false,
+            App(ref ty, ref args)  => {
                 args.iter()
                     .fold( ty.is_monotype(),
                            | prev, ty | prev && ty.is_monotype())
@@ -30,14 +41,14 @@ impl Type {
         }
     }
 
-    pub fn free_tyvars(&self) -> HashSet<u32>
+    pub fn free_tyvars(&self) -> HashSet<TyVar>
     {
         use self::Type::*;
         let mut res = HashSet::new();
         match *self {
-            TyCon(_) => (),
-            TyVar(v) => {res.insert(v);}
-            TyApp(ref ty, ref args) => {
+            Con(_) => (),
+            Var(v) => {res.insert(v);}
+            App(ref ty, ref args) => {
                 res = args.iter()
                     .fold( ty.free_tyvars(),
                            | mut ftv, ty | {
@@ -51,10 +62,10 @@ impl Type {
 }
 
 impl ForAll {
-    pub fn new(bound_vars: Vec<u32>, ty: Type) -> Self {
+    pub fn new(bound_vars: Vec<TyVar>, ty: Type) -> Self {
         ForAll{ bound_vars, ty }
     }
-    pub fn bound_vars(&self) -> &Vec<u32> {
+    pub fn bound_vars(&self) -> &Vec<TyVar> {
         &self.bound_vars
     }
     pub fn ty(&self) -> &Type {
@@ -63,7 +74,7 @@ impl ForAll {
     pub fn is_monotype(&self) -> bool {
         self.bound_vars.is_empty()
     }
-    pub fn free_tyvars(&self) -> HashSet<u32>
+    pub fn free_tyvars(&self) -> HashSet<TyVar>
     {
         let mut bound_tv = HashSet::new();
         for v in self.bound_vars() {
@@ -76,7 +87,7 @@ impl ForAll {
     pub fn instantiate(&self) -> Type {
         let mut subst = Subst::new();
         for bv in &self.bound_vars {
-            subst.bind(*bv, Type::TyVar(::fresh_id()));
+            subst.bind(*bv, Type::Var(fresh_tyvar()));
         }
         subst.apply(self.ty())
     }

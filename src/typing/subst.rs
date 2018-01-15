@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use super::types::Type;
+use super::types::{Type,TyVar};
 use ::Result;
 
 #[derive(Debug)]
 pub struct Subst {
-    map: HashMap<u32,Type>,
+    map: HashMap<TyVar,Type>,
 }
 
 impl Default for Subst {
@@ -18,7 +18,7 @@ impl Subst {
         Subst{ map: HashMap::new() }
     }
 
-    pub fn bind(&mut self, tyvar: u32, ty: Type) {
+    pub fn bind(&mut self, tyvar: TyVar, ty: Type) {
         self.map.insert(tyvar, ty);
     }
 
@@ -34,18 +34,18 @@ impl Subst {
     pub fn apply(&self, ty: &Type) -> Type {
         use types::Type::*;
         match *ty {
-            TyCon(ref con) => TyCon(con.clone()),
-            TyApp(ref ty, ref args) => {
+            Con(ref con) => Con(con.clone()),
+            App(ref ty, ref args) => {
                 let ty = self.apply(ty);
                 let args = args.iter()
                     .map(|ty| self.apply(ty))
                     .collect();
-                TyApp(Box::new(ty), args)
+                App(Box::new(ty), args)
             }
-            TyVar(id) => {
+            Var(id) => {
                 match self.map.get(&id) {
                     Some(ty) => ty.clone(),
-                    None     => TyVar(id),
+                    None     => Var(id),
                 }
             }
         }

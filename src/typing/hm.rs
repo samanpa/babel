@@ -1,18 +1,18 @@
-use super::types::{Type,ForAll,generalize};
+use super::types::{Type,ForAll,fresh_tyvar,generalize};
 use super::subst::Subst;
 use super::env::Env;
 use super::unify::unify;
 use ::hir::*;
-use ::{Result,fresh_id};
+use ::Result;
 use std::rc::Rc;
 
 fn mk_tycon(str: &str) -> Type {
-    Type::TyCon(Rc::new(str.to_string()))
+    Type::Con(Rc::new(str.to_string()))
 }
 
 fn mk_func(param: &Vec<Type>, ret: Type) -> Type {
     use self::Type::*;
-    let mk_fn = |ret, param: &Type| TyApp(Box::new(mk_tycon("->"))
+    let mk_fn = |ret, param: &Type| App(Box::new(mk_tycon("->"))
                                           , vec![param.clone(), ret]);
 
     let itr = param.into_iter().rev();
@@ -55,9 +55,9 @@ fn infer_lam(mut gamma: Env, lam: &Lam) -> Result<(Subst, Type, Expr)> {
     let params_ty = lam.proto().params()
         .iter()
         .map(| id | {
-            let tv = fresh_id();
-            gamma.extend(id, ForAll::new(vec![], TyVar(tv)));
-            TyVar(tv)
+            let tv = fresh_tyvar();
+            gamma.extend(id, ForAll::new(vec![], Var(tv)));
+            Var(tv)
         })
         .collect();
     let (s1, t1, body) = infer(&mut gamma, lam.body())?;
@@ -75,7 +75,7 @@ fn infer_app(gamma: &mut Env, callee: &Expr, arg: &Expr)
     let (s1, t1, callee) = infer(gamma, callee)?;
     let mut gamma        = gamma.apply_subst(&s1);
     let (s2, t2, arg)    = infer(&mut gamma, arg)?;
-    let retty            = Type::TyVar(fresh_id());
+    let retty            = Type::Var(fresh_tyvar());
     let fnty             = mk_func(&vec![t2], retty.clone());
     let s3               = unify(&s2.apply(&t1), &fnty)?;
     let t                = s3.apply(&retty);
@@ -106,7 +106,7 @@ pub (super) fn infer_fn(gamma: &mut Env, id: &Ident, e: &Expr) ->
 fn infer_letrec(gamma: &mut Env, id: &Ident, e: &Expr) 
                 -> Result<(Subst, Type, Expr)>
 {
-    let beta = ForAll::new(vec![], Type::TyVar(fresh_id()));
+    let beta = ForAll::new(vec![], Type::Var(fresh_tyvar()));
     gamma.extend(id, beta);
 
     let (s1, t1, e) = infer(gamma, e)?;

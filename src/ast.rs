@@ -1,8 +1,8 @@
 #[derive(Debug)]
 pub enum Type {
-    TyApp(Box<Type>, Vec<Type>),
-    TyCon(String),
-    TyVar(String)
+    App(Box<Type>, Vec<Type>),
+    Con(String),
+    Var(String)
 }
 
 #[derive(Debug)]
@@ -61,12 +61,12 @@ impl Module {
 
 pub fn make_func(param: Vec<Type>, ret: Type) -> Type {
     use self::Type::*;
-    let mk_fn = |ret, param| TyApp(Box::new(TyCon("->".to_string()))
-                                   , vec![param, ret]);
+    let mk_fn = |ret, param| App(Box::new(Con("->".to_string()))
+                                 , vec![param, ret]);
 
     let itr = param.into_iter().rev();
     match itr.len() {
-        0 => mk_fn(ret, TyCon("unit".to_string())),
+        0 => mk_fn(ret, Con("unit".to_string())),
         _ => itr.fold(ret, mk_fn),
     }
 }

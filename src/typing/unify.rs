@@ -1,14 +1,14 @@
-use super::types::Type;
+use super::types::{Type,TyVar};
 use super::subst::Subst;
 use ::{Error,Result};
 
-fn occurs(tyvar: u32, ty: &Type) -> bool
+fn occurs(tyvar: TyVar, ty: &Type) -> bool
 {
     use types::Type::*;
     match *ty {
-        TyCon(_) |
-        TyVar(_) => false,
-        ref app @ TyApp(_, _) => {
+        Con(_) |
+        Var(_) => false,
+        ref app @ App(_, _) => {
             app.free_tyvars()
                 .iter()
                 .fold( false, | acc, tv | acc || tyvar == *tv )
@@ -20,7 +20,7 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<Subst>
 {
     use types::Type::*;
     let subst = match (lhs, rhs) {
-        (&TyCon(ref l), &TyCon(ref r)) => {
+        (&Con(ref l), &Con(ref r)) => {
             if *l == *r {
                 Subst::new()
             } else {
@@ -28,7 +28,7 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<Subst>
                 return Err(Error::new(msg));
             }
         }
-        (&TyApp(ref lty, ref larg), &TyApp(ref rty, ref rarg)) => {
+        (&App(ref lty, ref larg), &App(ref rty, ref rarg)) => {
             if larg.len() != rarg.len() {
                 let msg = format!("Arity diff \n{:?} with \n{:?}", lty, rty);
                 return Err(Error::new(msg));
@@ -41,8 +41,8 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<Subst>
             }
             sub
         }
-        (&TyVar(tyvar), ty) |
-        (ty, &TyVar(tyvar)) => {
+        (&Var(tyvar), ty) |
+        (ty, &Var(tyvar)) => {
             if occurs(tyvar, ty) {
                 let msg = format!("Can not unify {:?} with {:?}", tyvar, ty);
                 return Err(Error::new(msg));

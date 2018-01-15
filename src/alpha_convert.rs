@@ -1,6 +1,6 @@
 use ast;
 use hir;
-use types::Type;
+use types::{Type,fresh_tyvar};
 use {Vector,Result,Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
@@ -41,12 +41,12 @@ impl AlphaConversion {
     fn conv_ty(&mut self, ty: &ast::Type) -> Result<Type> {
         use ast::Type::*;
         let ty = match *ty {
-            TyVar(ref _v)    => Type::TyVar(fresh_id()),
-            TyCon(ref tycon) => Type::TyCon(self.mk_tycon(tycon)),
-            TyApp(ref con, ref args) => {
+            Var(ref _v)    => Self::new_tyvar(),
+            Con(ref tycon) => Type::Con(self.mk_tycon(tycon)),
+            App(ref con, ref args) => {
                 let con  = self.conv_ty(con)?;
                 let args = Vector::map(args, |ty| self.conv_ty(ty))?;
-                Type::TyApp(Box::new(con), args)
+                Type::App(Box::new(con), args)
             }
         };
         Ok(ty)
@@ -95,7 +95,7 @@ impl AlphaConversion {
     }
     
     fn new_tyvar() -> Type {
-        Type::TyVar(fresh_id())
+        Type::Var(fresh_tyvar())
     }
 
     fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<hir::Lam>
@@ -158,8 +158,8 @@ impl AlphaConversion {
             }
             Let(ref name, ref bind, ref expr) => {
                 let letty = Self::new_tyvar();
-                let id    = self.add_ident(name, letty)?;
                 let bind  = self.conv(bind)?;
+                let id    = self.add_ident(name, letty)?;
                 let expr  = self.conv(expr)?;
                 let let_  = hir::Let::new(id, bind, expr);
                 hir::Expr::Let(Box::new(let_))
