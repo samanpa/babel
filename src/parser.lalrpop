@@ -73,6 +73,8 @@ pub Expr: Expr = {
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
     <callee:Callee> "(" <args:List<Expr>> ")" 
         => mk_app(callee, args),
+    <callee:Callee> "()" 
+        => mk_app(callee, vec![]),
     "let" <id:Ident> "=" <e1:Expr> ";" <e2:Expr>
         => Expr::Let(id, Box::new(e1), Box::new(e2)),
 };

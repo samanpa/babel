@@ -1,7 +1,7 @@
 pub mod ast;
 pub mod prelude;
 pub mod parser;
-pub mod hir;
+pub mod xir;
 pub mod alpha_convert;
 pub mod typing;
 pub (crate) mod scoped_map;

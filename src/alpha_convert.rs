@@ -1,5 +1,5 @@
 use ast;
-use hir;
+use xir;
 use types::{Type,fresh_tyvar};
 use {Vector,Result,Error};
 use scoped_map::ScopedMap;
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use fresh_id;
 
 pub struct AlphaConversion {
-    names: ScopedMap<String, hir::Ident>,
+    names: ScopedMap<String, xir::Ident>,
     //Store uniq names across all scopes to reduce memory.
     // FIXME: Is this even worth it?
     uniq_names: HashMap<String, Rc<String>>, 
@@ -16,7 +16,7 @@ pub struct AlphaConversion {
 
 impl ::Pass for AlphaConversion {
     type Input  = Vec<ast::Module>; //A list of parsed files
-    type Output = Vec<hir::Module>;
+    type Output = Vec<xir::Module>;
 
     fn run(mut self, mod_vec: Self::Input) -> Result<Self::Output> {
         let result = Vector::map(&mod_vec, |module|
@@ -63,42 +63,42 @@ impl AlphaConversion {
         self.add_uniq_name(nm)
     }
 
-    fn insert_ident(&mut self, nm: &String, ident: &hir::Ident) -> Result<()> {
+    fn insert_ident(&mut self, nm: &String, ident: &xir::Ident) -> Result<()> {
         match self.names.insert(nm.clone(), ident.clone()) {
             None => Ok(()),
             Some(..) => Err(Error::new(format!("Name {} already declared", nm)))
         }
     }
 
-    fn add_ident(&mut self, nm: &String, ty: Type) -> Result<hir::Ident> {
+    fn add_ident(&mut self, nm: &String, ty: Type) -> Result<xir::Ident> {
         let ident_name = self.add_uniq_name(nm);
-        let ident = hir::Ident::new(ident_name, ty, fresh_id());
+        let ident = xir::Ident::new(ident_name, ty, fresh_id());
         self.insert_ident(nm, &ident)?;
         Ok(ident)
     }
     
-    fn conv_module(&mut self, module: &ast::Module) -> Result<hir::Module>
+    fn conv_module(&mut self, module: &ast::Module) -> Result<xir::Module>
     {
         let decls = Vector::map(module.decls(), |decl| {
             self.conv_decl(decl)
         });
-        Ok(hir::Module::new(module.name().clone(), decls?))
+        Ok(xir::Module::new(module.name().clone(), decls?))
     }
 
     fn conv_extern(&mut self, name: &String, ty: &ast::Type)
-                     -> Result<hir::Decl>
+                     -> Result<xir::Decl>
     {
         let ty     = self.conv_ty(ty)?;
         let funcid = self.add_ident(name, ty.clone())?;
         
-        Ok(hir::Decl::Extern(funcid, ty))
+        Ok(xir::Decl::Extern(funcid, ty))
     }
     
     fn new_tyvar() -> Type {
         Type::Var(fresh_tyvar())
     }
 
-    fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<hir::Lam>
+    fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<xir::Lam>
     {
         self.names.begin_scope();
         let params = Vector::map(lam.params()
@@ -106,11 +106,11 @@ impl AlphaConversion {
         let body   = self.conv(lam.body())?;
         self.names.end_scope();
      
-        let proto = hir::FnProto::new(params);
-        Ok(hir::Lam::new(proto, body))
+        let proto = xir::FnProto::new(params);
+        Ok(xir::Lam::new(proto, body))
     }
     
-    fn conv_decl(&mut self, decl: &ast::Decl) -> Result<hir::Decl> {
+    fn conv_decl(&mut self, decl: &ast::Decl) -> Result<xir::Decl> {
         use ast::Decl::*;
         let res = match *decl {
             Extern(ref name, ref ty) => {
@@ -120,36 +120,36 @@ impl AlphaConversion {
                 let fnty = Self::new_tyvar();
                 let fnid = self.add_ident(name, fnty)?;
                 let lam = self.conv_lam(lam)?;
-                hir::Decl::Func(fnid, Rc::new(lam))
+                xir::Decl::Func(fnid, Rc::new(lam))
             }
         };
         Ok(res)
     }
 
-    fn conv(&mut self, expr: &ast::Expr) -> Result<hir::Expr> {
+    fn conv(&mut self, expr: &ast::Expr) -> Result<xir::Expr> {
         use ast::Expr::*;
         let res = match *expr {
-            UnitLit      => hir::Expr::UnitLit,
-            I32Lit(n)    => hir::Expr::I32Lit(n),
-            BoolLit(b)   => hir::Expr::BoolLit(b),
+            UnitLit      => xir::Expr::UnitLit,
+            I32Lit(n)    => xir::Expr::I32Lit(n),
+            BoolLit(b)   => xir::Expr::BoolLit(b),
             Lam(ref lam) => {
                 let lam = self.conv_lam(lam)?;
-                hir::Expr::Lam(Rc::new(lam))
+                xir::Expr::Lam(Rc::new(lam))
             }
             If(ref e)    => {
-                let if_expr = hir::If::new(self.conv(e.cond())?,
+                let if_expr = xir::If::new(self.conv(e.cond())?,
                                            self.conv(e.texpr())?,
                                            self.conv(e.fexpr())?);
-                hir::Expr::If(Box::new(if_expr))
+                xir::Expr::If(Box::new(if_expr))
             }
             App(ref callee, ref arg) => {
                 let callee = Box::new(self.conv(callee)?);
                 let arg    = Box::new(self.conv(arg)?);
-                hir::Expr::App(callee, arg)
+                xir::Expr::App(callee, arg)
             }
             Var(ref nm) => {
                 match self.names.get(nm) {
-                    Some(v) => hir::Expr::Var(v.clone()),
+                    Some(v) => xir::Expr::Var(v.clone()),
                     None => {
                         let msg = format!("Could not find variable {}", nm);
                         return Err(Error::new(msg))
@@ -161,8 +161,8 @@ impl AlphaConversion {
                 let bind  = self.conv(bind)?;
                 let id    = self.add_ident(name, letty)?;
                 let expr  = self.conv(expr)?;
-                let let_  = hir::Let::new(id, bind, expr);
-                hir::Expr::Let(Box::new(let_))
+                let let_  = xir::Let::new(id, bind, expr);
+                xir::Expr::Let(Box::new(let_))
             }
         };
         Ok(res)

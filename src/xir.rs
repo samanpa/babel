@@ -1,5 +1,9 @@
+//explicitly typed IR.
+//   Adds type abstractions and type applications as values as described by
+//   "On The Type Structure of Standard ML" Robert Harper.
+
 use std::rc::Rc;
-use ::types::Type;
+use ::types::{Type,TyVar};
 
 #[derive(Debug)]
 pub struct Module {
@@ -55,8 +59,8 @@ pub enum Expr {
     Var(Ident),
     If(Box<If>),
     Let(Box<Let>),
-    //TyAbst(Vec<u32>, Box<Expr>),
-    
+    TyAbst(Vec<TyVar>, Box<Expr>),
+    TyApp(Box<Expr>, Vec<Type>),
 }
 
 impl Module {

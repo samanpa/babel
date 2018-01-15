@@ -1,6 +1,6 @@
 use std::collections::{HashMap,HashSet};
 use ::{Result,Error};
-use hir::Ident;
+use xir::Ident;
 use super::types::{mk_tyvar,TyVar,ForAll};
 use super::subst::Subst;
 

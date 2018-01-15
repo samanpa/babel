@@ -1,4 +1,4 @@
-use ::hir::*;
+use ::xir::*;
 use ::types::{ForAll};
 use super::hm::{infer_fn};
 use super::env::Env;
@@ -45,7 +45,7 @@ impl TypeChecker {
             }
             Func(ref id, ref lam) => {
                 let expr = Expr::Lam(lam.clone());
-                let (_, ty, _) = infer_fn(&mut self.gamma, id, &expr)?;
+                let (s, ty, e) = infer_fn(&mut self.gamma, id, &expr)?;
 
                 let bound_vars = ty.free_tyvars()
                     .iter()
@@ -54,6 +54,7 @@ impl TypeChecker {
                 self.gamma.extend(id, ForAll::new(bound_vars, ty.clone()));
 
                 println!("{:?} \t===>  {:?}", id.name(), ty);
+                println!("{:?} ", e);
                 //exp_func(id, lam, &s, &ty)?
             }
         };

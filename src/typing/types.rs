@@ -84,12 +84,15 @@ impl ForAll {
         ftv.difference(&bound_tv);
         ftv
     }
-    pub fn instantiate(&self) -> Type {
+    pub fn instantiate(&self) -> (Vec<TyVar>, Type) {
         let mut subst = Subst::new();
+        let mut tvs   = Vec::new();
         for bv in &self.bound_vars {
-            subst.bind(*bv, Type::Var(fresh_tyvar()));
+            let tv = fresh_tyvar();
+            tvs.push(tv);
+            subst.bind(*bv, Type::Var(tv));
         }
-        subst.apply(self.ty())
+        (tvs, subst.apply(self.ty()))
     }
     pub fn apply_subst(&mut self, subst: &Subst ) {
         self.ty = subst.apply(self.ty());

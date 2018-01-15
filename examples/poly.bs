@@ -2,9 +2,13 @@ fn id(x) {
     x
 }
 
+fn foo(f, x) {
+    f(x)
+}
+
 fn max(n, m) {
     let a = id(n);
-    let b = id(true);
+    let b = foo(id, true);
     let lt = i32_lt;
     if lt(id(n), id(m)) { 
         n
