@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use fresh_id;
 
 pub struct AlphaConversion {
-    names: ScopedMap<String, xir::Ident>,
+    names: ScopedMap<String, xir::TermVar>,
     //Store uniq names across all scopes to reduce memory.
     // FIXME: Is this even worth it?
     uniq_names: HashMap<String, Rc<String>>, 
@@ -63,18 +63,18 @@ impl AlphaConversion {
         self.add_uniq_name(nm)
     }
 
-    fn insert_ident(&mut self, nm: &String, ident: &xir::Ident) -> Result<()> {
-        match self.names.insert(nm.clone(), ident.clone()) {
+    fn insert_var(&mut self, nm: &String, v: &xir::TermVar) -> Result<()> {
+        match self.names.insert(nm.clone(), v.clone()) {
             None => Ok(()),
             Some(..) => Err(Error::new(format!("Name {} already declared", nm)))
         }
     }
 
-    fn add_ident(&mut self, nm: &String, ty: Type) -> Result<xir::Ident> {
-        let ident_name = self.add_uniq_name(nm);
-        let ident = xir::Ident::new(ident_name, ty, fresh_id());
-        self.insert_ident(nm, &ident)?;
-        Ok(ident)
+    fn add_var(&mut self, nm: &String, ty: Type) -> Result<xir::TermVar> {
+        let var_name = self.add_uniq_name(nm);
+        let var = xir::TermVar::new(var_name, ty, fresh_id());
+        self.insert_var(nm, &var)?;
+        Ok(var)
     }
     
     fn conv_module(&mut self, module: &ast::Module) -> Result<xir::Module>
@@ -89,7 +89,7 @@ impl AlphaConversion {
                      -> Result<xir::Decl>
     {
         let ty     = self.conv_ty(ty)?;
-        let funcid = self.add_ident(name, ty.clone())?;
+        let funcid = self.add_var(name, ty.clone())?;
         
         Ok(xir::Decl::Extern(funcid, ty))
     }
@@ -98,16 +98,15 @@ impl AlphaConversion {
         Type::Var(fresh_tyvar())
     }
 
-    fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<xir::Lam>
+    fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<xir::Expr>
     {
         self.names.begin_scope();
         let params = Vector::map(lam.params()
-                                 , |p| self.add_ident(p, Self::new_tyvar()))?;
+                                 , |p| self.add_var(p, Self::new_tyvar()))?;
         let body   = self.conv(lam.body())?;
         self.names.end_scope();
      
-        let proto = xir::FnProto::new(params);
-        Ok(xir::Lam::new(proto, body))
+        Ok(xir::Expr::Lam(params, Box::new(body)))
     }
     
     fn conv_decl(&mut self, decl: &ast::Decl) -> Result<xir::Decl> {
@@ -118,9 +117,9 @@ impl AlphaConversion {
             }
             Func(ref name, ref lam) => {
                 let fnty = Self::new_tyvar();
-                let fnid = self.add_ident(name, fnty)?;
+                let fnid = self.add_var(name, fnty)?;
                 let lam = self.conv_lam(lam)?;
-                xir::Decl::Func(fnid, Rc::new(lam))
+                xir::Decl::Let(fnid, lam)
             }
         };
         Ok(res)
@@ -132,10 +131,7 @@ impl AlphaConversion {
             UnitLit      => xir::Expr::UnitLit,
             I32Lit(n)    => xir::Expr::I32Lit(n),
             BoolLit(b)   => xir::Expr::BoolLit(b),
-            Lam(ref lam) => {
-                let lam = self.conv_lam(lam)?;
-                xir::Expr::Lam(Rc::new(lam))
-            }
+            Lam(ref lam) => self.conv_lam(lam)?,
             If(ref e)    => {
                 let if_expr = xir::If::new(self.conv(e.cond())?,
                                            self.conv(e.texpr())?,
@@ -159,7 +155,7 @@ impl AlphaConversion {
             Let(ref name, ref bind, ref expr) => {
                 let letty = Self::new_tyvar();
                 let bind  = self.conv(bind)?;
-                let id    = self.add_ident(name, letty)?;
+                let id    = self.add_var(name, letty)?;
                 let expr  = self.conv(expr)?;
                 let let_  = xir::Let::new(id, bind, expr);
                 xir::Expr::Let(Box::new(let_))

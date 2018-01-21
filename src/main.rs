@@ -18,6 +18,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         .to_string();
     let alpha_conversion = babel::alpha_convert::AlphaConversion::new();
     let typecheck        = babel::typing::TypeChecker::new();
+    let monomorphize     = babel::specialize::Specialize::new();
 
 
     use babel::Pass;

@@ -32,11 +32,11 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type, Expr)
         UnitLit       => (subst, mk_tycon("unit"), UnitLit),
         I32Lit(n)     => (subst, mk_tycon("i32"), I32Lit(n)),
         BoolLit(b)    => (subst, mk_tycon("bool"), BoolLit(b)),
-        Var(ref id)   => infer_var(gamma, id)?,
-        Lam(ref lam)  => infer_lam(gamma.clone(), lam)?,
+        Var(ref v)    => infer_var(gamma, v)?,
         If(ref exp)   => infer_if(gamma, exp)?,
         Let(ref exp)  => infer_let(gamma, exp)?,
         App(ref callee, ref args) => infer_app(gamma, callee, args)?,
+        Lam(ref proto, ref body)  => infer_lam(gamma.clone(), proto, body)?,
         TyLam(_, _)               => unimplemented!(),
         TyApp(_, _)               => unimplemented!(),
     };
@@ -53,19 +53,20 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type, Expr)
 //   read as TyLam([a1,b1],
 //              TyApp(Var(foo),
 //                     [a1, b1]))
-fn translate_var(id: &Ident, tvs: Vec<TyVar>) -> Expr {
+fn translate_var(sigma: &ForAll, var: &TermVar, tvs: Vec<TyVar>) -> Expr {
     use self::Expr::*;
     let ty_args = tvs.iter()
         .map( |tv| Type::Var(*tv) )
         .collect();
-    let tyapp   = TyApp(Box::new(Var(id.clone())), ty_args);
+    let var     = var.with_ty(sigma.ty().clone());
+    let tyapp   = TyApp(Box::new(Expr::Var(var)), ty_args);
     TyLam(tvs, Box::new(tyapp))
 }
 
-fn infer_var(gamma: &mut Env, id: &Ident) -> Result<(Subst, Type, Expr)> {
-    let sigma     = gamma.lookup(id)?;
+fn infer_var(gamma: &mut Env, var: &TermVar) -> Result<(Subst, Type, Expr)> {
+    let sigma     = gamma.lookup(var)?;
     let (tvs, ty) = sigma.instantiate();
-    let expr      = translate_var(id, tvs);
+    let expr      = translate_var(&sigma, var, tvs);
     Ok((Subst::new(), ty, expr))
 }
 
@@ -76,12 +77,12 @@ fn infer_var(gamma: &mut Env, id: &Ident) -> Result<(Subst, Type, Expr)> {
 //into
 //   let foo = Λ a b. ( λf. λy. f x )
 //
-fn translate_lam(body: Expr, proto: &FnProto, params_ty: &Vec<Type>,
+fn translate_lam(body: Expr, params: &Vec<TermVar>, params_ty: &Vec<Type>,
                  retty: &Type, sub: &Subst) -> Expr {
-    let params  = proto.params()
+    let params  = params
         .iter()
         .zip(params_ty)
-        .map( |(id,ty)| Ident::new(id.name().clone(), sub.apply(ty), id.id()) )
+        .map( |(v,ty)| v.with_ty(sub.apply(ty)) )
         .collect::<Vec<_>>();
     let mut free_tv = sub.apply(retty).free_tyvars();
     for p in &params {
@@ -90,24 +91,24 @@ fn translate_lam(body: Expr, proto: &FnProto, params_ty: &Vec<Type>,
         }
     }
     let free_tv = free_tv.into_iter().collect();
-    let proto   = FnProto::new(params);    
-    let body    = Expr::TyLam(free_tv, Box::new(body));
-    let lam     = Lam::new(proto, body);
-    Expr::Lam(Rc::new(lam))
+    let body    = Expr::Lam(params, Box::new(body));
+    Expr::TyLam(free_tv, Box::new(body))
 }
 
-fn infer_lam(mut gamma: Env, lam: &Lam) -> Result<(Subst, Type, Expr)> {
+fn infer_lam(mut gamma: Env, params: &Vec<TermVar>, body: &Expr)
+             -> Result<(Subst, Type, Expr)>
+{
     use self::Type::*;
-    let params_ty = lam.proto().params()
+    let params_ty = params
         .iter()
-        .map(| id | {
+        .map(| v | {
             let tv = fresh_tyvar();
-            gamma.extend(id, ForAll::new(vec![], Var(tv)));
+            gamma.extend(v, ForAll::new(vec![], Var(tv)));
             Var(tv)
         })
         .collect();
-    let (s1, t1, body) = infer(&mut gamma, lam.body())?;
-    let expr = translate_lam(body, lam.proto(), &params_ty, &t1, &s1);
+    let (s1, t1, body) = infer(&mut gamma, body)?;
+    let expr = translate_lam(body, params, &params_ty, &t1, &s1);
     let fnty = mk_func(&params_ty, t1);
     let fnty = s1.apply(&fnty);
     Ok((s1, fnty, expr))
@@ -135,7 +136,7 @@ fn is_value(expr: &Expr) -> bool {
         UnitLit    |
         BoolLit(_) |
         I32Lit(_)  |
-        Lam(_)     |
+        Lam(_, _)  |
         Var(_)  => true,
         _       => false
     }
@@ -144,8 +145,8 @@ fn is_value(expr: &Expr) -> bool {
 fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type, Expr)>
 {
     let (s1, t1, e1) = infer(gamma, let_exp.bind())?;
-    let id           = let_exp.id();
-    let id           = Ident::new(id.name().clone(), t1.clone(), id.id());
+    let v            = let_exp.id();
+    let v            = v.with_ty(t1.clone());
     let mut gamma1   = gamma.apply_subst(&s1);
     // Do value restriction: Don't generalize unless the bind expr is a value
     let t2           = match is_value(let_exp.bind()) {
@@ -155,21 +156,21 @@ fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type, Expr)>
     gamma1.extend(let_exp.id(), t2);
     let (s2, t, e2)  = infer(&mut gamma1, let_exp.expr())?;
     let s            = s2.compose(&s1)?;
-    let let_exp      = Let::new(id, e1, e2);
+    let let_exp      = Let::new(v, e1, e2);
     let expr         = Expr::Let(Box::new(let_exp));
     Ok((s, t, expr))
 }
 
-pub (super) fn infer_fn(gamma: &mut Env, id: &Ident, e: &Expr) ->
+pub (super) fn infer_fn(gamma: &mut Env, v: &TermVar, e: &Expr) ->
     Result<(Subst, Type, Expr)> {
-    infer_letrec(gamma, id, e)
+    infer_letrec(gamma, v, e)
 }
 
-fn infer_letrec(gamma: &mut Env, id: &Ident, e: &Expr) 
+fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr) 
                 -> Result<(Subst, Type, Expr)>
 {
     let beta = ForAll::new(vec![], Type::Var(fresh_tyvar()));
-    gamma.extend(id, beta);
+    gamma.extend(v, beta);
 
     let (s1, t1, e) = infer(gamma, e)?;
     Ok((s1, t1, e))

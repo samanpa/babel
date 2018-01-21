@@ -21,6 +21,11 @@ pub enum Type {
     Var(TyVar)
 }
 
+#[derive(Clone)]
+pub enum Kind {
+    Type
+}
+
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
 pub struct ForAll {
     bound_vars: Vec<TyVar>,

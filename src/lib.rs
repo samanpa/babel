@@ -4,6 +4,7 @@ pub mod parser;
 pub mod xir;
 pub mod alpha_convert;
 pub mod typing;
+pub mod specialize;
 pub (crate) mod scoped_map;
 
 pub use typing::types;

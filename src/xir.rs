@@ -1,10 +1,11 @@
 //explicitly typed IR.
 //   Adds type abstractions and type applications as values as described by
 //   "On The Type Structure of Standard ML" Robert Harper.
+//System F like.
 
 use std::rc::Rc;
 use std::fmt;
-use ::types::{Type,TyVar};
+use ::types::{Type,TyVar,Kind};
 
 #[derive(Debug)]
 pub struct Module {
@@ -12,32 +13,27 @@ pub struct Module {
     decls: Vec<Decl>,
 }
 
-#[derive(Debug,Clone)]
-pub struct FnProto {
-    params: Vec<Ident>
-}
-
 #[derive(Debug)]
 pub enum Decl {
-    Extern(Ident, Type),
-    Func(Ident, Rc<Lam>),
+    Extern(TermVar, Type),
+    Let(TermVar, Expr),
 }
 
 #[derive(Clone)]
-pub struct Ident {
+pub struct TermVar {
     name: Rc<String>,
     id: u32,
-    ty: Type,
+    ty: Type
 }
 
-#[derive(Debug)]
-pub struct Lam {
-    proto: FnProto,
-    body:  Expr,
+#[derive(Clone)]
+pub enum Var {
+    Term(TermVar),
+    Type(TyVar, Kind)
 }
 
 pub struct Let {
-    id:   Ident,
+    id:   TermVar,
     bind: Expr,
     expr: Expr,
 }
@@ -51,14 +47,14 @@ pub struct If {
 
 #[derive(Debug)]
 pub enum Expr {
-    Lam(Rc<Lam>),
-    App(Box<Expr>, Box<Expr>),
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Var(Ident),
+    Var(TermVar),
     If(Box<If>),
     Let(Box<Let>),
+    Lam(Vec<TermVar>, Box<Expr>),
+    App(Box<Expr>, Box<Expr>),
     TyLam(Vec<TyVar>, Box<Expr>),
     TyApp(Box<Expr>, Vec<Type>),
 }
@@ -81,9 +77,12 @@ impl Module {
     }
 }
 
-impl Ident {
+impl TermVar {
     pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
-        Ident{name, ty, id}
+        TermVar{name, ty, id}
+    }
+    pub fn with_ty(&self, ty: Type) -> TermVar {
+        TermVar::new(self.name.clone(), ty, self.id)
     }
     pub fn name(&self) -> &Rc<String> {
         &self.name
@@ -96,33 +95,9 @@ impl Ident {
     }
 }
 
-impl fmt::Debug for Ident {
+impl fmt::Debug for TermVar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{} :: {:?}", self.name, self.id, self.ty)
-    }
-}
-
-impl FnProto {
-    pub fn new(params: Vec<Ident>) -> Self {
-        FnProto{ params }
-    }
-    pub fn params(&self) -> &Vec<Ident> {
-        &self.params
-    }
-}
-
-impl Lam {
-    pub fn new(proto: FnProto, body: Expr) -> Self {
-        Lam{proto, body}
-    }
-    pub fn proto(&self) -> &FnProto {
-        &self.proto
-    }
-//    pub fn take_proto(self) -> FnProto {
-//        self.proto
-//    }
-    pub fn body(&self) -> &Expr {
-        &self.body
+        write!(f, "{}{} : {:?}", self.name, self.id, self.ty)
     }
 }
 
@@ -142,10 +117,10 @@ impl If {
 }
 
 impl Let {
-    pub fn new(id: Ident, bind: Expr, expr: Expr) -> Self {
+    pub fn new(id: TermVar, bind: Expr, expr: Expr) -> Self {
         Let{id, bind, expr}
     }
-    pub fn id(&self) -> &Ident {
+    pub fn id(&self) -> &TermVar {
         &self.id
     }
     pub fn bind(&self) -> &Expr {

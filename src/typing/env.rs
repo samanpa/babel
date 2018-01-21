@@ -1,6 +1,6 @@
 use std::collections::{HashMap,HashSet};
 use ::{Result,Error};
-use xir::Ident;
+use xir::TermVar;
 use super::types::{mk_tyvar,TyVar,ForAll};
 use super::subst::Subst;
 
@@ -14,14 +14,14 @@ impl Env {
         Self{ map: HashMap::new() }
     }
     
-    pub fn lookup(&self, id: &Ident) -> Result<ForAll> {
+    pub fn lookup(&self, id: &TermVar) -> Result<ForAll> {
         match self.map.get(&mk_tyvar(id.id())) {
             Some(ty) => Ok(ty.clone()),
             None     => Err(Error::new(format!("Could not find {:?}", id)))
         }
     }
 
-    pub fn extend(&mut self, id: &Ident, ty: ForAll) {
+    pub fn extend(&mut self, id: &TermVar, ty: ForAll) {
         self.map.insert(mk_tyvar(id.id()), ty);
     }
 

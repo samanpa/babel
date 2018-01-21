@@ -4,7 +4,6 @@ use super::subst::Subst;
 use super::hm::{infer_fn};
 use super::env::Env;
 use ::{Result,Vector};
-use std::rc::Rc;
 
 pub struct TypeChecker {
     gamma: Env
@@ -35,31 +34,30 @@ impl TypeChecker {
         let decls = Vector::map(module.decls(), |decl| {
             self.tc_decl(decl)
         })?;
-        Ok(Module::new(module.name().clone(), vec![]))
+        Ok(Module::new(module.name().clone(), decls))
     }
 
-    fn tc_decl(&mut self, decl: &Decl) -> Result<()> {
+    fn tc_decl(&mut self, decl: &Decl) -> Result<Decl> {
         use self::Decl::*;
         let res = match *decl {
-            Extern(ref id, ref ty) => {
-                self.gamma.extend(id, ForAll::new(vec![], ty.clone()));
-                //exp_extern(id, ty)?
+            Extern(ref v, ref ty) => {
+                self.gamma.extend(v, ForAll::new(vec![], ty.clone()));
+                Extern(v.clone(), ty.clone())
             }
-            Func(ref id, ref lam) => {
-                let expr       = Expr::Lam(lam.clone());
+            Let(ref id, ref expr) => {
                 let (s, ty, e) = infer_fn(&mut self.gamma, id, &expr)?;
-                println!("{:?} \t===>  {:?}", id.name(), ty);
-                println!("\n{:?} ", e);
-                let expr       = insert_tyapp(&e, &s, true)?;
-
+                let res        = insert_tyapp(&e, &s, false)?;
                 let bound_vars = ty.free_tyvars()
-                    .iter()
-                    .cloned()
+                    .into_iter()
                     .collect();
                 self.gamma.extend(id, ForAll::new(bound_vars, ty.clone()));
 
-                println!("\n{:?} \n\n", expr);
-                //exp_func(id, lam, &s, &ty)?
+                let id = id.with_ty(ty);
+                println!("{:?}", id);
+                println!("\n{:?}", expr);
+                println!("\n{:?}", e);
+                println!("\n{:?}\n=================\n\n", res);
+                Let(id, res)
             }
         };
         Ok(res)
@@ -67,27 +65,24 @@ impl TypeChecker {
 }
 
 
-
-
 fn insert_tyapp(expr: &Expr, sub: &Subst, insert: bool) -> Result<Expr>
 {
     use ::xir;
     use self::Expr::*;
     let expr = match *expr {
-        UnitLit      => UnitLit,
-        I32Lit(n)    => I32Lit(n),
-        BoolLit(b)   => BoolLit(b),
-        Var(ref id)  => Var(id.clone()),
-        Lam(ref lam) => {
-            let body = insert_tyapp(lam.body(), sub, false)?;
-            let lam  = xir::Lam::new(lam.proto().clone(), body);
-            Lam(Rc::new(lam))
+        UnitLit     => UnitLit,
+        I32Lit(n)   => I32Lit(n),
+        BoolLit(b)  => BoolLit(b),
+        Var(ref id) => Var(id.clone()),
+        Lam(ref proto, ref body) => {
+            let body = insert_tyapp(body, sub, true)?;
+            Lam(proto.clone(), Box::new(body))
         }
         If(ref e) => {
             let if_expr = xir::If::new(insert_tyapp(e.cond(),  sub, true)?,
                                        insert_tyapp(e.texpr(), sub, true)?,
                                        insert_tyapp(e.fexpr(), sub, true)?);
-            xir::Expr::If(Box::new(if_expr))
+            Expr::If(Box::new(if_expr))
         }
         App(ref callee, ref arg) => {
             let callee = insert_tyapp(callee, sub, true)?;
@@ -96,9 +91,9 @@ fn insert_tyapp(expr: &Expr, sub: &Subst, insert: bool) -> Result<Expr>
         }
         Let(ref exp) => {
             let exp = xir::Let::new(exp.id().clone(),
-                                    insert_tyapp(exp.bind(), sub, true)?,
+                                    insert_tyapp(exp.bind(), sub, false)?,
                                     insert_tyapp(exp.expr(), sub, true)?);
-            xir::Expr::Let(Box::new(exp))
+            Expr::Let(Box::new(exp))
         }
         TyLam(ref args, ref b) => {
             let body  = insert_tyapp(b, sub, true)?;
@@ -117,10 +112,6 @@ fn insert_tyapp(expr: &Expr, sub: &Subst, insert: bool) -> Result<Expr>
         TyApp(ref e, ref args) => {
             let e = insert_tyapp(e, sub, true)?;
             TyApp(Box::new(e), args.clone())
-        }
-        _ => {
-            println!("insert_tyapp not implemented {:?}", expr);
-            unimplemented!()
         }
     };
     Ok(expr)

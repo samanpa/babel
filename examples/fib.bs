@@ -1,5 +1,5 @@
-fn id(a) {
-    a
+fn id(x) {
+    x
 }
 
 fn fib(n) {

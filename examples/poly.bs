@@ -3,12 +3,10 @@ fn id(x) {
 }
 
 fn foo(f, x) {
-    f(x)
-}
-
-fn simple(n) {
-    let a = i32_lt(n, 0);
-    a
+    let id1 = id;
+    let id2 = id1;
+    let x1  = id1(x);
+    f(x1)
 }
 
 fn poly(n) {
@@ -16,10 +14,11 @@ fn poly(n) {
     let b = foo(id, true);
     b
 }
+
 fn max(n, m) {
     let n1 = poly(n);
     let lt = i32_lt;
-    if lt(id(n), id(m)) { 
+    if lt(n, m) { 
         n
     } else {
         m
