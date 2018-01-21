@@ -30,7 +30,8 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     let _ = passes![
         modules
         => alpha_conversion
-        => typecheck     
+        => typecheck
+        => monomorphize
     ];
 
     Ok(())

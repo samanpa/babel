@@ -1,0 +1,13 @@
+fn id(a) {
+   a
+}
+
+fn buggy() {
+   let f = id(id);
+   let x = f(1);
+   f(true)
+}
+
+fn main() {
+   buggy()
+}
