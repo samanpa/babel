@@ -166,10 +166,13 @@ impl Specializer
             I32Lit(n)   => I32Lit(n),
             BoolLit(b)  => BoolLit(b),
             Var(ref id) => {
-                match id.ty().is_monotype() {
-                    true  => Var(id.clone()),
+                //Check if the variable is monomorphic.
+                // Checking if the id.ty() has type variables is not sufficient
+                // because a type variable can be non generic
+                let ty = sub.apply(id.ty());
+                match args.len() == 0 {
+                    true  => Var(id.with_ty(ty)),
                     false => {
-                        let ty = sub.apply(id.ty());
                         let id = id.clone();
                         let (id, exp, new) = self.cache.add_instance(id, ty)?;
                         if new {
@@ -196,6 +199,9 @@ impl Specializer
                 xir::Expr::App(Box::new(callee), Box::new(arg))
             }
             Let(ref exp) => {
+                if exp.id().ty().is_monotype() {
+                    //self.cache.insert_expr(id, (*expr).clone());
+                }
                 let exp = xir::Let::new(exp.id().clone(),
                                         self.run(exp.bind(), sub, vec![])?,
                                         self.run(exp.expr(), sub, vec![])?);

@@ -5,7 +5,7 @@ fn id(x) {
 fn foo(f, x) {
     let id1 = id;
     let id2 = id1;
-    let x1  = id1(x);
+    let x1  = id2(x);
     f(x1)
 }
 
