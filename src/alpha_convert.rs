@@ -118,7 +118,7 @@ impl AlphaConversion {
             Func(ref name, ref lam) => {
                 let fnty = Self::new_tyvar();
                 let fnid = self.add_var(name, fnty)?;
-                let lam = self.conv_lam(lam)?;
+                let lam  = self.conv_lam(lam)?;
                 xir::Decl::Let(fnid, lam)
             }
         };

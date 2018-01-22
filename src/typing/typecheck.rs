@@ -45,7 +45,7 @@ impl TypeChecker {
                 Extern(v.clone(), ty.clone())
             }
             Let(ref id, ref expr) => {
-                let (s, ty, e) = infer_fn(&mut self.gamma, id, &expr)?;
+                let (s, ty, e) = infer_fn(&mut self.gamma, id, expr)?;
                 let res        = insert_tyapp(&e, &s, false)?;
                 let bound_vars = ty.free_tyvars()
                     .into_iter()
@@ -54,9 +54,10 @@ impl TypeChecker {
 
                 let id = id.with_ty(ty);
                 println!("{:?}", id);
-                println!("\n{:?}", expr);
-                println!("\n{:?}", e);
-                println!("\n{:?}\n=================\n\n", res);
+                println!("->\n{:?}", expr);
+                println!("->\n{:?}", e);
+                println!("->\n{:?}", s);
+                println!("->\n{:?}\n=================\n\n", res);
                 Let(id, res)
             }
         };
@@ -73,7 +74,7 @@ fn insert_tyapp(expr: &Expr, sub: &Subst, insert: bool) -> Result<Expr>
         UnitLit     => UnitLit,
         I32Lit(n)   => I32Lit(n),
         BoolLit(b)  => BoolLit(b),
-        Var(ref id) => Var(id.clone()),
+        Var(ref id) => Var(id.with_ty(sub.apply(id.ty()))),
         Lam(ref proto, ref body) => {
             let body = insert_tyapp(body, sub, true)?;
             Lam(proto.clone(), Box::new(body))

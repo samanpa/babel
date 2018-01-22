@@ -19,7 +19,7 @@ pub enum Decl {
     Let(TermVar, Expr),
 }
 
-#[derive(Clone)]
+#[derive(Clone,Hash,Eq,PartialEq)]
 pub struct TermVar {
     name: Rc<String>,
     id: u32,
@@ -72,6 +72,10 @@ impl Module {
         &self.decls
     }
 
+    pub fn take_decls(self) -> Vec<Decl> {
+        self.decls
+    }
+
     pub fn add_decl(&mut self, decl: Decl) {
         self.decls.push(decl)
     }
@@ -97,7 +101,7 @@ impl TermVar {
 
 impl fmt::Debug for TermVar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{} : {:?}", self.name, self.id, self.ty)
+        write!(f, "{}_{}: {:?}", self.name, self.id, self.ty)
     }
 }
 
