@@ -34,19 +34,6 @@ pub struct ForAll {
 
 
 impl Type {
-    pub fn is_monotype(&self) -> bool {
-        use self::Type::*;
-        match *self {
-            Con(_) => true,
-            Var(_) => false,
-            App(ref ty, ref args)  => {
-                args.iter()
-                    .fold( ty.is_monotype(),
-                           | prev, ty | prev && ty.is_monotype())
-            }
-        }
-    }
-
     pub fn free_tyvars(&self) -> HashSet<TyVar>
     {
         use self::Type::*;
@@ -120,16 +107,6 @@ impl ForAll {
     pub fn apply_subst(&mut self, subst: &Subst ) {
         self.ty = subst.apply(self.ty());
     }
-    /*
-    pub fn mk_subst(&self, monotypes: &Vec<Type<u32>>) -> super::subst::Subst {
-        let mut subst = super::subst::Subst::new();
-        for (bound_var, monoty) in self.bound_vars.iter().zip(monotypes) {
-            subst.bind(*bound_var, (*monoty).clone());
-        }
-        subst
-    }
-*/
-
 }
 
 pub (super) fn generalize(ty: Type, env: &super::env::Env) -> ForAll {

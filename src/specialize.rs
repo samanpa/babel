@@ -1,5 +1,5 @@
 use ::xir::*;
-use ::types::Type;
+use ::types::{Type,TyVar};
 use ::typing::subst::Subst;
 use ::{Result,Vector,Error};
 use scoped_map::ScopedMap;
@@ -28,24 +28,39 @@ impl Cache {
         self.entries.end_scope();
     }
 
-    fn insert_expr(&mut self, var: TermVar) {
-        self.entries.entry(var)
-            .or_insert_with( || Instances::new() );
+    fn add_if_poly(&mut self, var: TermVar, expr: &Expr) -> bool {
+        match *expr {
+            Expr::TyLam(ref ty_args, _) => {
+                if ty_args.len() > 0 {
+                    self.entries.entry(var)
+                        .or_insert_with( || Instances::new(ty_args.clone()) );
+                    true
+                }
+                else {
+                    false
+                }
+            }
+            _ => false
+        }
     }
-
-    fn add_instance(&mut self, var: TermVar, ty: Type, args: Vec<Type>)
+    
+    fn add_instance(&mut self, var: &TermVar, args: Vec<Type>)
                     -> Result<TermVar>
     {
         match self.entries.get_mut(&var) {
             None => {
                 Err(Error::new(format!("Could not find var {:?} -> {:?}"
-                                       , var, ty)))
+                                       , var, args)))
             }
             Some(ref mut instance) => {
-                let id = instance.add(&var, ty, args);
+                let id = instance.add(var, args);
                 Ok(id)
             }
         }
+    }
+
+    fn is_poly(&self, id: &TermVar) -> bool {
+        self.entries.get(id).is_some()
     }
 
     fn get(&self, id: &TermVar) -> Option<&Instances> {
@@ -55,15 +70,22 @@ impl Cache {
 
 
 struct Instances {
+    tyvars: Vec<TyVar>,
     inner: HashMap<Vec<Type>, TermVar>,
 }
 
 impl Instances {
-    fn new() -> Self {
-        Self{ inner: HashMap::new() }
+    fn new(tyvars: Vec<TyVar>) -> Self {
+        Self{ tyvars, inner: HashMap::new() }
     }
 
-    fn add(&mut self, var: &TermVar, ty: Type, args: Vec<Type>) -> TermVar {
+    fn add(&mut self, var: &TermVar, args: Vec<Type>) -> TermVar {
+        let mut sub = Subst::new();
+        for (tyvar, ty) in self.tyvars.iter().zip(args.iter()) {
+            sub.bind(*tyvar, ty.clone())
+        }
+        let ty = sub.apply(var.ty());
+
         let var = self.inner.entry(args.clone())
             .or_insert_with( || var.with_ty(ty) );
         var.clone()
@@ -103,12 +125,9 @@ impl Specialize {
             match decl {
                 e @ Decl::Extern(_, _)  => decls.push(e),
                 Decl::Let(id, expr)     => {
-                    match id.ty().is_monotype() {
-                        true  => monotys.push((id, expr)),
-                        false => {
-                            spec.cache.insert_expr(id.clone());
-                            poly.push((id, expr));
-                        }
+                    match spec.cache.add_if_poly(id.clone(), &expr) {
+                        false => monotys.push((id, expr)),
+                        true  => poly.push((id, expr)),
                     }
                 }
             }
@@ -116,20 +135,16 @@ impl Specialize {
 
         for (id, expr) in monotys {
             let mut sub = Subst::new();
-            spec.cache.begin_scope();
             let expr = spec.do_run(&expr, &mut sub, vec![])?;
             mono.push((id, expr));
-            spec.cache.end_scope();
         }
 
         for (id, expr) in poly.into_iter().rev() {
             println!("========\n{:?}", id);
             let mut sub = Subst::new();
-            spec.cache.begin_scope();
-            for (id, expr) in spec.run_poly(&id, &expr, &mut sub, vec![])? {
+            for (id, expr) in spec.run_poly(&id, &expr, &mut sub)? {
                 decls.push(Decl::Let(id, expr));
             }
-            spec.cache.end_scope();
         }
         
         Ok(Module::new(modname, decls))
@@ -138,8 +153,8 @@ impl Specialize {
 
 impl Specializer
 {
-    fn run_poly(&mut self, id: &TermVar, expr: &Expr, sub: &mut Subst
-                , args: Vec<Type>) -> Result<Vec<(TermVar, Expr)>>
+    fn run_poly(&mut self, id: &TermVar, expr: &Expr
+                , sub: &mut Subst) -> Result<Vec<(TermVar, Expr)>>
     {
         let mut result = Vec::new();
         let instances = match self.cache.get(&id) {
@@ -147,7 +162,7 @@ impl Specializer
             Some(ref instances) => instances.inner.clone()
         };
         for (tys, id) in &instances {
-            println!("Specialize {:?} === {:?}\n", id, tys);
+            println!("Specialize {:?} \n", id);
             let tys = tys.iter().map( |ty| sub.apply(ty) ).collect();
             let mono_expr = self.do_run(expr, sub, tys)?;
             result.push((id.clone(), mono_expr))
@@ -160,7 +175,9 @@ impl Specializer
     {
         println!("{:?}\n", expr);
 
+        self.cache.begin_scope();
         let expr    = self.run(&expr, sub, args)?;
+        self.cache.end_scope();
         println!("{:?}\n========================================\n", expr);
         Ok(expr)
     }
@@ -205,42 +222,33 @@ impl Specializer
                 self.run(e, sub, args)?
             }
             Var(ref id) => {
-                //Check if the variable is monomorphic.
-                //Checking if the id.ty() has type variables is not 
-                //   sufficient because a type variable can be non generic
+                //Check if the variable is monomorphic by looking in the
+                //    polymorphic cache
                 let ty = sub.apply(id.ty());
-                match args.len() == 0 {
-                    true  => Var(id.with_ty(ty)),
-                    false => {
-                        let id = id.clone();
-                        let id = self.cache.add_instance(id, ty, args)?;
-                        Var(id)
-                    }
-                }
+                let id = match self.cache.is_poly(id) {
+                    false => id.with_ty(ty),
+                    true  => self.cache.add_instance(id, args)?
+                };
+                Var(id)
             }
             Let(ref exp) => {
                 let ty = sub.apply(exp.id().ty());
                 let id = exp.id().with_ty(ty);
 
-                match id.ty().is_monotype() {
-                    true  => {
-                        let let_body = self.run(exp.expr(), sub, vec![])?;
-                        let bind = self.run(exp.bind(), sub, vec![])?;
-                        let exp  = xir::Let::new(id, bind, let_body);
-                        Expr::Let(Box::new(exp))
+                if self.cache.add_if_poly(id.clone(), exp.bind()) {
+                    let mut let_expr = self.run(exp.expr(), sub, vec![])?;
+                    let res  = self.run_poly(&id, exp.bind(), sub)?;
+                    for (id, bind) in res {
+                        let exp  = xir::Let::new(id, bind, let_expr);
+                        let_expr = Expr::Let(Box::new(exp))
                     }
-                    false => {
-                        self.cache.insert_expr(id);
-                        let id   = exp.id();
-                        let bind = exp.bind();
-                        let res  = self.run_poly(id, bind, sub, args)?;
-                        let mut let_expr = self.run(exp.expr(), sub, vec![])?;
-                        for (id, bind) in res {
-                            let exp  = xir::Let::new(id, bind, let_expr);
-                            let_expr = Expr::Let(Box::new(exp))
-                        }
-                        let_expr
-                    }
+                    let_expr
+                }
+                else {
+                    let let_body = self.run(exp.expr(), sub, vec![])?;
+                    let bind = self.run(exp.bind(), sub, vec![])?;
+                    let exp  = xir::Let::new(id, bind, let_body);
+                    Expr::Let(Box::new(exp))
                 }
             }
         };
