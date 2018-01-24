@@ -117,8 +117,7 @@ impl Specialize {
     fn mono_module(&mut self, module: Module) -> Result<Module> {
         let mut decls   = Vec::new();
         let mut spec    = Specializer{ cache: Cache::new()};
-        let mut mono    = Vec::new();
-        let mut poly    = Vec::new();
+        let mut polytys = Vec::new();
         let mut monotys = Vec::new();
         let modname     = module.name().clone();
         for decl in module.take_decls() {
@@ -127,19 +126,20 @@ impl Specialize {
                 Decl::Let(id, expr)     => {
                     match spec.cache.add_if_poly(id.clone(), &expr) {
                         false => monotys.push((id, expr)),
-                        true  => poly.push((id, expr)),
+                        true  => polytys.push((id, expr)),
                     }
                 }
             }
         }
 
+        let mut mono    = Vec::new();
         for (id, expr) in monotys {
             let mut sub = Subst::new();
             let expr = spec.do_run(&expr, &mut sub, vec![])?;
             mono.push((id, expr));
         }
 
-        for (id, expr) in poly.into_iter().rev() {
+        for (id, expr) in polytys.into_iter().rev() {
             println!("========\n{:?}", id);
             let mut sub = Subst::new();
             for (id, expr) in spec.run_poly(&id, &expr, &mut sub)? {
@@ -162,7 +162,7 @@ impl Specializer
             Some(ref instances) => instances.inner.clone()
         };
         for (tys, id) in &instances {
-            println!("Specialize {:?} \n", id);
+            println!("==========\nSpecialize {:?} \n", id);
             let tys = tys.iter().map( |ty| sub.apply(ty) ).collect();
             let mono_expr = self.do_run(expr, sub, tys)?;
             result.push((id.clone(), mono_expr))
@@ -178,7 +178,7 @@ impl Specializer
         self.cache.begin_scope();
         let expr    = self.run(&expr, sub, args)?;
         self.cache.end_scope();
-        println!("{:?}\n========================================\n", expr);
+        println!("{:?}\n", expr);
         Ok(expr)
     }
 

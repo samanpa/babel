@@ -79,14 +79,17 @@ fn infer_var(gamma: &mut Env, var: &TermVar) -> Result<(Subst, Type, Expr)> {
 //
 fn translate_lam(body: Expr, params: &Vec<TermVar>, params_ty: &Vec<Type>,
                  retty: &Type, sub: &Subst) -> Expr {
+    let params_ty = params_ty.iter()
+        .map( |ty| sub.apply(ty) )
+        .collect::<Vec<_>>();
     let params  = params
         .iter()
-        .zip(params_ty)
-        .map( |(v,ty)| v.with_ty(sub.apply(ty)) )
+        .zip(&params_ty)
+        .map( |(v,ty)| v.with_ty(ty.clone()) )
         .collect::<Vec<_>>();
     let mut free_tv = sub.apply(retty).free_tyvars();
-    for p in &params {
-        for ftv in p.ty().free_tyvars() {
+    for pty in params_ty {
+        for ftv in pty.free_tyvars() {
             free_tv.insert(ftv);
         }
     }
