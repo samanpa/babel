@@ -91,7 +91,7 @@ fn insert_tyapp(expr: &Expr, sub: &Subst, insert: bool) -> Result<Expr>
             xir::Expr::App(Box::new(callee), Box::new(arg))
         }
         Let(ref exp) => {
-            let exp = xir::Let::new(exp.id().clone(),
+            let exp = xir::Let::new(exp.id().with_ty(sub.apply(exp.id().ty())),
                                     insert_tyapp(exp.bind(), sub, false)?,
                                     insert_tyapp(exp.expr(), sub, true)?);
             Expr::Let(Box::new(exp))

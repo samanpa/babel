@@ -2,8 +2,10 @@ use ::xir::*;
 use ::types::{Type,TyVar};
 use ::typing::subst::Subst;
 use ::{Result,Vector,Error};
+use ::fresh_id;
 use scoped_map::ScopedMap;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 pub struct Specialize {}
 
@@ -59,8 +61,8 @@ impl Cache {
         }
     }
 
-    fn is_poly(&self, id: &TermVar) -> bool {
-        self.entries.get(id).is_some()
+    fn is_poly(&self, var: &TermVar) -> bool {
+        self.entries.get(var).is_some()
     }
 
     fn get(&self, id: &TermVar) -> Option<&Instances> {
@@ -84,10 +86,13 @@ impl Instances {
         for (tyvar, ty) in self.tyvars.iter().zip(args.iter()) {
             sub.bind(*tyvar, ty.clone())
         }
-        let ty = sub.apply(var.ty());
 
         let var = self.inner.entry(args.clone())
-            .or_insert_with( || var.with_ty(ty) );
+            .or_insert_with( || {
+                let name = format!("{}<{:?}>", var.name(), args);
+                let ty = sub.apply(var.ty());
+                TermVar::new(Rc::new(name), ty, fresh_id())
+            });
         var.clone()
     }
 }
@@ -133,46 +138,46 @@ impl Specialize {
         }
 
         let mut mono    = Vec::new();
-        for (id, expr) in monotys {
+        for (id, expr) in monotys.into_iter().rev() {
             let mut sub = Subst::new();
-            let expr = spec.do_run(&expr, &mut sub, vec![])?;
+            let expr = spec.specialize(&id, &expr, &mut sub, vec![])?;
             mono.push((id, expr));
         }
 
         for (id, expr) in polytys.into_iter().rev() {
-            println!("========\n{:?}", id);
             let mut sub = Subst::new();
-            for (id, expr) in spec.run_poly(&id, &expr, &mut sub)? {
+            for (id, expr) in spec.specialize_all(&id, &expr, &mut sub)? {
                 decls.push(Decl::Let(id, expr));
             }
         }
-        
+
+        let decls = decls.into_iter().rev().collect();
         Ok(Module::new(modname, decls))
     }
 }
 
 impl Specializer
 {
-    fn run_poly(&mut self, id: &TermVar, expr: &Expr
-                , sub: &mut Subst) -> Result<Vec<(TermVar, Expr)>>
+    fn specialize_all(&mut self, id: &TermVar, expr: &Expr
+                       , sub: &mut Subst) -> Result<Vec<(TermVar, Expr)>>
     {
         let mut result = Vec::new();
         let instances = match self.cache.get(&id) {
             None => HashMap::new(),
             Some(ref instances) => instances.inner.clone()
         };
-        for (tys, id) in &instances {
-            println!("==========\nSpecialize {:?} \n", id);
+        for (tys, id) in instances {
             let tys = tys.iter().map( |ty| sub.apply(ty) ).collect();
-            let mono_expr = self.do_run(expr, sub, tys)?;
-            result.push((id.clone(), mono_expr))
+            let mono_expr = self.specialize(&id, expr, sub, tys)?;
+            result.push((id, mono_expr))
         };
         Ok(result)
     }
 
-    fn do_run(&mut self, expr: &Expr, sub: &mut Subst, args: Vec<Type>)
-              -> Result<Expr>
+    fn specialize(&mut self, id: &TermVar, expr: &Expr, sub: &mut Subst
+              , args: Vec<Type>) -> Result<Expr>
     {
+        println!("==========\nSpecialize {:?} {:?}\n", id, args);
         println!("{:?}\n", expr);
 
         self.cache.begin_scope();
@@ -224,20 +229,17 @@ impl Specializer
             Var(ref id) => {
                 //Check if the variable is monomorphic by looking in the
                 //    polymorphic cache
-                let ty = sub.apply(id.ty());
                 let id = match self.cache.is_poly(id) {
-                    false => id.with_ty(ty),
+                    false => id.with_ty(sub.apply(id.ty())),
                     true  => self.cache.add_instance(id, args)?
                 };
                 Var(id)
             }
             Let(ref exp) => {
-                let ty = sub.apply(exp.id().ty());
-                let id = exp.id().with_ty(ty);
-
-                if self.cache.add_if_poly(id.clone(), exp.bind()) {
+                let let_id = exp.id();
+                if self.cache.add_if_poly(let_id.clone(), exp.bind()) {
                     let mut let_expr = self.run(exp.expr(), sub, vec![])?;
-                    let res  = self.run_poly(&id, exp.bind(), sub)?;
+                    let res  = self.specialize_all(&let_id, exp.bind(), sub)?;
                     for (id, bind) in res {
                         let exp  = xir::Let::new(id, bind, let_expr);
                         let_expr = Expr::Let(Box::new(exp))
@@ -245,9 +247,11 @@ impl Specializer
                     let_expr
                 }
                 else {
+                    // handle let x: 'a = ... Where 'a is monomorphic
+                    let let_id   = let_id.with_ty(sub.apply(let_id.ty()));
                     let let_body = self.run(exp.expr(), sub, vec![])?;
-                    let bind = self.run(exp.bind(), sub, vec![])?;
-                    let exp  = xir::Let::new(id, bind, let_body);
+                    let bind     = self.run(exp.bind(), sub, vec![])?;
+                    let exp      = xir::Let::new(let_id, bind, let_body);
                     Expr::Let(Box::new(exp))
                 }
             }
