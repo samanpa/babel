@@ -25,7 +25,7 @@ impl <K: Hash + Eq,V> Inner<K,V> {
         }
         match self.prev_scope {
             None => None,
-            Some(ref prev) => prev.curr_map.get(k)
+            Some(ref prev) => prev.get(k)
         }
     }
     fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V>  where
@@ -38,7 +38,7 @@ impl <K: Hash + Eq,V> Inner<K,V> {
         }
         match self.prev_scope {
             None => None,
-            Some(ref mut prev) => prev.curr_map.get_mut(k)
+            Some(ref mut prev) => prev.get_mut(k)
         }
     }
 }
