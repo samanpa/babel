@@ -16,8 +16,8 @@ pub fn mk_tyvar(id: u32) -> TyVar {
 
 #[derive(Clone,Hash,Eq,PartialEq)]
 pub enum Type {
-    Con(Rc<String>),
-    App(Box<Type>, Vec<Type>),
+    Con(Rc<String>, u32),
+    App(Box<Type>, Box<Type>),
     Var(TyVar)
 }
 
@@ -34,20 +34,25 @@ pub struct ForAll {
 
 
 impl Type {
+    pub fn arity(&self) -> u32 {
+        match *self {
+            Type::App(ref l, _) => l.arity() - 1,
+            Type::Con(_, arity) => arity,
+            Type::Var(_)        => 0, //FIXME: not true when we have HKT
+        }
+    }
+
     pub fn free_tyvars(&self) -> HashSet<TyVar>
     {
         use self::Type::*;
         let mut res = HashSet::new();
         match *self {
-            Con(_) => (),
-            Var(v) => {res.insert(v);}
-            App(ref ty, ref args) => {
-                res = args.iter()
-                    .fold( ty.free_tyvars(),
-                           | mut ftv, ty | {
-                               ftv = &ftv | & ty.free_tyvars();
-                               ftv
-                           });
+            Con(_, _) => (),
+            Var(v)    => {res.insert(v);}
+            App(ref con, ref arg) => {
+                let con_ftv = con.free_tyvars();
+                let arg_ftv = arg.free_tyvars();
+                res = &con_ftv | &arg_ftv;
             }
         }
         res
@@ -58,7 +63,7 @@ impl fmt::Debug for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Type::*;
         match *self {
-            Con(ref str)      => write!(f, "{}", str),
+            Con(ref str, n)   => write!(f, "{}:{}", str, n),
             App(ref a, ref b) => write!(f, "App({:?}, {:?})", a, b),
             Var(v)            => write!(f, "{:?}", v),
         }

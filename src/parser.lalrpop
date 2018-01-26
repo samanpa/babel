@@ -80,17 +80,29 @@ pub Expr: Expr = {
 };
 
 BaseType: Type = {
-    "()"   => Type::Con("unit".to_string()),
-    Ident  => Type::Con(<>)
+    "()"   => Type::Con("unit".to_string(), 0),
+    Ident  => Type::Con(<>, 0)
 };
 
 Type: Type = {
     BaseType  => <>,
-    ArrowType => <>
+    ArrowType => {
+        let mut params = <>;
+        let retty  = params.pop().unwrap();
+        make_func(params, retty)
+    }
 };
 
-ArrowType: Type = {
-    <p:Type> "->" <r:BaseType>               => make_func(vec![p], r),
-    "(" <p:List<Type>> ")" "->" <r:BaseType> => make_func(p, r),
+
+ArrowType: Vec<Type> = {
+    <p:BaseType> "->" <r:BaseType>  => {
+        vec![p, r]
+    },
+    <p:ArrowType> "->" <r:BaseType>  => {
+        let mut p = p;
+        p.push(r);
+        p
+    },
+    //"(" <p:List<Type>> ")" "->" <r:Type> => make_fnty(p, r, r.arity() + 1),
 };
 

@@ -34,7 +34,7 @@ pub enum Var {
 
 pub struct Let {
     id:   TermVar,
-    bind: Rc<Expr>,
+    bind: Expr,
     expr: Expr,
 }
 
@@ -54,7 +54,7 @@ pub enum Expr {
     If(Box<If>),
     Let(Box<Let>),
     Lam(Vec<TermVar>, Box<Expr>),
-    App(Box<Expr>, Box<Expr>),
+    App(u32, Box<Expr>, Box<Expr>),
     TyLam(Vec<TyVar>, Box<Expr>),
     TyApp(Box<Expr>, Vec<Type>),
 }
@@ -122,12 +122,12 @@ impl If {
 
 impl Let {
     pub fn new(id: TermVar, bind: Expr, expr: Expr) -> Self {
-        Let{id, bind: Rc::new(bind), expr}
+        Let{id, bind: bind, expr}
     }
     pub fn id(&self) -> &TermVar {
         &self.id
     }
-    pub fn bind(&self) -> &Rc<Expr> {
+    pub fn bind(&self) -> &Expr {
         &self.bind
     }
     pub fn expr(&self) -> &Expr {

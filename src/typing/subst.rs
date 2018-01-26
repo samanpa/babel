@@ -38,13 +38,11 @@ impl Subst {
     pub fn apply(&self, ty: &Type) -> Type {
         use types::Type::*;
         match *ty {
-            Con(ref con) => Con(con.clone()),
-            App(ref ty, ref args) => {
-                let ty = self.apply(ty);
-                let args = args.iter()
-                    .map(|ty| self.apply(ty))
-                    .collect();
-                App(Box::new(ty), args)
+            Con(ref con, arity)   => Con(con.clone(), arity),
+            App(ref con, ref arg) => {
+                let con = self.apply(con);
+                let arg = self.apply(arg);
+                App(Box::new(con), Box::new(arg))
             }
             Var(id) => {
                 match self.map.get(&id) {

@@ -19,7 +19,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     let alpha_conversion = babel::alpha_convert::AlphaConversion::new();
     let typecheck        = babel::typing::TypeChecker::new();
     let monomorphize     = babel::specialize::Specialize::new();
-
+    let uncurry          = babel::uncurry::Uncurry::new();
 
     use babel::Pass;
     let mut module  = babel::parser::parse_Module(&file_contents)?;
@@ -32,6 +32,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         => alpha_conversion
         => typecheck
         => monomorphize
+        => uncurry
     ];
 
     Ok(())

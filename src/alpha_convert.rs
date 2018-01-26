@@ -41,12 +41,12 @@ impl AlphaConversion {
     fn conv_ty(&mut self, ty: &ast::Type) -> Result<Type> {
         use ast::Type::*;
         let ty = match *ty {
-            Var(ref _v)    => Self::new_tyvar(),
-            Con(ref tycon) => Type::Con(self.mk_tycon(tycon)),
-            App(ref con, ref args) => {
-                let con  = self.conv_ty(con)?;
-                let args = Vector::map(args, |ty| self.conv_ty(ty))?;
-                Type::App(Box::new(con), args)
+            Var(ref _v)           => Self::new_tyvar(),
+            Con(ref tycon, n)     => Type::Con(self.mk_tycon(tycon), n),
+            App(ref con, ref arg) => {
+                let con = self.conv_ty(con)?;
+                let arg = self.conv_ty(arg)?;
+                Type::App(Box::new(con), Box::new(arg))
             }
         };
         Ok(ty)
@@ -138,10 +138,10 @@ impl AlphaConversion {
                                            self.conv(e.fexpr())?);
                 xir::Expr::If(Box::new(if_expr))
             }
-            App(ref callee, ref arg) => {
+            App(n, ref callee, ref arg) => {
                 let callee = Box::new(self.conv(callee)?);
                 let arg    = Box::new(self.conv(arg)?);
-                xir::Expr::App(callee, arg)
+                xir::Expr::App(n, callee, arg)
             }
             Var(ref nm) => {
                 match self.names.get(nm) {

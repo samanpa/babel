@@ -127,7 +127,7 @@ impl Specialize {
         let modname     = module.name().clone();
         for decl in module.take_decls() {
             match decl {
-                e @ Decl::Extern(_, _)  => decls.push(e),
+                e @ Decl::Extern( _, _) => decls.push(e),
                 Decl::Let(id, expr)     => {
                     match spec.cache.add_if_poly(id.clone(), &expr) {
                         false => monotys.push((id, expr)),
@@ -137,11 +137,10 @@ impl Specialize {
             }
         }
 
-        let mut mono    = Vec::new();
         for (id, expr) in monotys.into_iter().rev() {
             let mut sub = Subst::new();
             let expr = spec.specialize(&id, &expr, &mut sub, vec![])?;
-            mono.push((id, expr));
+            decls.push(Decl::Let(id, expr));
         }
 
         for (id, expr) in polytys.into_iter().rev() {
@@ -208,10 +207,10 @@ impl Specializer
                                            self.run(e.fexpr(), sub, vec![])?);
                 Expr::If(Box::new(if_expr))
             }
-            App(ref callee, ref arg) => {
+            App(n, ref callee, ref arg) => {
                 let callee = self.run(callee, sub, vec![])?;
                 let arg    = self.run(arg, sub, vec![])?;
-                xir::Expr::App(Box::new(callee), Box::new(arg))
+                xir::Expr::App(n, Box::new(callee), Box::new(arg))
             }
             TyLam(ref param, ref b) => {
                 for (tyvar, ty) in param.iter().zip(args.into_iter()) {

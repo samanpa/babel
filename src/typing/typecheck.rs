@@ -45,6 +45,7 @@ impl TypeChecker {
                 Extern(v.clone(), ty.clone())
             }
             Let(ref id, ref expr) => {
+
                 let (s, ty, e) = infer_fn(&mut self.gamma, id, expr)?;
                 let res        = insert_tyapp(&e, &s, false)?;
                 let bound_vars = ty.free_tyvars()
@@ -85,10 +86,10 @@ fn insert_tyapp(expr: &Expr, sub: &Subst, insert: bool) -> Result<Expr>
                                        insert_tyapp(e.fexpr(), sub, true)?);
             Expr::If(Box::new(if_expr))
         }
-        App(ref callee, ref arg) => {
+        App(n, ref callee, ref arg) => {
             let callee = insert_tyapp(callee, sub, true)?;
             let arg    = insert_tyapp(arg, sub, true)?;
-            xir::Expr::App(Box::new(callee), Box::new(arg))
+            xir::Expr::App(n, Box::new(callee), Box::new(arg))
         }
         Let(ref exp) => {
             let exp = xir::Let::new(exp.id().with_ty(sub.apply(exp.id().ty())),
