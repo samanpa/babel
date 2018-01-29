@@ -77,6 +77,24 @@ impl Prelude {
                 let res = LLVMBuildRet(builder, add);
                 Some(res)
             }
+            "i32_gt" => {
+                Self::prepare(LLVMGetModuleContext(module), func, builder);
+                let p0  = LLVMGetParam(func, 0);
+                let p1  = LLVMGetParam(func, 1);
+                let op  = LLVMIntPredicate::LLVMIntSGT;
+                let add = LLVMBuildICmp(builder, op, p0, p1, label("gt").as_ptr());
+                let res = LLVMBuildRet(builder, add);
+                Some(res)
+            }
+            "i32_eq" => {
+                Self::prepare(LLVMGetModuleContext(module), func, builder);
+                let p0  = LLVMGetParam(func, 0);
+                let p1  = LLVMGetParam(func, 1);
+                let op  = LLVMIntPredicate::LLVMIntSEQ;
+                let add = LLVMBuildICmp(builder, op, p0, p1, label("eq").as_ptr());
+                let res = LLVMBuildRet(builder, add);
+                Some(res)
+            }
             _ => None
         };
         Ok(res)

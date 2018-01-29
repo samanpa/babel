@@ -1,14 +1,5 @@
 use std::rc::Rc;
 
-//FIXME: is Module a good name?
-#[derive(Debug)]
-pub struct Module {
-    name:  String,
-    types: Vec<Type>,
-    lambdas: Vec<Lambda>,
-    ext_func: Vec<FnProto>,
-}
-
 #[derive(Debug,Clone)]
 pub enum Type {
     Unit,
@@ -18,16 +9,23 @@ pub enum Type {
 }
 
 #[derive(Debug)]
-pub struct Ident {
+pub struct Module {
+    name:  String,
+    types: Vec<Type>,
+    funcs: Vec<Func>,
+    ext_func: Vec<FnProto>,
+}
+
+#[derive(Debug)]
+pub struct TermVar {
     name: Rc<String>,
     ty:   Type,
-    id:   u32,
 }
 
 #[derive(Debug)]
 pub struct FnProto {
-    ident: Ident,
-    params: Vec<Ident>
+    ident: TermVar,
+    params: Vec<TermVar>
 }
 
 #[derive(Debug)]
@@ -38,7 +36,7 @@ pub enum Literal {
 }
 
 #[derive(Debug)]
-pub struct Lambda {
+pub struct Func {
     proto: FnProto,
     body: Expr,
 }
@@ -48,17 +46,16 @@ pub enum Expr {
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-
-    Lambda(Box<Lambda>),
+    Lam(Box<Func>),
     App(Box<Expr>, Vec<Expr>),
-    Var(Ident),
+    Var(TermVar),
     //FIXME: introduce an If struct to reduce number or allocations
     If{cond: Box<Expr>, texpr: Box<Expr>, fexpr: Box<Expr>, ty: Type }
 }
 
 impl Module {
     pub fn new(name: String) -> Self {
-        Self{name, types: vec![], lambdas: vec![], ext_func: vec![]}
+        Self{name, types: vec![], funcs: vec![], ext_func: vec![]}
     }
 
     pub fn name(&self) -> &String {
@@ -69,16 +66,16 @@ impl Module {
         &self.types
     }
     
-    pub fn lambdas(&self) -> &Vec<Lambda> {
-        &self.lambdas
+    pub fn funcs(&self) -> &Vec<Func> {
+        &self.funcs
     }
 
     pub fn externs(&self) -> &Vec<FnProto> {
         &self.ext_func
     }
 
-    pub fn add_lambda(&mut self, lam: Lambda) {
-        self.lambdas.push(lam)
+    pub fn add_func(&mut self, lam: Func) {
+        self.funcs.push(lam)
     }
 
     pub fn add_type(&mut self, ty: Type) {
@@ -91,13 +88,13 @@ impl Module {
 }
 
 impl FnProto {
-    pub fn new(ident: Ident, params: Vec<Ident>) -> Self {
+    pub fn new(ident: TermVar, params: Vec<TermVar>) -> Self {
         FnProto{ident, params}
     }
-    pub fn name(&self) -> &Ident {
+    pub fn name(&self) -> &TermVar {
         &self.ident
     }
-    pub fn params(&self) -> &Vec<Ident> {
+    pub fn params(&self) -> &Vec<TermVar> {
         &self.params
     }
     pub fn return_ty(&self) -> &Type {
@@ -105,9 +102,9 @@ impl FnProto {
     }
 }
 
-impl Lambda {
+impl Func {
     pub fn new(proto: FnProto, body: Expr) -> Self {
-        Lambda{proto, body}
+        Func{proto, body}
     }
     pub fn proto(&self) -> &FnProto {
         &self.proto
@@ -117,15 +114,12 @@ impl Lambda {
     }
 }
 
-impl Ident {
-    pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
-        Self{name, ty, id}
+impl TermVar {
+    pub fn new(name: Rc<String>, ty: Type) -> Self {
+        Self{name, ty}
     }
     pub fn name(&self) -> &String {
         &self.name
-    }
-    pub fn id(&self) -> u32 {
-        self.id
     }
     pub fn ty(&self) -> &Type {
         &self.ty

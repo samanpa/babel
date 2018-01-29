@@ -2,6 +2,16 @@ fn id(x) {
     x
 }
 
+fn recbar(f, x, n) {
+    if i32_gt(n, 0) {
+        let n_1 = i32_sub(n, 1);
+        recbar(f, x, n_1)
+    }
+    else {
+        f(x)
+    }
+}
+
 fn foo(f, x) {
     let id1 = id;
     let id2 = id1;
@@ -11,14 +21,15 @@ fn foo(f, x) {
 
 fn poly(n) {
     let a = id(n);
-    let b = foo(id, true);
+    let b = foo(id, a);
     b
 }
 
 fn max(n, m) {
     let n1 = poly(n);
     let lt = i32_lt;
-    if lt(n, m) { 
+    let m1 = recbar(id, m, 10);
+    if lt(n1, m1) { 
         n
     } else {
         m

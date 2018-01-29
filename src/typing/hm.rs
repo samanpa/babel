@@ -9,19 +9,29 @@ use ::xir::*;
 use ::Result;
 use std::rc::Rc;
 
-fn mk_tycon(str: &str) -> Type {
-    Type::Con(Rc::new(str.to_string()))
+fn mk_tycon(str: &str, arity: u32) -> Type {
+    Type::Con(Rc::new(str.to_string()), arity)
+}
+
+fn mk_fn(param: Type, ret: Type, arity: u32) -> Type {
+    use self::Type::*;
+    let fncon = Box::new(mk_tycon("->", arity));
+    App(Box::new(App(fncon, Box::new(param))), Box::new(ret))
 }
 
 fn mk_func(param: &Vec<Type>, ret: Type) -> Type {
-    use self::Type::*;
-    let mk_fn = |ret, param: &Type| App(Box::new(mk_tycon("->"))
-                                          , vec![param.clone(), ret]);
-
     let itr = param.into_iter().rev();
-    match itr.len() {
-        0 => mk_fn(ret, &mk_tycon("unit")),
-        _ => itr.fold(ret, mk_fn),
+    match itr.len() as u32 {
+        0 => mk_fn(mk_tycon("unit", 0), ret, 2),
+        n => {
+            let mut ty = ret;
+            let mut arity = 2;
+            for param in itr {
+                ty = mk_fn(param.clone(), ty, arity);
+                arity += 1;
+            };
+            ty
+        },
     }
 }
 
@@ -29,16 +39,16 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type, Expr)
     use self::Expr::*;
     let subst = Subst::new();
     let (subst, ty, expr) = match *expr {
-        UnitLit       => (subst, mk_tycon("unit"), UnitLit),
-        I32Lit(n)     => (subst, mk_tycon("i32"), I32Lit(n)),
-        BoolLit(b)    => (subst, mk_tycon("bool"), BoolLit(b)),
+        UnitLit       => (subst, mk_tycon("unit", 0), UnitLit),
+        I32Lit(n)     => (subst, mk_tycon("i32", 0), I32Lit(n)),
+        BoolLit(b)    => (subst, mk_tycon("bool", 0), BoolLit(b)),
         Var(ref v)    => infer_var(gamma, v)?,
         If(ref exp)   => infer_if(gamma, exp)?,
         Let(ref exp)  => infer_let(gamma, exp)?,
-        App(ref callee, ref args) => infer_app(gamma, callee, args)?,
-        Lam(ref proto, ref body)  => infer_lam(gamma.clone(), proto, body)?,
-        TyLam(_, _)               => unimplemented!(),
-        TyApp(_, _)               => unimplemented!(),
+        App(n, ref callee, ref args) => infer_app(n, gamma, callee, args)?,
+        Lam(ref proto, ref body)     => infer_lam(gamma.clone(), proto, body)?,
+        TyLam(_, _)                  => unimplemented!(),
+        TyApp(_, _)                  => unimplemented!(),
     };
     Ok((subst, ty, expr))
 }
@@ -117,19 +127,19 @@ fn infer_lam(mut gamma: Env, params: &Vec<TermVar>, body: &Expr)
     Ok((s1, fnty, expr))
 }
 
-fn infer_app(gamma: &mut Env, callee: &Expr, arg: &Expr)
+fn infer_app(n: u32, gamma: &mut Env, callee: &Expr, arg: &Expr)
              -> Result<(Subst, Type, Expr)>
 {
     let (s1, t1, callee) = infer(gamma, callee)?;
     let mut gamma        = gamma.apply_subst(&s1);
     let (s2, t2, arg)    = infer(&mut gamma, arg)?;
     let retty            = Type::Var(fresh_tyvar());
-    let fnty             = mk_func(&vec![t2], retty.clone());
+    let fnty             = mk_fn(t2.clone(), retty.clone(), n+1);
     let s3               = unify(&s2.apply(&t1), &fnty)?;
     let t                = s3.apply(&retty);
     let subst            = s3.compose(&s2)?.
         compose(&s1)?;
-    let app              = Expr::App(Box::new(callee), Box::new(arg));
+    let app              = Expr::App(n, Box::new(callee), Box::new(arg));
     Ok((subst, t, app))
 }
 
@@ -172,6 +182,8 @@ pub (super) fn infer_fn(gamma: &mut Env, v: &TermVar, e: &Expr) ->
 fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr) 
                 -> Result<(Subst, Type, Expr)>
 {
+    println!("{:?}", e);
+    //FIXME: we have to do some unification here
     let beta = ForAll::new(vec![], Type::Var(fresh_tyvar()));
     gamma.extend(v, beta);
 
@@ -185,7 +197,7 @@ fn infer_if(gamma: &mut Env, if_expr: &If) -> Result<(Subst, Type, Expr)>
     let (s2, t2, texp) = infer(gamma, if_expr.texpr())?;
     let (s3, t3, fexp) = infer(gamma, if_expr.fexpr())?;
 
-    let s4 = unify(&t1, &mk_tycon("bool"))?;
+    let s4 = unify(&t1, &mk_tycon("bool", 0))?;
     let s5 = unify(&t2, &t3)?;
 
     let ty = s5.apply(&t2);

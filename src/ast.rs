@@ -1,7 +1,7 @@
 #[derive(Debug)]
 pub enum Type {
-    App(Box<Type>, Vec<Type>),
-    Con(String),
+    App(Box<Type>, Box<Type>),
+    Con(String, u32),
     Var(String)
 }
 
@@ -33,13 +33,23 @@ pub struct If {
 #[derive(Debug)]
 pub enum Expr {
     Lam(Box<Lam>),
-    App(Box<Expr>, Box<Expr>),
+    App(u32, Box<Expr>, Box<Expr>),
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
     Var(String),
     If(Box<If>),
     Let(String, Box<Expr>, Box<Expr>)
+}
+
+impl Type {
+    pub fn arity(&self) -> u32 {
+        match *self {
+            Type::App(ref l, _) => l.arity() - 1,
+            Type::Con(_, arity) => arity,
+            Type::Var(_)        => 0, //FIXME: not true when we have HKT
+        }
+    }
 }
 
 impl Module {
@@ -59,26 +69,33 @@ impl Module {
     }
 }
 
+pub fn mk_app(expr: Expr, args: Vec<Expr>) -> Expr {
+    let app = |(expr,n), arg| {
+        let expr = Expr::App(n, Box::new(expr), Box::new(arg));
+        (expr, n-1)
+    };
+    let (expr, _) = match args.len() as u32 {
+        0 => app((expr,1), Expr::UnitLit),
+        n => args.into_iter().fold((expr,n), app)
+    };
+    expr
+}        
+
 pub fn make_func(param: Vec<Type>, ret: Type) -> Type {
     use self::Type::*;
-    let mk_fn = |ret, param| App(Box::new(Con("->".to_string()))
-                                 , vec![param, ret]);
-
+    let mk_fn = |(ret, arity), param| {
+        let con  = Box::new(Con("->".to_string(), arity));
+        let app1 = App(con, Box::new(param));
+        let func = App(Box::new(app1), Box::new(ret));
+        (func, arity + 1)
+    };
     let itr = param.into_iter().rev();
-    match itr.len() {
-        0 => mk_fn(ret, Con("unit".to_string())),
-        _ => itr.fold(ret, mk_fn),
-    }
+    let (ty, _arity) = match itr.len() as u32 {
+        0 => mk_fn((ret, 2), Con("unit".to_string(), 0)),
+        _ => itr.fold((ret, 2), mk_fn),
+    };
+    ty
 }
-
-pub fn mk_app(expr: Expr, args: Vec<Expr>) -> Expr {
-    let app = |expr, arg| Expr::App(Box::new(expr), Box::new(arg));
-
-    match args.len() {
-        0 => app(expr, Expr::UnitLit),
-        _ => args.into_iter().fold(expr, app)
-    }
-}        
 
 impl Decl {
     pub fn external(name: String, params: Vec<(String, Type)>,

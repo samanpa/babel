@@ -1,4 +1,6 @@
 extern i32_lt(a: i32, b: i32) -> bool;
+extern i32_gt(a: i32, b: i32) -> bool;
+extern i32_eq(a: i32, b: i32) -> bool;
 extern i32_add(a: i32, b: i32) -> i32;
 extern i32_sub(a: i32, b: i32) -> i32;
 extern i32_mul(a: i32, b: i32) -> i32;
@@ -9,3 +11,4 @@ fn i32_print(a) {
     putchar(a)
 }
 
+extern example(a:i1, b: i2, c: i3) -> i4;
