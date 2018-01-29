@@ -8,7 +8,7 @@ fn recbar(f, x, n) {
         recbar(f, x, n_1)
     }
     else {
-        f(x)
+        f(f(x))
     }
 }
 
@@ -25,17 +25,19 @@ fn poly(n) {
     b
 }
 
-fn max(n, m) {
+fn max(n, m, f) {
     let n1 = poly(n);
     let lt = i32_lt;
     let m1 = recbar(id, m, 10);
-    if lt(n1, m1) { 
+    let maxv = if lt(n1, m1) { 
         n
     } else {
         m
-    }
+    };
+    let x = f(maxv);
+    f
 }
 
 fn main() {
-    max(10, 4)
+    max(10, 4, i32_print)
 }

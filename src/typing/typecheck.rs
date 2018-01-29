@@ -54,11 +54,13 @@ impl TypeChecker {
                 self.gamma.extend(id, ForAll::new(bound_vars, ty.clone()));
 
                 let id = id.with_ty(ty);
+                /*
                 println!("{:?}", id);
                 println!("->\n{:?}", expr);
                 println!("->\n{:?}", e);
                 println!("->\n{:?}", s);
                 println!("->\n{:?}\n=================\n\n", res);
+                */
                 Let(id, res)
             }
         };
@@ -83,7 +85,8 @@ fn insert_tyapp(expr: &Expr, sub: &Subst, insert: bool) -> Result<Expr>
         If(ref e) => {
             let if_expr = xir::If::new(insert_tyapp(e.cond(),  sub, true)?,
                                        insert_tyapp(e.texpr(), sub, true)?,
-                                       insert_tyapp(e.fexpr(), sub, true)?);
+                                       insert_tyapp(e.fexpr(), sub, true)?,
+                                       e.ty().clone());
             Expr::If(Box::new(if_expr))
         }
         App(n, ref callee, ref arg) => {

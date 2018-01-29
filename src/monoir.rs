@@ -20,6 +20,7 @@ pub struct Module {
 pub struct TermVar {
     name: Rc<String>,
     ty:   Type,
+    id:   u32,
 }
 
 #[derive(Debug)]
@@ -37,7 +38,13 @@ pub enum Literal {
 
 #[derive(Debug)]
 pub struct Func {
-    proto: FnProto,
+    name: TermVar,
+    body: Expr,
+}
+
+#[derive(Debug)]
+pub struct Lam {
+    params: Vec<TermVar>,
     body: Expr,
 }
 
@@ -46,11 +53,13 @@ pub enum Expr {
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Lam(Box<Func>),
+    Lam(Box<Lam>),
     App(Box<Expr>, Vec<Expr>),
     Var(TermVar),
     //FIXME: introduce an If struct to reduce number or allocations
-    If{cond: Box<Expr>, texpr: Box<Expr>, fexpr: Box<Expr>, ty: Type }
+    If(Box<Expr>, Box<Expr>, Box<Expr>, Type ),
+    //FIXME: introduce an If struct to reduce number or allocations
+    Let(TermVar, Box<Expr>, Box<Expr>),
 }
 
 impl Module {
@@ -103,11 +112,23 @@ impl FnProto {
 }
 
 impl Func {
-    pub fn new(proto: FnProto, body: Expr) -> Self {
-        Func{proto, body}
+    pub fn new(name: TermVar, body: Expr) -> Self {
+        Func{name, body}
     }
-    pub fn proto(&self) -> &FnProto {
-        &self.proto
+    pub fn proto(&self) -> &TermVar {
+        &self.name
+    }
+    pub fn body(&self) -> &Expr {
+        &self.body
+    }
+}
+
+impl Lam {
+    pub fn new(params: Vec<TermVar>, body: Expr) -> Self {
+        Lam{params, body}
+    }
+    pub fn params(&self) -> &Vec<TermVar> {
+        &self.params
     }
     pub fn body(&self) -> &Expr {
         &self.body
@@ -115,8 +136,11 @@ impl Func {
 }
 
 impl TermVar {
-    pub fn new(name: Rc<String>, ty: Type) -> Self {
-        Self{name, ty}
+    pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
+        Self{name, ty, id}
+    }
+    pub fn id(&self) -> u32 {
+        self.id
     }
     pub fn name(&self) -> &String {
         &self.name

@@ -135,7 +135,8 @@ impl AlphaConversion {
             If(ref e)    => {
                 let if_expr = xir::If::new(self.conv(e.cond())?,
                                            self.conv(e.texpr())?,
-                                           self.conv(e.fexpr())?);
+                                           self.conv(e.fexpr())?,
+                                           Self::new_tyvar());
                 xir::Expr::If(Box::new(if_expr))
             }
             App(n, ref callee, ref arg) => {

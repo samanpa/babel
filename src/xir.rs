@@ -42,7 +42,8 @@ pub struct Let {
 pub struct If {
     cond:  Expr,
     texpr: Expr,
-    fexpr: Expr
+    fexpr: Expr,
+    ty: Type
 }
 
 #[derive(Debug)]
@@ -106,8 +107,8 @@ impl fmt::Debug for TermVar {
 }
 
 impl If {
-    pub fn new(cond: Expr, texpr: Expr, fexpr: Expr) -> Self {
-        If{cond, texpr, fexpr}
+    pub fn new(cond: Expr, texpr: Expr, fexpr: Expr, ty: Type) -> Self {
+        If{cond, texpr, fexpr, ty}
     }
     pub fn cond(&self) -> &Expr {
         &self.cond
@@ -117,6 +118,9 @@ impl If {
     }
     pub fn fexpr(&self) -> &Expr {
         &self.fexpr
+    }
+    pub fn ty(&self) -> &Type {
+        &self.ty
     }
 }
 

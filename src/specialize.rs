@@ -204,7 +204,8 @@ impl Specializer
             If(ref e) => {
                 let if_expr = xir::If::new(self.run(e.cond(),  sub, vec![])?,
                                            self.run(e.texpr(), sub, vec![])?,
-                                           self.run(e.fexpr(), sub, vec![])?);
+                                           self.run(e.fexpr(), sub, vec![])?,
+                                           e.ty().clone());
                 Expr::If(Box::new(if_expr))
             }
             App(n, ref callee, ref arg) => {

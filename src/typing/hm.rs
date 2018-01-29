@@ -23,7 +23,7 @@ fn mk_func(param: &Vec<Type>, ret: Type) -> Type {
     let itr = param.into_iter().rev();
     match itr.len() as u32 {
         0 => mk_fn(mk_tycon("unit", 0), ret, 2),
-        n => {
+        _ => {
             let mut ty = ret;
             let mut arity = 2;
             for param in itr {
@@ -182,7 +182,6 @@ pub (super) fn infer_fn(gamma: &mut Env, v: &TermVar, e: &Expr) ->
 fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr) 
                 -> Result<(Subst, Type, Expr)>
 {
-    println!("{:?}", e);
     //FIXME: we have to do some unification here
     let beta = ForAll::new(vec![], Type::Var(fresh_tyvar()));
     gamma.extend(v, beta);
@@ -205,6 +204,6 @@ fn infer_if(gamma: &mut Env, if_expr: &If) -> Result<(Subst, Type, Expr)>
         compose(&s3)?.
         compose(&s2)?.
         compose(&s1)?;
-    let if_expr = Expr::If(Box::new(If::new(cond, texp, fexp)));
+    let if_expr = Expr::If(Box::new(If::new(cond, texp, fexp, ty.clone())));
     Ok((subst, ty, if_expr))
 }
