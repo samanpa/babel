@@ -15,7 +15,7 @@ impl ::Pass for Uncurry {
     type Input  = Vec<xir::Module>;
     type Output = Vec<monoir::Module>;
 
-    fn run(mut self, module_vec: Self::Input) -> Result<Self::Output> {
+    fn run(self, module_vec: Self::Input) -> Result<Self::Output> {
         let res = Vector::map(&module_vec, |modl| self.uncurry_module(modl))?;
         Ok(res)
     }
@@ -29,8 +29,9 @@ impl Uncurry {
     fn func(&self, var: &xir::TermVar, body: &xir::Expr)
             -> Result<monoir::Func>
     {
-        let var = process_termvar(var)?;
-        let body = process(body)?;
+        let var  = process_termvar(var)?;
+        let mut args = Vec::new();
+        let body = process(body, &mut args)?;
         Ok(monoir::Func::new(var, body))
     }
     
@@ -44,9 +45,9 @@ impl Uncurry {
             match *decl {
                 xir::Decl::Extern(_, _) => (),
                 xir::Decl::Let(ref id, ref expr) => {
-                    println!("{:?} =\n  {:?}\n", id, expr);
+                    println!("{:?} ===========\n  {:?}\n", id, expr);
                     let res = self.func(id, expr)?;
-                    println!("{:?}\n==========\n", res);
+                    println!("{:?}\n====================\n", res);
                     modl.add_func(res);
                 }
             }
@@ -63,7 +64,10 @@ fn process_termvar(termvar: &xir::TermVar) -> Result<monoir::TermVar> {
     Ok(tv)
 }
 
-fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
+
+fn process(expr: &xir::Expr, mut args: &mut Vec<monoir::Expr>)
+           -> Result<monoir::Expr>
+{
     use xir::Expr::*;
 
     let expr = match *expr {
@@ -72,27 +76,34 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
         BoolLit(b)   => monoir::Expr::BoolLit(b),
         Var(ref var) => monoir::Expr::Var(process_termvar(var)?),
         If(ref e) => {
-            monoir::Expr::If(Box::new(process(e.cond())?),
-                             Box::new(process(e.texpr())?),
-                             Box::new(process(e.fexpr())?),
+            monoir::Expr::If(Box::new(process(e.cond(),  args)?),
+                             Box::new(process(e.texpr(), args)?),
+                             Box::new(process(e.fexpr(), args)?),
                              get_type(e.ty())?)
         }
         Let(ref e) => {
             monoir::Expr::Let(process_termvar(e.id())?,
-                              Box::new(process(e.bind())?),
-                              Box::new(process(e.expr())?))
+                              Box::new(process(e.bind(), args)?),
+                              Box::new(process(e.expr(), args)?))
         }
         Lam(ref params, ref body) => {
             let params = Vector::map(params, process_termvar)?;
-            let body   = process(body)?;
+            let body   = process(body, args)?;
             let lam    = monoir::Lam::new(params, body);
             monoir::Expr::Lam(Box::new(lam))
         }
-        App(n, ref callee, ref arg) => {
-            //let callee = self.run(callee, sub, vec![])?;
-            //let arg    = self.run(arg, sub, vec![])?;
-            //xir::Expr::App(n, Box::new(callee), Box::new(arg))
-            monoir::Expr::UnitLit
+        App(1, ref caller, ref arg) => {
+            let mut args = Vec::with_capacity(2);
+            let caller   = process(caller, &mut args)?;
+            let arg      = process(arg, &mut args)?;
+            args.push(arg);
+            monoir::Expr::App(Box::new(caller), args)
+        }
+        App(_, ref caller, ref arg) => {
+            let caller = process(caller, args)?;
+            let arg    = process(arg, args)?;
+            args.push(arg);
+            caller
         }
         _ => {
             let msg = format!("EXPR not supported {:?}", expr);
@@ -102,35 +113,75 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
     Ok(expr)
 }
 
-fn process_fnty(arg_cnt:u32, param: &Type, ret: &Type) -> Result<monoir::Type>
-{
-    let param = get_type(param)?;
-    let ret   = get_type(ret)?;
-
-    Ok(monoir::Type::Function{ params_ty:   vec![param]
-                               , return_ty: Box::new(ret) })
+struct FuncTy<'t> {
+    nargs: u32,
+    first_arg: &'t Type,
+    rest: &'t Type,
 }
 
-fn get_appty(callee: &Type, arg: &Type) -> Result<monoir::Type> {
+fn get_functy<'t>(ty: &'t Type) -> Option<FuncTy<'t>> {
     use self::Type::*;
-    if let App(ref callee2, ref arg2) = *callee { 
-        match **callee2 {
+    if let App(ref caller, ref rest) = *ty {
+        if let App(ref caller2, ref first_arg) = **caller {
+            match **caller2 {
+                Con(ref name, nargs) if name.as_ref() == "->" => { 
+                    let res = FuncTy{nargs, first_arg, rest};
+                    return Some(res)
+                }
+                _ => {}
+            }
+        }
+    }
+    None
+}
+
+fn process_fnty(arg_cnt:u32, ret: &Type, args: &mut Vec<monoir::Type>)
+                -> Result<monoir::Type>
+{
+    println!("Process {:?} {:?}", arg_cnt, ret);
+    match arg_cnt {
+        1 => get_type(ret),
+        n => {
+            match get_functy(ret) {
+                Some(fty) =>  {
+                    let p = get_type(fty.first_arg)?;
+                    args.push(p);
+                    process_fnty(fty.nargs-1, fty.rest, args)
+                }
+                None => {
+                    let msg = format!("not a functy {:?}", ret);
+                    return Err(Error::new(msg));                        
+                }
+            }
+        }
+    }
+}
+
+fn get_appty(caller: &Type, arg: &Type) -> Result<monoir::Type> {
+    use self::Type::*;
+    if let App(ref caller2, ref arg2) = *caller {
+        let first_param  = get_type(arg2)?;
+        match **caller2 {
             Con(ref name, n) if name.as_ref() == "->" => { 
-                return process_fnty(n, arg, arg2)
+                let mut params_ty = Vec::with_capacity(n as usize);
+                params_ty.push(first_param);
+                let return_ty = process_fnty(n-1, arg, &mut params_ty)?;
+                let return_ty = Box::new(return_ty);
+                return Ok(monoir::Type::Function{ params_ty, return_ty });
             }
             _ => {}
         }
     }
 
-    let msg = format!("not supported {:?} {:?}", callee, arg);
+    let msg = format!("not supported {:?} {:?}", caller, arg);
     Err(Error::new(msg))
 }
 
 fn get_type(ty: &Type) -> Result<monoir::Type> {
     use self::Type::*;
     let ty = match *ty {
-        App(ref callee, ref arg) => {
-            get_appty(callee, arg)?
+        App(ref caller, ref arg) => {
+            get_appty(caller, arg)?
         }
         Con(ref name, n) => {
             match (name.as_str(), n) {
@@ -150,47 +201,3 @@ fn get_type(ty: &Type) -> Result<monoir::Type> {
     };
     Ok(ty)
 }
-
-/*
-fn mk_func(param: &Vec<Type>, ret: Type) -> Type {
-    use self::Type::*;
-    let mk_fn = |ret, param: &Type| App(Box::new(mk_tycon("->"))
-                                        , vec![param.clone(), ret]);
-    
-    let itr = param.into_iter().rev();
-    match itr.len() {
-        0 => mk_fn(ret, &mk_tycon("unit")),
-            _ => itr.fold(ret, mk_fn),
-    }
-}
-
-    
-fn monoir_fnty(ty: &xir::Type, mut nparams: n) -> Result<monoir::Type> {
-    let params = Vec::with_capacity(n);
-    let set_i  = |i, ty| unsafe{params.unchecked_set(i, monoir_type(ty)) }
-    let mut itr = ty;
-    while n > 0 {
-        match *itr => {
-            Type::App(ref 
-        
-    }
-fn monoir_type(ty: &xir::Type) -> Result<monoir::Type> {
-    match *ty {
-        Type::Con( ref tyname) => {
-            match *tyname => {
-                "i32"  => monoir::Type::i32,
-                "bool" => monoir::Type::Bool,
-                "unit" => monoir::Type::Unit,
-                _      => panic!("Not supported"),
-            },
-        }
-        Type::App(_, _) => {
-            panic!("App Not supported"),
-        }
-        Type::Var(_) => {
-            panic!("Var not suppored"),
-        }
-    }                    
-}
-    
-*/

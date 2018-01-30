@@ -202,10 +202,11 @@ impl Specializer
                 Lam(proto, Box::new(body))
             }
             If(ref e) => {
+                let ty = sub.apply(e.ty());
                 let if_expr = xir::If::new(self.run(e.cond(),  sub, vec![])?,
                                            self.run(e.texpr(), sub, vec![])?,
                                            self.run(e.fexpr(), sub, vec![])?,
-                                           e.ty().clone());
+                                           ty);
                 Expr::If(Box::new(if_expr))
             }
             App(n, ref callee, ref arg) => {
@@ -227,11 +228,12 @@ impl Specializer
                 self.run(e, sub, args)?
             }
             Var(ref id) => {
+                let id = id.with_ty(sub.apply(id.ty()));
                 //Check if the variable is monomorphic by looking in the
                 //    polymorphic cache
-                let id = match self.cache.is_poly(id) {
-                    false => id.with_ty(sub.apply(id.ty())),
-                    true  => self.cache.add_instance(id, args)?
+                let id = match self.cache.is_poly(&id) {
+                    false => id,
+                    true  => self.cache.add_instance(&id, args)?
                 };
                 Var(id)
             }
