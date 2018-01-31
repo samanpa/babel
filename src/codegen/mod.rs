@@ -5,7 +5,7 @@ mod llvm_pass;
 mod prelude;
 mod emit;
 
-use ::ir;
+use ::monoir;
 use ::{Result,Vector};
 use self::llvm_sys::target;
 use self::llvm_sys::prelude::*;
@@ -32,7 +32,7 @@ pub struct CodeGen {
 }
 
 impl ::Pass for CodeGen {
-    type Input  = Vec<ir::Module>; 
+    type Input  = Vec<monoir::Module>; 
     type Output = Vec<String>;
 
     fn run(mut self, modules: Self::Input) -> Result<Self::Output> {
@@ -49,15 +49,15 @@ impl CodeGen {
         }
     }
 
-    fn codegen_module(&mut self, module: &ir::Module) -> Result<String> {
+    fn codegen_module(&mut self, module: &monoir::Module) -> Result<String> {
         let mut codegen = LowerToLlvm::new(module.name(), &mut self.context);
         let pass_runner = PassRunner::new();
 
         for ex in module.externs() {
             codegen.gen_extern(ex)?;
         }
-        for lam in module.lambdas() {
-           codegen.gen_lambda(lam)?;
+        for func in module.funcs() {
+           codegen.gen_func(func)?;
         }
         
         let module = codegen.module();

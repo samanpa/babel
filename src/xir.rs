@@ -15,7 +15,7 @@ pub struct Module {
 
 #[derive(Debug)]
 pub enum Decl {
-    Extern(TermVar, Type),
+    Extern(TermVar),
     Let(TermVar, Expr),
 }
 

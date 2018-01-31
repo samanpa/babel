@@ -1,7 +1,7 @@
 //FIXME: rename this module 
 extern crate llvm_sys;
 
-use ::ir;
+use ::monoir;
 use ::Result;
 use ::scoped_map::ScopedMap;
 use std::ffi::CString;
@@ -36,8 +36,8 @@ impl <'a> LowerToLlvm<'a> {
         self.module
     }
 
-    unsafe fn get_type(&mut self, ty: &ir::Type, param: bool) -> LLVMTypeRef {
-        use ir::Type::*;
+    unsafe fn get_type(&mut self, ty: &monoir::Type, param: bool) -> LLVMTypeRef {
+        use monoir::Type::*;
 
         match *ty {
             Unit => LLVMVoidTypeInContext(*self.context),
@@ -66,47 +66,29 @@ impl <'a> LowerToLlvm<'a> {
         }
     }
     
-    fn gen_proto(&mut self, proto: &ir::FnProto) -> Result<LLVMValueRef> {
+    fn gen_proto(&mut self, name: &monoir::TermVar) -> Result<LLVMValueRef> {
         unsafe {
-            let fn_ty = self.get_type(proto.name().ty(), false);
-            let name  = to_cstr(proto.name().name());
-            let func  = LLVMAddFunction(self.module, name.as_ptr(), fn_ty);
-            for (i,param) in proto.params().iter().enumerate() {
-                let value = LLVMGetParam(func, i as u32);
-                LLVMSetValueName(value, to_cstr(param.name()).as_ptr());
-            }
-            self.var_env.insert(proto.name().id(), func);
+            let fn_ty = self.get_type(name.ty(), false);
+            let cname = to_cstr(name.name());
+            let func  = LLVMAddFunction(self.module, cname.as_ptr(), fn_ty);
+            self.var_env.insert(name.id(), func);
             Ok(func)
         }
     }
 
-    pub fn gen_extern(&mut self, proto: &ir::FnProto) -> Result<()> {
-        let func = self.gen_proto(proto)?;
+    pub fn gen_extern(&mut self, name: &monoir::TermVar) -> Result<()> {
+        let func = self.gen_proto(name)?;
         let _ = unsafe {
-            Prelude::emit(proto, func, self.module, self.builder)?
+            Prelude::emit(name, func, self.module, self.builder)?
         };
         Ok(())
     }
     
-    pub fn gen_lambda(&mut self, lam: &ir::Lambda) -> Result<()> {
-        let params = lam.proto().params();
-        let proto  = self.gen_proto(lam.proto())?;
-        self.var_env.begin_scope();
-        unsafe {
-            let nm = label("func_entry").as_ptr();
-            let bb = LLVMAppendBasicBlockInContext(*self.context, proto, nm);
-            for (i,param) in params.iter().enumerate() {
-                let value = LLVMGetParam(proto, i as u32);
-                self.var_env.insert(param.id(), value);
-            }
-            LLVMPositionBuilderAtEnd(self.builder, bb);
-            let body = self.emit(lam.body(), bb, proto)?;
-            LLVMBuildRet(self.builder, body);
-
-            //LLVMVerifyFunction(self.to_ref(), action) > 0
-        };
-        self.var_env.end_scope();
-
+    pub fn gen_func(&mut self, func: &monoir::Func) -> Result<()> {
+        let llfunc = self.gen_proto(func.name())?;
+        let bb     = self.add_bb(llfunc, "func_entry");
+        self.emit(func.body(), bb, llfunc)?;
+        
         Ok(())
     }
 
@@ -116,11 +98,11 @@ impl <'a> LowerToLlvm<'a> {
         }
     }
     
-    fn emit(&mut self, expr: &ir::Expr, bb: LLVMBasicBlockRef
+    fn emit(&mut self, expr: &monoir::Expr, bb: LLVMBasicBlockRef
             , func: LLVMValueRef) -> Result<LLVMValueRef>
     {
-        use ir::Expr::*;
-        use ir::Type::*;
+        use monoir::Expr::*;
+        use monoir::Type::*;
         let val = unsafe {
             match *expr {
                 I32Lit(n) => {
@@ -155,7 +137,7 @@ impl <'a> LowerToLlvm<'a> {
                         Some(v) => *v
                     }
                 }
-                If{ref cond, ref texpr, ref fexpr, ref ty} => {
+                If(ref cond, ref texpr, ref fexpr, ref ty) => {
                     //codegen the condition
                     let cond = self.emit(cond, bb, func)?;
 
@@ -193,7 +175,26 @@ impl <'a> LowerToLlvm<'a> {
 
                     phi
                 },
-                
+                Lam(ref lam) => {
+                    self.var_env.begin_scope();
+                    for (i,param) in lam.params().iter().enumerate() {
+                        let val = LLVMGetParam(func, i as u32);
+                        LLVMSetValueName(val, to_cstr(param.name()).as_ptr());
+                        self.var_env.insert(param.id(), val);
+                    }
+                    LLVMPositionBuilderAtEnd(self.builder, bb);
+                    let body = self.emit(lam.body(), bb, func)?;
+                    LLVMBuildRet(self.builder, body);
+                    
+                    //LLVMVerifyFunction(self.to_ref(), action) > 0
+                    self.var_env.end_scope();
+                    body
+                }
+                Let( ref id, ref expr, ref body) => {
+                    //FIXME: do rest
+                    let expr = self.emit(expr, bb, func)?;
+                    expr
+                }
                 _ => unimplemented!(),
             }
         };

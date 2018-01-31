@@ -127,8 +127,8 @@ impl Specialize {
         let modname     = module.name().clone();
         for decl in module.take_decls() {
             match decl {
-                e @ Decl::Extern( _, _) => decls.push(e),
-                Decl::Let(id, expr)     => {
+                e @ Decl::Extern( _) => decls.push(e),
+                Decl::Let(id, expr)  => {
                     match spec.cache.add_if_poly(id.clone(), &expr) {
                         false => monotys.push((id, expr)),
                         true  => polytys.push((id, expr)),

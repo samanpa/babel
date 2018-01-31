@@ -89,9 +89,9 @@ impl AlphaConversion {
                      -> Result<xir::Decl>
     {
         let ty     = self.conv_ty(ty)?;
-        let funcid = self.add_var(name, ty.clone())?;
+        let funcid = self.add_var(name, ty)?;
         
-        Ok(xir::Decl::Extern(funcid, ty))
+        Ok(xir::Decl::Extern(funcid))
     }
     
     fn new_tyvar() -> Type {

@@ -35,15 +35,16 @@ impl Uncurry {
         Ok(monoir::Func::new(var, body))
     }
     
-    fn uncurry_module(&self, module: &xir::Module)
-                      -> Result<monoir::Module>
+    fn uncurry_module(&self, module: &xir::Module) -> Result<monoir::Module>
     {
         let modname  = module.name().clone();
         let mut modl = monoir::Module::new(modname);
 
         for decl in module.decls() {
             match *decl {
-                xir::Decl::Extern(_, _) => (),
+                xir::Decl::Extern(ref name) => {
+                    modl.add_extern(process_termvar(name)?);
+                },
                 xir::Decl::Let(ref id, ref expr) => {
                     println!("{:?} ===========\n  {:?}\n", id, expr);
                     let res = self.func(id, expr)?;
@@ -65,7 +66,7 @@ fn process_termvar(termvar: &xir::TermVar) -> Result<monoir::TermVar> {
 }
 
 
-fn process(expr: &xir::Expr, mut args: &mut Vec<monoir::Expr>)
+fn process(expr: &xir::Expr, args: &mut Vec<monoir::Expr>)
            -> Result<monoir::Expr>
 {
     use xir::Expr::*;

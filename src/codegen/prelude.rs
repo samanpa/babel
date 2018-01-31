@@ -1,7 +1,7 @@
 //FIXME: rename this module 
 extern crate llvm_sys;
 
-use ::ir;
+use ::monoir;
 use ::Result;
 use std::ffi::CString;
 use self::llvm_sys::prelude::*;
@@ -22,12 +22,12 @@ impl Prelude {
         LLVMPositionBuilderAtEnd(builder, bb);
     }
 
-    pub  unsafe fn emit(proto: &ir::FnProto, func: LLVMValueRef
+    pub  unsafe fn emit(name: &monoir::TermVar, func: LLVMValueRef
                        , module: LLVMModuleRef
                        , builder: LLVMBuilderRef) 
                        -> Result<Option<LLVMValueRef>>
     {
-        let res = match proto.name().name().as_str() {
+        let res = match name.name().as_str() {
             "i32_add" => {
                 Self::prepare(LLVMGetModuleContext(module), func, builder);
                 let p0  = LLVMGetParam(func, 0);
@@ -90,7 +90,7 @@ impl Prelude {
                 Self::prepare(LLVMGetModuleContext(module), func, builder);
                 let p0  = LLVMGetParam(func, 0);
                 let p1  = LLVMGetParam(func, 1);
-                let op  = LLVMIntPredicate::LLVMIntSEQ;
+                let op  = LLVMIntPredicate::LLVMIntEQ;
                 let add = LLVMBuildICmp(builder, op, p0, p1, label("eq").as_ptr());
                 let res = LLVMBuildRet(builder, add);
                 Some(res)

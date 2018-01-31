@@ -7,6 +7,8 @@ pub mod typing;
 pub mod specialize;
 pub mod monoir;
 pub mod uncurry;
+pub mod codegen;
+pub mod link;
 pub (crate) mod scoped_map;
 
 pub use typing::types;

@@ -20,7 +20,10 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     let typecheck        = babel::typing::TypeChecker::new();
     let monomorphize     = babel::specialize::Specialize::new();
     let uncurry          = babel::uncurry::Uncurry::new();
-
+    let codegen          = babel::codegen::CodeGen::new(mod_name.clone());
+    let link             = babel::link::Link::new(mod_name.clone());
+    
+    
     use babel::Pass;
     let mut module  = babel::parser::parse_Module(&file_contents)?;
     module.set_name(mod_name);
@@ -33,6 +36,8 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         => typecheck
         => monomorphize
         => uncurry
+        => codegen
+        => link    
     ];
 
     Ok(())

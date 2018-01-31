@@ -40,9 +40,9 @@ impl TypeChecker {
     fn tc_decl(&mut self, decl: &Decl) -> Result<Decl> {
         use self::Decl::*;
         let res = match *decl {
-            Extern(ref v, ref ty) => {
-                self.gamma.extend(v, ForAll::new(vec![], ty.clone()));
-                Extern(v.clone(), ty.clone())
+            Extern(ref v) => {
+                self.gamma.extend(v, ForAll::new(vec![], v.ty().clone()));
+                Extern(v.clone())
             }
             Let(ref id, ref expr) => {
 

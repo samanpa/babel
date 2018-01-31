@@ -13,7 +13,7 @@ pub struct Module {
     name:  String,
     types: Vec<Type>,
     funcs: Vec<Func>,
-    ext_func: Vec<FnProto>,
+    ext_funcs: Vec<TermVar>,
 }
 
 #[derive(Debug)]
@@ -21,12 +21,6 @@ pub struct TermVar {
     name: Rc<String>,
     ty:   Type,
     id:   u32,
-}
-
-#[derive(Debug)]
-pub struct FnProto {
-    ident: TermVar,
-    params: Vec<TermVar>
 }
 
 #[derive(Debug)]
@@ -64,7 +58,7 @@ pub enum Expr {
 
 impl Module {
     pub fn new(name: String) -> Self {
-        Self{name, types: vec![], funcs: vec![], ext_func: vec![]}
+        Self{name, types: vec![], funcs: vec![], ext_funcs: vec![]}
     }
 
     pub fn name(&self) -> &String {
@@ -79,8 +73,8 @@ impl Module {
         &self.funcs
     }
 
-    pub fn externs(&self) -> &Vec<FnProto> {
-        &self.ext_func
+    pub fn externs(&self) -> &Vec<TermVar> {
+        &self.ext_funcs
     }
 
     pub fn add_func(&mut self, lam: Func) {
@@ -91,23 +85,8 @@ impl Module {
         self.types.push(ty)
     }
 
-    pub fn add_extern(&mut self, proto: FnProto) {
-        self.ext_func.push(proto)
-    }
-}
-
-impl FnProto {
-    pub fn new(ident: TermVar, params: Vec<TermVar>) -> Self {
-        FnProto{ident, params}
-    }
-    pub fn name(&self) -> &TermVar {
-        &self.ident
-    }
-    pub fn params(&self) -> &Vec<TermVar> {
-        &self.params
-    }
-    pub fn return_ty(&self) -> &Type {
-        self.ident.ty()
+    pub fn add_extern(&mut self, name: TermVar) {
+        self.ext_funcs.push(name)
     }
 }
 
@@ -115,7 +94,7 @@ impl Func {
     pub fn new(name: TermVar, body: Expr) -> Self {
         Func{name, body}
     }
-    pub fn proto(&self) -> &TermVar {
+    pub fn name(&self) -> &TermVar {
         &self.name
     }
     pub fn body(&self) -> &Expr {
