@@ -193,7 +193,9 @@ impl <'a> LowerToLlvm<'a> {
                 Let( ref id, ref expr, ref body) => {
                     //FIXME: do rest
                     let expr = self.emit(expr, bb, func)?;
-                    expr
+                    self.var_env.insert(id.id(), expr);
+                    let body = self.emit(body, bb, func)?;
+                    body
                 }
                 _ => unimplemented!(),
             }
