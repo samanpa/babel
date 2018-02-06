@@ -1,4 +1,1 @@
-- https://userpages.uni-koblenz.de/~laemmel/TheEagle/dl/ChakravartyKPJ05.pdf
-- https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/gadt-pldi.pdf
-- http://www.cs.ru.nl/~wouters/Publications/ThePowerOfPi.pdf
-- 
+https://gist.github.com/samanpa/67f7df5d0b11ebc78ca2633a5f81e669
