@@ -46,7 +46,7 @@ impl Cache {
         }
     }
     
-    fn add_instance(&mut self, var: &TermVar, args: Vec<Type>)
+    fn add_instance(&mut self, var: &TermVar, sub: &mut Subst, args: Vec<Type>)
                     -> Result<TermVar>
     {
         match self.entries.get_mut(&var) {
@@ -55,7 +55,7 @@ impl Cache {
                                        , var, args)))
             }
             Some(ref mut instance) => {
-                let id = instance.add(var, args);
+                let id = instance.add(var, sub, args);
                 Ok(id)
             }
         }
@@ -81,12 +81,13 @@ impl Instances {
         Self{ tyvars, inner: HashMap::new() }
     }
 
-    fn add(&mut self, var: &TermVar, args: Vec<Type>) -> TermVar {
-        let mut sub = Subst::new();
-        for (tyvar, ty) in self.tyvars.iter().zip(args.iter()) {
+    fn add(&mut self, var: &TermVar, sub: &mut Subst, args: Vec<Type>) -> TermVar {
+        for (tyvar, ty) in self.tyvars.iter().zip(args.into_iter()) {
             sub.bind(*tyvar, ty.clone())
         }
-
+        let args = self.tyvars.iter()
+            .map( |ty| sub.apply(&Type::Var(*ty)) )
+            .collect::<Vec<_>>();
         let var = self.inner.entry(args.clone())
             .or_insert_with( || {
                 let name = format!("{}<{:?}>", var.name(), args);
@@ -228,12 +229,11 @@ impl Specializer
                 self.run(e, sub, args)?
             }
             Var(ref id) => {
-                let id = id.with_ty(sub.apply(id.ty()));
                 //Check if the variable is monomorphic by looking in the
                 //    polymorphic cache
                 let id = match self.cache.is_poly(&id) {
-                    false => id,
-                    true  => self.cache.add_instance(&id, args)?
+                    false => id.with_ty(sub.apply(id.ty())),
+                    true  => self.cache.add_instance(&id, sub, args)?
                 };
                 Var(id)
             }

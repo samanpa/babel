@@ -139,7 +139,6 @@ fn get_functy<'t>(ty: &'t Type) -> Option<FuncTy<'t>> {
 fn process_fnty(arg_cnt:u32, ret: &Type, args: &mut Vec<monoir::Type>)
                 -> Result<monoir::Type>
 {
-    println!("Process {:?} {:?}", arg_cnt, ret);
     match arg_cnt {
         1 => get_type(ret),
         n => {
