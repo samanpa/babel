@@ -30,14 +30,14 @@ fn max(n, m, f) {
     let lt = i32_lt;
     let m1 = recbar(id, m, 10);
     let maxv = if lt(n1, m1) { 
-        n
+        m1
     } else {
-        m
+        n1
     };
     let x = f(maxv);
     f
 }
 
 fn main() {
-    max(10, 4, i32_print)
+    max(10, 40, i32_print)
 }

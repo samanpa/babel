@@ -46,9 +46,9 @@ impl Uncurry {
                     modl.add_extern(process_termvar(name)?);
                 },
                 xir::Decl::Let(ref id, ref expr) => {
-                    println!("{:?} ===========\n  {:?}\n", id, expr);
+                    //println!("{:?} ===========\n  {:?}\n", id, expr);
                     let res = self.func(id, expr)?;
-                    println!("{:?}\n====================\n", res);
+                    //println!("{:?}\n====================\n", res);
                     modl.add_func(res);
                 }
             }

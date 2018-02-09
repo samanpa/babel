@@ -63,9 +63,7 @@ impl CodeGen {
         let module = codegen.module();
         pass_runner.run(module)?;
       
-        unsafe{ LLVMDumpModule(module)};
-
-        //LLVMPrintModuleToFile (module, const char *Filename, char **ErrorMessage)
+        //unsafe{ LLVMDumpModule(module)};
         let object_file = emit::emit(module, &self.output_file)?;
         Ok(object_file)
     }

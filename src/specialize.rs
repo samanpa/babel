@@ -177,13 +177,13 @@ impl Specializer
     fn specialize(&mut self, id: &TermVar, expr: &Expr, sub: &mut Subst
               , args: Vec<Type>) -> Result<Expr>
     {
-        println!("==========\nSpecialize {:?} {:?}\n", id, args);
-        println!("{:?}\n", expr);
+        //println!("==========\nSpecialize {:?} {:?}\n", id, args);
+        //println!("{:?}\n", expr);
 
         self.cache.begin_scope();
         let expr    = self.run(&expr, sub, args)?;
         self.cache.end_scope();
-        println!("{:?}\n", expr);
+        //println!("{:?}\n", expr);
         Ok(expr)
     }
 
