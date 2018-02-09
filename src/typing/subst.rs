@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use super::types::{Type,TyVar};
+use super::unify::unify;
+use std::collections::hash_map::Entry;
 use ::Result;
 
 #[derive(Debug)]
@@ -30,7 +32,27 @@ impl Subst {
         let mut subst = self;
         for (tyvar, ty) in &rhs.map {
             let ty = subst.apply(ty);
-            subst.map.insert(*tyvar, ty);
+            let new_subst = match subst.map.entry(*tyvar) {
+                Entry::Vacant(elem)  => {
+                    elem.insert(ty);
+                    None
+                }
+                Entry::Occupied(entry) => {
+                    let res = unify(entry.get(), &ty)?;
+                    Some(res)
+                }
+            };
+            if let Some(new_subst) = new_subst {
+                //Handle the case where both lhs and rhs have the same
+                // binding e.g
+                //   lhs a1: i32 -> a3
+                //   rhs a1: i32 -> i32
+                // This should introduce a new binding
+                //   a3: i32
+                for (tyvar, ty) in new_subst.map {
+                    subst.map.insert(tyvar, ty);
+                }
+            }
         }
         Ok(subst)
     }

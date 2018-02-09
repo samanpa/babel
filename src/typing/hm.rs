@@ -183,11 +183,15 @@ fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr)
                 -> Result<(Subst, Type, Expr)>
 {
     //FIXME: we have to do some unification here
-    let beta = ForAll::new(vec![], Type::Var(fresh_tyvar()));
-    gamma.extend(v, beta);
+    let beta = Type::Var(fresh_tyvar());
+    gamma.extend(v, ForAll::new(vec![], beta.clone()));
 
     let (s1, t1, e) = infer(gamma, e)?;
-    Ok((s1, t1, e))
+    let s2 = unify(&beta, &s1.apply(&t1))?;
+    let s  = s2.compose(&s1)?;
+
+    println!("SUBST {:?}", s);
+    Ok((s, t1, e))
 }
 
 fn infer_if(gamma: &mut Env, if_expr: &If) -> Result<(Subst, Type, Expr)>

@@ -60,7 +60,7 @@ impl Prelude {
                 let res = LLVMBuildRet(builder, div);
                 Some(res)
             }
-            "i32_rem" => {
+            "i32_mod" => {
                 Self::prepare(LLVMGetModuleContext(module), func, builder);
                 let p0  = LLVMGetParam(func, 0);
                 let p1  = LLVMGetParam(func, 1);
