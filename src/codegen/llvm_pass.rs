@@ -16,20 +16,29 @@ impl PassRunner {
 
     pub fn run(&self, module: LLVMModuleRef ) -> Result<()>{
         unsafe {
+            use self::llvm_sys::transforms::pass_manager_builder::*;
+
+            let pb  = LLVMPassManagerBuilderCreate();
             let fpm = LLVMCreateFunctionPassManagerForModule(module);
             let pm = LLVMCreatePassManager();
             
             //promote allocas to register
+/*
             scalar::LLVMAddPromoteMemoryToRegisterPass(fpm);
             scalar::LLVMAddInstructionCombiningPass(fpm);
             scalar::LLVMAddNewGVNPass(fpm);
             scalar::LLVMAddReassociatePass(fpm);
             scalar::LLVMAddCFGSimplificationPass(fpm);
             scalar::LLVMAddConstantPropagationPass(fpm);
+*/
 
             ipo::LLVMAddFunctionInliningPass(pm);
             ipo::LLVMAddGlobalDCEPass(pm);
             ipo::LLVMAddIPConstantPropagationPass(pm);
+
+            LLVMPassManagerBuilderSetOptLevel(pb, 3);
+            LLVMPassManagerBuilderPopulateFunctionPassManager(pb, fpm);
+            LLVMPassManagerBuilderPopulateModulePassManager(pb, pm);
 
             LLVMFinalizeFunctionPassManager(fpm);
 
