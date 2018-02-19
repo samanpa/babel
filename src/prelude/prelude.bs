@@ -9,8 +9,7 @@ extern i32_div(a: i32, b: i32) -> i32;
 extern putchar(a: i32) -> i32;
 fn i32_print(n) {
     if i32_lt(n, 10) {
-        let a1 = putchar(i32_add(n, 48));
-        putchar(10)
+        putchar(i32_add(n, 48))
     } else {
         let div = i32_div(n, 10);
         let rem = i32_mod(n, 10);

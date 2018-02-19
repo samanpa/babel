@@ -53,7 +53,7 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type, Expr)
     Ok((subst, ty, expr))
 }
 
-// Assume the function in the type env (Γ)
+// Assume the type env (Γ)
 //   Γ = { i32_inc : ∀. i32 -> i32,
 //         foo     : ∀{a,b}. (a->b) -> a -> b }
 // We translate

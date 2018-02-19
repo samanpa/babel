@@ -174,7 +174,7 @@ impl Specializer
         Ok(result)
     }
 
-    fn specialize(&mut self, id: &TermVar, expr: &Expr, sub: &mut Subst
+    fn specialize(&mut self, _id: &TermVar, expr: &Expr, sub: &mut Subst
               , args: Vec<Type>) -> Result<Expr>
     {
         //println!("==========\nSpecialize {:?} {:?}\n", id, args);
