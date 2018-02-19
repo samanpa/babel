@@ -54,7 +54,6 @@ impl Uncurry {
             }
         }
 
-        //let decls   = Vec::new();
         Ok(modl)
     }
 }
@@ -157,32 +156,23 @@ fn process_fnty(arg_cnt:u32, ret: &Type, args: &mut Vec<monoir::Type>)
     }
 }
 
-fn get_appty(caller: &Type, arg: &Type) -> Result<monoir::Type> {
-    use self::Type::*;
-    if let App(ref caller2, ref arg2) = *caller {
-        let first_param  = get_type(arg2)?;
-        match **caller2 {
-            Con(ref name, n) if name.as_ref() == "->" => { 
-                let mut params_ty = Vec::with_capacity(n as usize);
-                params_ty.push(first_param);
-                let return_ty = process_fnty(n-1, arg, &mut params_ty)?;
-                let return_ty = Box::new(return_ty);
-                return Ok(monoir::Type::Function{ params_ty, return_ty });
-            }
-            _ => {}
-        }
+fn get_appty(ty: &Type) -> Result<monoir::Type> {
+    if let Some(FuncTy{nargs, first_arg, rest}) = get_functy(ty) {
+        let mut params_ty = Vec::with_capacity(nargs as usize);
+        params_ty.push(get_type(first_arg)?);
+        let return_ty = process_fnty(nargs-1, rest, &mut params_ty)?;
+        let return_ty = Box::new(return_ty);
+        return Ok(monoir::Type::Function{ params_ty, return_ty });
     }
 
-    let msg = format!("not supported {:?} {:?}", caller, arg);
+    let msg = format!("not supported {:?}", ty);
     Err(Error::new(msg))
 }
 
 fn get_type(ty: &Type) -> Result<monoir::Type> {
     use self::Type::*;
     let ty = match *ty {
-        App(ref caller, ref arg) => {
-            get_appty(caller, arg)?
-        }
+        App(_, _) => get_appty(ty)?,
         Con(ref name, n) => {
             match (name.as_str(), n) {
                 ("i32",  0) => monoir::Type::I32,
