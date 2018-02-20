@@ -59,18 +59,20 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type, Expr)
 // We translate
 //       foo inc_i32 1
 // as
-//   (Λ a1 b1 . (foo {a1, b1})) (Λ . inc_i32 {}) 1
-//   read as TyLam([a1,b1],
-//              TyApp(Var(foo),
-//                     [a1, b1]))
+//   (foo {a1, b1}) inc_i32 1
+//   read as TyApp(Var(foo),
+//                 [a1, b1])
 fn translate_var(sigma: &ForAll, var: &TermVar, tvs: Vec<TyVar>) -> Expr {
     use self::Expr::*;
     let ty_args = tvs.iter()
         .map( |tv| Type::Var(*tv) )
-        .collect();
+        .collect::<Vec<_>>();
     let var     = var.with_ty(sigma.ty().clone());
-    let tyapp   = TyApp(Box::new(Expr::Var(var)), ty_args);
-    TyLam(tvs, Box::new(tyapp))
+    let var     = Expr::Var(var);
+    match ty_args.len() {
+        0 => var,
+        _ => TyApp(Box::new(var), ty_args)
+    }
 }
 
 fn infer_var(gamma: &mut Env, var: &TermVar) -> Result<(Subst, Type, Expr)> {
@@ -166,10 +168,16 @@ fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type, Expr)>
         true  => generalize(t1, &gamma1),
         false => ForAll::new(vec![], t1)
     };
-    gamma1.extend(let_exp.id(), t2);
+    gamma1.extend(let_exp.id(), t2.clone());
     let (s2, t, e2)  = infer(&mut gamma1, let_exp.expr())?;
     let s            = s2.compose(&s1)?;
-    let let_exp      = Let::new(v, e1, e2);
+    let let_exp      = match t2.bound_vars().len() {
+        0 => Let::new(v, e1, e2),
+        _ => {
+            let tylam = Expr::TyLam(t2.bound_vars().clone(), Box::new(e1));
+            Let::new(v, tylam, e2)
+        }
+    };
     let expr         = Expr::Let(Box::new(let_exp));
     Ok((s, t, expr))
 }

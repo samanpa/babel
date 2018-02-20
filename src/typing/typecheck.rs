@@ -47,19 +47,19 @@ impl TypeChecker {
             Let(ref id, ref expr) => {
 
                 let (s, ty, e) = infer_fn(&mut self.gamma, id, expr)?;
-                let res        = insert_tyapp(&e, &s, false)?;
+                let res        = app_subst(&e, &s)?;
                 let bound_vars = ty.free_tyvars()
                     .into_iter()
                     .collect();
                 self.gamma.extend(id, ForAll::new(bound_vars, ty.clone()));
 
                 let id = id.with_ty(ty);
-                /*
                 println!("{:?}", id);
                 println!("->\n{:?}", expr);
                 println!("->\n{:?}", e);
                 println!("->\n{:?}", s);
                 println!("->\n{:?}\n=================\n\n", res);
+                /*
                 */
                 Let(id, res)
             }
@@ -69,7 +69,7 @@ impl TypeChecker {
 }
 
 
-fn insert_tyapp(expr: &Expr, sub: &Subst, insert: bool) -> Result<Expr>
+fn app_subst(expr: &Expr, sub: &Subst) -> Result<Expr>
 {
     use ::xir;
     use self::Expr::*;
@@ -79,44 +79,43 @@ fn insert_tyapp(expr: &Expr, sub: &Subst, insert: bool) -> Result<Expr>
         BoolLit(b)  => BoolLit(b),
         Var(ref id) => Var(id.with_ty(sub.apply(id.ty()))),
         Lam(ref proto, ref body) => {
-            let body = insert_tyapp(body, sub, true)?;
+            let body = app_subst(body, sub)?;
             Lam(proto.clone(), Box::new(body))
         }
         If(ref e) => {
-            let if_expr = xir::If::new(insert_tyapp(e.cond(),  sub, true)?,
-                                       insert_tyapp(e.texpr(), sub, true)?,
-                                       insert_tyapp(e.fexpr(), sub, true)?,
+            let if_expr = xir::If::new(app_subst(e.cond(),  sub)?,
+                                       app_subst(e.texpr(), sub)?,
+                                       app_subst(e.fexpr(), sub)?,
                                        e.ty().clone());
             Expr::If(Box::new(if_expr))
         }
         App(n, ref callee, ref arg) => {
-            let callee = insert_tyapp(callee, sub, true)?;
-            let arg    = insert_tyapp(arg, sub, true)?;
+            let callee = app_subst(callee, sub)?;
+            let arg    = app_subst(arg, sub)?;
             xir::Expr::App(n, Box::new(callee), Box::new(arg))
         }
         Let(ref exp) => {
             let exp = xir::Let::new(exp.id().with_ty(sub.apply(exp.id().ty())),
-                                    insert_tyapp(exp.bind(), sub, false)?,
-                                    insert_tyapp(exp.expr(), sub, true)?);
+                                    app_subst(exp.bind(), sub)?,
+                                    app_subst(exp.expr(), sub)?);
             Expr::Let(Box::new(exp))
         }
         TyLam(ref args, ref b) => {
-            let body  = insert_tyapp(b, sub, true)?;
-            let tylam = TyLam(args.clone(), Box::new(body));
-            if !insert {
-                tylam
-            }
-            else {
-                let args = args.into_iter()
-                    .map( |tv| sub.find(*tv).map_or(Type::Var(*tv),
-                                                    | t | t.clone()) )
-                    .collect();
-                TyApp(Box::new(tylam), args)
-            }
+            let body  = app_subst(b, sub)?;
+            TyLam(args.clone(), Box::new(body))
         }
         TyApp(ref e, ref args) => {
-            let e = insert_tyapp(e, sub, true)?;
-            TyApp(Box::new(e), args.clone())
+            let e = app_subst(e, sub)?;
+            let args = args.iter()
+                .map( |ty| {
+                    match *ty {
+                        Type::Var(tv) => sub.find(tv).map_or(Type::Var(tv),
+                                                             | t | t.clone()),
+                        _             => ty.clone()
+                    }
+                })
+                .collect();
+            TyApp(Box::new(e), args)
         }
     };
     Ok(expr)

@@ -35,9 +35,9 @@ fn max(n, m, f) {
         n1
     };
     let x = f(maxv);
-    f
+    x
 }
 
 fn main() {
-    max(10, 40, i32_print)
+    max(10, 10000, i32_print)
 }
