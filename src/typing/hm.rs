@@ -91,23 +91,12 @@ fn infer_var(gamma: &mut Env, var: &TermVar) -> Result<(Subst, Type, Expr)> {
 //
 fn translate_lam(body: Expr, params: &Vec<TermVar>, params_ty: &Vec<Type>,
                  retty: &Type, sub: &Subst) -> Expr {
-    let params_ty = params_ty.iter()
-        .map( |ty| sub.apply(ty) )
-        .collect::<Vec<_>>();
     let params  = params
         .iter()
-        .zip(&params_ty)
+        .zip(params_ty)
         .map( |(v,ty)| v.with_ty(ty.clone()) )
         .collect::<Vec<_>>();
-    let mut free_tv = sub.apply(retty).free_tyvars();
-    for pty in params_ty {
-        for ftv in pty.free_tyvars() {
-            free_tv.insert(ftv);
-        }
-    }
-    let free_tv = free_tv.into_iter().collect();
-    let body    = Expr::Lam(params, Box::new(body));
-    Expr::TyLam(free_tv, Box::new(body))
+    Expr::Lam(params, Box::new(body))
 }
 
 fn infer_lam(mut gamma: Env, params: &Vec<TermVar>, body: &Expr)
@@ -171,20 +160,10 @@ fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type, Expr)>
     gamma1.extend(let_exp.id(), t2.clone());
     let (s2, t, e2)  = infer(&mut gamma1, let_exp.expr())?;
     let s            = s2.compose(&s1)?;
-    let let_exp      = match t2.bound_vars().len() {
-        0 => Let::new(v, e1, e2),
-        _ => {
-            let tylam = Expr::TyLam(t2.bound_vars().clone(), Box::new(e1));
-            Let::new(v, tylam, e2)
-        }
-    };
+    let tylam        = Expr::TyLam(t2.bound_vars().clone(), Box::new(e1));
+    let let_exp      = Let::new(v, tylam, e2);
     let expr         = Expr::Let(Box::new(let_exp));
     Ok((s, t, expr))
-}
-
-pub (super) fn infer_fn(gamma: &mut Env, v: &TermVar, e: &Expr) ->
-    Result<(Subst, Type, Expr)> {
-    infer_letrec(gamma, v, e)
 }
 
 fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr) 
@@ -196,7 +175,19 @@ fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr)
     let s2 = unify(&beta, &s1.apply(&t1))?;
     let s  = s2.compose(&s1)?;
 
+    let t2 = generalize(t1.clone(), &gamma);
+    let bv = t2.bound_vars().clone();
+    let e  = Expr::TyLam(bv.clone(), Box::new(e));
+
+    gamma.extend(v, ForAll::new(bv, t1.clone()));
+    
     Ok((s, t1, e))
+}
+
+pub (super) fn infer_fn(gamma: &mut Env, v: &TermVar, e: &Expr) ->
+    Result<(Subst, Type, Expr)>
+{
+    infer_letrec(gamma, v, e)
 }
 
 fn infer_if(gamma: &mut Env, if_expr: &If) -> Result<(Subst, Type, Expr)>

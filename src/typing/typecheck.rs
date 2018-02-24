@@ -48,18 +48,13 @@ impl TypeChecker {
 
                 let (s, ty, e) = infer_fn(&mut self.gamma, id, expr)?;
                 let res        = app_subst(&e, &s)?;
-                let bound_vars = ty.free_tyvars()
-                    .into_iter()
-                    .collect();
-                self.gamma.extend(id, ForAll::new(bound_vars, ty.clone()));
-
-                let id = id.with_ty(ty);
+                let id         = id.with_ty(ty);
+                /*
                 println!("{:?}", id);
                 println!("->\n{:?}", expr);
                 println!("->\n{:?}", e);
                 println!("->\n{:?}", s);
                 println!("->\n{:?}\n=================\n\n", res);
-                /*
                 */
                 Let(id, res)
             }
@@ -79,8 +74,11 @@ fn app_subst(expr: &Expr, sub: &Subst) -> Result<Expr>
         BoolLit(b)  => BoolLit(b),
         Var(ref id) => Var(id.with_ty(sub.apply(id.ty()))),
         Lam(ref proto, ref body) => {
-            let body = app_subst(body, sub)?;
-            Lam(proto.clone(), Box::new(body))
+            let body  = app_subst(body, sub)?;
+            let proto = proto.iter()
+                .map( |v| v.clone().with_ty(sub.apply(v.ty())) )
+                .collect();
+            Lam(proto, Box::new(body))
         }
         If(ref e) => {
             let if_expr = xir::If::new(app_subst(e.cond(),  sub)?,
