@@ -1,5 +1,5 @@
 use ::xir::*;
-use super::types::{Type,ForAll};
+use super::types::{ForAll};
 use super::subst::Subst;
 use super::hm::{infer_fn};
 use super::env::Env;
@@ -105,13 +105,7 @@ fn app_subst(expr: &Expr, sub: &Subst) -> Result<Expr>
         TyApp(ref e, ref args) => {
             let e = app_subst(e, sub)?;
             let args = args.iter()
-                .map( |ty| {
-                    match *ty {
-                        Type::Var(tv) => sub.find(tv).map_or(Type::Var(tv),
-                                                             | t | t.clone()),
-                        _             => ty.clone()
-                    }
-                })
+                .map( |ty| sub.apply(ty) )
                 .collect();
             TyApp(Box::new(e), args)
         }

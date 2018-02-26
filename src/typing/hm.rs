@@ -82,15 +82,8 @@ fn infer_var(gamma: &mut Env, var: &TermVar) -> Result<(Subst, Type, Expr)> {
     Ok((Subst::new(), ty, expr))
 }
 
-//Adds type abstraction to introduce/close over the free type variables
-//   in the body of a lambda. Adds polymorphism to the expression tree
-//e.g. the following gets translated as 
-//   let foo f x = fx;; aka let foo = λf. λy. f x
-//into
-//   let foo = Λ a b. ( λf. λy. f x )
-//
-fn translate_lam(body: Expr, params: &Vec<TermVar>, params_ty: &Vec<Type>,
-                 retty: &Type, sub: &Subst) -> Expr {
+fn translate_lam(body: Expr, params: &Vec<TermVar>, params_ty: &Vec<Type>)
+                 -> Expr {
     let params  = params
         .iter()
         .zip(params_ty)
@@ -112,7 +105,7 @@ fn infer_lam(mut gamma: Env, params: &Vec<TermVar>, body: &Expr)
         })
         .collect();
     let (s1, t1, body) = infer(&mut gamma, body)?;
-    let expr = translate_lam(body, params, &params_ty, &t1, &s1);
+    let expr = translate_lam(body, params, &params_ty);
     let fnty = mk_func(&params_ty, t1);
     let fnty = s1.apply(&fnty);
     Ok((s1, fnty, expr))
@@ -175,6 +168,13 @@ fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr)
     let s2 = unify(&beta, &s1.apply(&t1))?;
     let s  = s2.compose(&s1)?;
 
+    //Adds type abstraction to introduce/close over the free type variables
+    //   in the body of a lambda. Adds polymorphism to the expression tree
+    //e.g. the following gets translated as 
+    //   let foo f x = fx;; aka let foo = λf. λy. f x
+    //into
+    //   let foo = Λ a b. ( λf. λy. f x )
+    //
     let t2 = generalize(t1.clone(), &gamma);
     let bv = t2.bound_vars().clone();
     let e  = Expr::TyLam(bv.clone(), Box::new(e));
