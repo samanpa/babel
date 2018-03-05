@@ -1,12 +1,12 @@
 use std::collections::{HashMap,HashSet};
 use ::{Result,Error};
 use xir::TermVar;
-use super::types::{mk_tyvar,TyVar,ForAll};
+use super::types::{TyVar,ForAll};
 use super::subst::Subst;
 
 #[derive(Clone,Debug)]
 pub (super) struct Env {
-    map: HashMap<TyVar, ForAll> 
+    map: HashMap<u32, ForAll>
 }
 
 impl Env {
@@ -15,14 +15,14 @@ impl Env {
     }
     
     pub fn lookup(&self, id: &TermVar) -> Result<ForAll> {
-        match self.map.get(&mk_tyvar(id.id())) {
+        match self.map.get(&id.id()) {
             Some(ty) => Ok(ty.clone()),
             None     => Err(Error::new(format!("Could not find {:?}", id)))
         }
     }
 
     pub fn extend(&mut self, id: &TermVar, ty: ForAll) {
-        self.map.insert(mk_tyvar(id.id()), ty);
+        self.map.insert(id.id(), ty);
     }
 
     pub fn apply_subst(&self, sub: &Subst) -> Env {
