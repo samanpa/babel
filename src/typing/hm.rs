@@ -162,14 +162,27 @@ fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type, Expr)>
 fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr) 
                 -> Result<(Subst, Type, Expr)>
 {
+    //Typing let rec x = e is done by translating it to
+    //    let x  = Y (λx.e) where Y is the fixed point combinator.
+    // 
+    //    W(Γ,x) = let (S1,τ1) = W(Γ, λx.e)
+    //                 τ2      = fresh β
+    //                 S2      = unify(τ2 → τ2, τ1)
+    //             in  (S2, S1 τ2)
+    //
+    //  We simplify the above and do this instead
+    //    W(Γ,x) = let (S1,τ1) = W(Γ ∪ {x: β}, e) where β is fresh
+    //                 S2      = unify(β, τ1)
+    //             in  (S2 ◦ S1, τ1)
+
     let beta = Type::Var(fresh_tyvar());
     gamma.extend(v, ForAll::new(vec![], beta.clone()));
     let (s1, t1, e) = infer(gamma, e)?;
-    let s2 = unify(&beta, &s1.apply(&t1))?;
+    let s2 = unify(&beta, &t1)?;
     let s  = s2.compose(&s1)?;
 
     //Adds type abstraction to introduce/close over the free type variables
-    //   in the body of a lambda. Adds polymorphism to the expression tree
+    //   in the body of a lambda. This adds polymorphism to the expression tree
     //e.g. the following gets translated as 
     //   let foo f x = fx;; aka let foo = λf. λy. f x
     //into
