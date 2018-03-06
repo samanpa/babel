@@ -10,10 +10,6 @@ pub fn fresh_tyvar() -> TyVar {
     TyVar(::fresh_id())
 }
 
-pub fn mk_tyvar(id: u32) -> TyVar {
-    TyVar(id)
-}
-
 #[derive(Clone,Hash,Eq,PartialEq)]
 pub enum Type {
     Con(Rc<String>, u32),
