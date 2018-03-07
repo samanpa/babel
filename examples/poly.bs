@@ -13,10 +13,10 @@ fn recbar(f, x, n) {
 }
 
 fn foo(f, x) {
-    let id1 = id;
-    let id2 = id1;
-    let x1  = id2(x);
-    f(x1)
+    let id'  = id;
+    let id'' = id';
+    let x'   = id''(x);
+    f(x')
 }
 
 fn poly(n) {
