@@ -7,14 +7,14 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use fresh_id;
 
-pub struct AlphaConversion {
+pub struct Rename {
     names: ScopedMap<String, xir::TermVar>,
     //Store uniq names across all scopes to reduce memory.
     // FIXME: Is this even worth it?
     uniq_names: HashMap<String, Rc<String>>, 
 }
 
-impl ::Pass for AlphaConversion {
+impl ::Pass for Rename {
     type Input  = Vec<ast::Module>; //A list of parsed files
     type Output = Vec<xir::Module>;
 
@@ -25,16 +25,16 @@ impl ::Pass for AlphaConversion {
     }
 }
 
-impl Default for AlphaConversion {
+impl Default for Rename {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AlphaConversion {
+impl Rename {
     pub fn new() -> Self {
-        AlphaConversion{names: ScopedMap::new(),
-                        uniq_names: HashMap::new(),
+        Rename{names: ScopedMap::new(),
+               uniq_names: HashMap::new(),
         }
     }
     

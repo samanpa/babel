@@ -16,12 +16,12 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         .to_str()
         .unwrap()
         .to_string();
-    let alpha_conversion = babel::alpha_convert::AlphaConversion::new();
-    let typecheck        = babel::typing::TypeChecker::new();
-    let monomorphize     = babel::specialize::Specialize::new();
-    let uncurry          = babel::uncurry::Uncurry::new();
-    let codegen          = babel::codegen::CodeGen::new(mod_name.clone());
-    let link             = babel::link::Link::new(mod_name.clone());
+    let rename       = babel::rename::Rename::new();
+    let typecheck    = babel::typing::TypeChecker::new();
+    let monomorphize = babel::specialize::Specialize::new();
+    let uncurry      = babel::uncurry::Uncurry::new();
+    let codegen      = babel::codegen::CodeGen::new(mod_name.clone());
+    let link         = babel::link::Link::new(mod_name.clone());
     
     
     use babel::Pass;
@@ -32,7 +32,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     
     let _ = passes![
         modules
-        => alpha_conversion
+        => rename
         => typecheck
         => monomorphize
         => uncurry
