@@ -1,6 +1,6 @@
 use std::collections::{HashMap,HashSet};
 use ::{Result,Error};
-use xir::TermVar;
+use idtree::TermVar;
 use super::types::{TyVar,ForAll};
 use super::subst::Subst;
 

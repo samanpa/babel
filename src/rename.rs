@@ -1,5 +1,5 @@
 use ast;
-use xir;
+use idtree;
 use types::{Type,fresh_tyvar};
 use {Vector,Result,Error};
 use scoped_map::ScopedMap;
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use fresh_id;
 
 pub struct Rename {
-    names: ScopedMap<String, xir::TermVar>,
+    names: ScopedMap<String, idtree::TermVar>,
     //Store uniq names across all scopes to reduce memory.
     // FIXME: Is this even worth it?
     uniq_names: HashMap<String, Rc<String>>, 
@@ -16,7 +16,7 @@ pub struct Rename {
 
 impl ::Pass for Rename {
     type Input  = Vec<ast::Module>; //A list of parsed files
-    type Output = Vec<xir::Module>;
+    type Output = Vec<idtree::Module>;
 
     fn run(mut self, mod_vec: Self::Input) -> Result<Self::Output> {
         let result = Vector::map(&mod_vec, |module|
@@ -63,7 +63,7 @@ impl Rename {
         self.add_uniq_name(nm)
     }
 
-    fn insert_var(&mut self, nm: &String, v: &xir::TermVar) -> Result<()> {
+    fn insert_var(&mut self, nm: &String, v: &idtree::TermVar) -> Result<()> {
         let at_top_level = self.names.scope() == 0;
         match self.names.insert(nm.clone(), v.clone()) {
             None => Ok(()),
@@ -72,35 +72,35 @@ impl Rename {
         }
     }
 
-    fn add_var(&mut self, nm: &String, ty: Type) -> Result<xir::TermVar> {
+    fn add_var(&mut self, nm: &String, ty: Type) -> Result<idtree::TermVar> {
         let var_name = self.add_uniq_name(nm);
-        let var = xir::TermVar::new(var_name, ty, fresh_id());
+        let var = idtree::TermVar::new(var_name, ty, fresh_id());
         self.insert_var(nm, &var)?;
         Ok(var)
     }
     
-    fn conv_module(&mut self, module: &ast::Module) -> Result<xir::Module>
+    fn conv_module(&mut self, module: &ast::Module) -> Result<idtree::Module>
     {
         let decls = Vector::map(module.decls(), |decl| {
             self.conv_decl(decl)
         });
-        Ok(xir::Module::new(module.name().clone(), decls?))
+        Ok(idtree::Module::new(module.name().clone(), decls?))
     }
 
     fn conv_extern(&mut self, name: &String, ty: &ast::Type)
-                     -> Result<xir::Decl>
+                     -> Result<idtree::Decl>
     {
         let ty     = self.conv_ty(ty)?;
         let funcid = self.add_var(name, ty)?;
         
-        Ok(xir::Decl::Extern(funcid))
+        Ok(idtree::Decl::Extern(funcid))
     }
     
     fn new_tyvar() -> Type {
         Type::Var(fresh_tyvar())
     }
 
-    fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<xir::Expr>
+    fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<idtree::Expr>
     {
         self.names.begin_scope();
         let params = Vector::map(lam.params()
@@ -108,10 +108,10 @@ impl Rename {
         let body   = self.conv(lam.body())?;
         self.names.end_scope();
      
-        Ok(xir::Expr::Lam(params, Box::new(body)))
+        Ok(idtree::Expr::Lam(params, Box::new(body)))
     }
     
-    fn conv_decl(&mut self, decl: &ast::Decl) -> Result<xir::Decl> {
+    fn conv_decl(&mut self, decl: &ast::Decl) -> Result<idtree::Decl> {
         use ast::Decl::*;
         let res = match *decl {
             Extern(ref name, ref ty) => {
@@ -121,34 +121,34 @@ impl Rename {
                 let fnty = Self::new_tyvar();
                 let fnid = self.add_var(name, fnty)?;
                 let lam  = self.conv_lam(lam)?;
-                xir::Decl::Let(fnid, lam)
+                idtree::Decl::Let(fnid, lam)
             }
         };
         Ok(res)
     }
 
-    fn conv(&mut self, expr: &ast::Expr) -> Result<xir::Expr> {
+    fn conv(&mut self, expr: &ast::Expr) -> Result<idtree::Expr> {
         use ast::Expr::*;
         let res = match *expr {
-            UnitLit      => xir::Expr::UnitLit,
-            I32Lit(n)    => xir::Expr::I32Lit(n),
-            BoolLit(b)   => xir::Expr::BoolLit(b),
+            UnitLit      => idtree::Expr::UnitLit,
+            I32Lit(n)    => idtree::Expr::I32Lit(n),
+            BoolLit(b)   => idtree::Expr::BoolLit(b),
             Lam(ref lam) => self.conv_lam(lam)?,
             If(ref e)    => {
-                let if_expr = xir::If::new(self.conv(e.cond())?,
-                                           self.conv(e.texpr())?,
-                                           self.conv(e.fexpr())?,
-                                           Self::new_tyvar());
-                xir::Expr::If(Box::new(if_expr))
+                let if_expr = idtree::If::new(self.conv(e.cond())?,
+                                              self.conv(e.texpr())?,
+                                              self.conv(e.fexpr())?,
+                                              Self::new_tyvar());
+                idtree::Expr::If(Box::new(if_expr))
             }
             App(n, ref callee, ref arg) => {
                 let callee = Box::new(self.conv(callee)?);
                 let arg    = Box::new(self.conv(arg)?);
-                xir::Expr::App(n, callee, arg)
+                idtree::Expr::App(n, callee, arg)
             }
             Var(ref nm) => {
                 match self.names.get(nm) {
-                    Some(v) => xir::Expr::Var(v.clone()),
+                    Some(v) => idtree::Expr::Var(v.clone()),
                     None => {
                         let msg = format!("Could not find variable {}", nm);
                         return Err(Error::new(msg))
@@ -160,8 +160,8 @@ impl Rename {
                 let bind  = self.conv(bind)?;
                 let id    = self.add_var(name, letty)?;
                 let expr  = self.conv(expr)?;
-                let let_  = xir::Let::new(id, bind, expr);
-                xir::Expr::Let(Box::new(let_))
+                let let_  = idtree::Let::new(id, bind, expr);
+                idtree::Expr::Let(Box::new(let_))
             }
         };
         Ok(res)

@@ -1,4 +1,5 @@
-use ::xir::*;
+use ::idtree;
+use ::xir;
 use super::types::{ForAll};
 use super::subst::Subst;
 use super::hm::{infer_fn};
@@ -16,8 +17,8 @@ impl Default for TypeChecker {
 }
 
 impl ::Pass for TypeChecker {
-    type Input  = Vec<Module>;
-    type Output = Vec<Module>;
+    type Input  = Vec<idtree::Module>;
+    type Output = Vec<xir::Module>;
 
     fn run(mut self, module_vec: Self::Input) -> Result<Self::Output> {
         let res = Vector::map(&module_vec, |module| self.tc_module(module))?;
@@ -30,25 +31,29 @@ impl TypeChecker {
         TypeChecker{ gamma: Env::new() }
     }
 
-    fn tc_module(&mut self, module: &Module) -> Result<Module> {
+    fn into_xir_tv(var: &idtree::TermVar, ty: &super::types::Type) -> xir::TermVar {
+        xir::TermVar::new(var.name().clone(), ty.clone(), var.id())
+    }
+
+    fn tc_module(&mut self, module: &idtree::Module) -> Result<xir::Module> {
         let decls = Vector::map(module.decls(), |decl| {
             self.tc_decl(decl)
         })?;
-        Ok(Module::new(module.name().clone(), decls))
+        Ok(xir::Module::new(module.name().clone(), decls))
     }
 
-    fn tc_decl(&mut self, decl: &Decl) -> Result<Decl> {
-        use self::Decl::*;
+    fn tc_decl(&mut self, decl: &idtree::Decl) -> Result<xir::Decl> {
         let res = match *decl {
-            Extern(ref v) => {
+            idtree::Decl::Extern(ref v) => {
                 self.gamma.extend(v, ForAll::new(vec![], v.ty().clone()));
-                Extern(v.clone())
+                let v = Self::into_xir_tv(v, v.ty());
+                xir::Decl::Extern(v)
             }
-            Let(ref id, ref expr) => {
+            idtree::Decl::Let(ref id, ref expr) => {
 
                 let (s, ty, e) = infer_fn(&mut self.gamma, id, expr)?;
                 let res        = app_subst(&e, &s)?;
-                let id         = id.with_ty(ty);
+                let id         = Self::into_xir_tv(id, &ty);
                 /*
                 println!("{:?}", id);
                 println!("->\n{:?}", expr);
@@ -56,7 +61,7 @@ impl TypeChecker {
                 println!("->\n{:?}", s);
                 println!("->\n{:?}\n=================\n\n", res);
                 */
-                Let(id, res)
+                xir::Decl::Let(id, res)
             }
         };
         Ok(res)
@@ -64,10 +69,10 @@ impl TypeChecker {
 }
 
 
-fn app_subst(expr: &Expr, sub: &Subst) -> Result<Expr>
+fn app_subst(expr: &xir::Expr, sub: &Subst) -> Result<xir::Expr>
 {
-    use ::xir;
-    use self::Expr::*;
+    use ::xir::*;
+    use xir::Expr::*;
     let expr = match *expr {
         UnitLit     => UnitLit,
         I32Lit(n)   => I32Lit(n),
@@ -76,7 +81,7 @@ fn app_subst(expr: &Expr, sub: &Subst) -> Result<Expr>
         Lam(ref proto, ref body) => {
             let body  = app_subst(body, sub)?;
             let proto = proto.iter()
-                .map( |v| v.clone().with_ty(sub.apply(v.ty())) )
+                .map( |v| v.with_ty(sub.apply(v.ty())) )
                 .collect();
             Lam(proto, Box::new(body))
         }

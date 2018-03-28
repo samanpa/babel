@@ -1,6 +1,7 @@
 pub mod ast;
 pub mod prelude;
 pub mod parser;
+pub mod idtree;
 pub mod xir;
 pub mod rename;
 pub mod typing;
@@ -42,11 +43,11 @@ impl Error {
 }
 
 extern crate lalrpop_util;
-impl <'a> From<lalrpop_util::ParseError<usize, (usize, &'a str), ()>>for Error {
+impl <'a> From<lalrpop_util::ParseError<usize, (usize, &'a str), ()>> for Error
+{
     fn from(f: lalrpop_util::ParseError<usize, (usize, &'a str), ()>) -> Self {
         Self{ msg: format!("{:?}", f)}
     }
-    
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

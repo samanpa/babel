@@ -5,7 +5,8 @@ use super::types::{Type,TyVar,ForAll,fresh_tyvar,generalize};
 use super::subst::Subst;
 use super::env::Env;
 use super::unify::unify;
-use ::xir::*;
+use ::idtree;
+use ::xir;
 use ::Result;
 use std::rc::Rc;
 
@@ -35,22 +36,24 @@ fn mk_func(param: &Vec<Type>, ret: Type) -> Type {
     }
 }
 
-pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type, Expr)> {
-    use self::Expr::*;
+pub (super) fn infer(gamma: &mut Env, expr: &idtree::Expr) -> Result<(Subst, Type, xir::Expr)> {
+    use idtree::Expr::*;
     let subst = Subst::new();
     let (subst, ty, expr) = match *expr {
-        UnitLit       => (subst, mk_tycon("unit", 0), UnitLit),
-        I32Lit(n)     => (subst, mk_tycon("i32", 0), I32Lit(n)),
-        BoolLit(b)    => (subst, mk_tycon("bool", 0), BoolLit(b)),
+        UnitLit       => (subst, mk_tycon("unit", 0), xir::Expr::UnitLit),
+        I32Lit(n)     => (subst, mk_tycon("i32", 0),  xir::Expr::I32Lit(n)),
+        BoolLit(b)    => (subst, mk_tycon("bool", 0), xir::Expr::BoolLit(b)),
         Var(ref v)    => infer_var(gamma, v)?,
         If(ref exp)   => infer_if(gamma, exp)?,
         Let(ref exp)  => infer_let(gamma, exp)?,
         App(n, ref callee, ref args) => infer_app(n, gamma, callee, args)?,
         Lam(ref proto, ref body)     => infer_lam(gamma.clone(), proto, body)?,
-        TyLam(_, _)                  => unimplemented!(),
-        TyApp(_, _)                  => unimplemented!(),
     };
     Ok((subst, ty, expr))
+}
+
+fn into_xir_tv(var: &idtree::TermVar, ty: &Type) -> xir::TermVar {
+    xir::TermVar::new(var.name().clone(), ty.clone(), var.id())
 }
 
 // Assume the type env (Γ)
@@ -62,38 +65,38 @@ pub (super) fn infer(gamma: &mut Env, expr: &Expr) -> Result<(Subst, Type, Expr)
 //   (foo {a1, b1}) inc_i32 1
 //   read as TyApp(Var(foo),
 //                 [a1, b1])
-fn translate_var(sigma: &ForAll, var: &TermVar, tvs: Vec<TyVar>) -> Expr {
-    use self::Expr::*;
+fn translate_var(sigma: &ForAll, var: &idtree::TermVar, tvs: Vec<TyVar>) -> xir::Expr {
+    use xir::Expr::*;
     let ty_args = tvs.iter()
         .map( |tv| Type::Var(*tv) )
         .collect::<Vec<_>>();
-    let var     = var.with_ty(sigma.ty().clone());
-    let var     = Expr::Var(var);
+    let var = into_xir_tv(var, sigma.ty());
+    let var = xir::Expr::Var(var);
     match ty_args.len() {
         0 => var,
         _ => TyApp(Box::new(var), ty_args)
     }
 }
 
-fn infer_var(gamma: &mut Env, var: &TermVar) -> Result<(Subst, Type, Expr)> {
+fn infer_var(gamma: &mut Env, var: &idtree::TermVar) -> Result<(Subst, Type, xir::Expr)> {
     let sigma     = gamma.lookup(var)?;
     let (tvs, ty) = sigma.instantiate();
     let expr      = translate_var(&sigma, var, tvs);
     Ok((Subst::new(), ty, expr))
 }
 
-fn translate_lam(body: Expr, params: &Vec<TermVar>, params_ty: &Vec<Type>)
-                 -> Expr {
+fn translate_lam(body: xir::Expr, params: &Vec<idtree::TermVar>, params_ty: &Vec<Type>)
+                 -> xir::Expr {
     let params  = params
         .iter()
         .zip(params_ty)
-        .map( |(v,ty)| v.with_ty(ty.clone()) )
+        .map( |(v,ty)| into_xir_tv(v, ty) )
         .collect::<Vec<_>>();
-    Expr::Lam(params, Box::new(body))
+    xir::Expr::Lam(params, Box::new(body))
 }
 
-fn infer_lam(mut gamma: Env, params: &Vec<TermVar>, body: &Expr)
-             -> Result<(Subst, Type, Expr)>
+fn infer_lam(mut gamma: Env, params: &Vec<idtree::TermVar>, body: &idtree::Expr)
+             -> Result<(Subst, Type, xir::Expr)>
 {
     use self::Type::*;
     let params_ty = params
@@ -111,8 +114,8 @@ fn infer_lam(mut gamma: Env, params: &Vec<TermVar>, body: &Expr)
     Ok((s1, fnty, expr))
 }
 
-fn infer_app(n: u32, gamma: &mut Env, callee: &Expr, arg: &Expr)
-             -> Result<(Subst, Type, Expr)>
+fn infer_app(n: u32, gamma: &mut Env, callee: &idtree::Expr, arg: &idtree::Expr)
+             -> Result<(Subst, Type, xir::Expr)>
 {
     let (s1, t1, callee) = infer(gamma, callee)?;
     let mut gamma        = gamma.apply_subst(&s1);
@@ -123,12 +126,12 @@ fn infer_app(n: u32, gamma: &mut Env, callee: &Expr, arg: &Expr)
     let t                = s3.apply(&retty);
     let subst            = s3.compose(&s2)?.
         compose(&s1)?;
-    let app              = Expr::App(n, Box::new(callee), Box::new(arg));
+    let app              = xir::Expr::App(n, Box::new(callee), Box::new(arg));
     Ok((subst, t, app))
 }
 
-fn is_value(expr: &Expr) -> bool {
-    use self::Expr::*;
+fn is_value(expr: &idtree::Expr) -> bool {
+    use idtree::Expr::*;
     match *expr {
         UnitLit    |
         BoolLit(_) |
@@ -139,11 +142,11 @@ fn is_value(expr: &Expr) -> bool {
     }
 }
 
-fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type, Expr)>
+fn infer_let(gamma: &mut Env, let_exp: &idtree::Let) -> Result<(Subst, Type, xir::Expr)>
 {
     let (s1, t1, e1) = infer(gamma, let_exp.bind())?;
     let v            = let_exp.id();
-    let v            = v.with_ty(t1.clone());
+    let v            = into_xir_tv(v, &t1);
     let mut gamma1   = gamma.apply_subst(&s1);
     // Do value restriction: Don't generalize unless the bind expr is a value
     let t2           = match is_value(let_exp.bind()) {
@@ -153,14 +156,14 @@ fn infer_let(gamma: &mut Env, let_exp: &Let) -> Result<(Subst, Type, Expr)>
     gamma1.extend(let_exp.id(), t2.clone());
     let (s2, t, e2)  = infer(&mut gamma1, let_exp.expr())?;
     let s            = s2.compose(&s1)?;
-    let tylam        = Expr::TyLam(t2.bound_vars().clone(), Box::new(e1));
-    let let_exp      = Let::new(v, tylam, e2);
-    let expr         = Expr::Let(Box::new(let_exp));
+    let tylam        = xir::Expr::TyLam(t2.bound_vars().clone(), Box::new(e1));
+    let let_exp      = xir::Let::new(v, tylam, e2);
+    let expr         = xir::Expr::Let(Box::new(let_exp));
     Ok((s, t, expr))
 }
 
-fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr) 
-                -> Result<(Subst, Type, Expr)>
+fn infer_letrec(gamma: &mut Env, v: &idtree::TermVar, e: &idtree::Expr) 
+                -> Result<(Subst, Type, xir::Expr)>
 {
     //Typing let rec x = e is done by translating it to
     //    let x  = Y (λx.e) where Y is the fixed point combinator.
@@ -190,20 +193,20 @@ fn infer_letrec(gamma: &mut Env, v: &TermVar, e: &Expr)
     //
     let t2 = generalize(t1.clone(), &gamma);
     let bv = t2.bound_vars().clone();
-    let e  = Expr::TyLam(bv.clone(), Box::new(e));
+    let e  = xir::Expr::TyLam(bv.clone(), Box::new(e));
 
     gamma.extend(v, ForAll::new(bv, t1.clone()));
     
     Ok((s, t1, e))
 }
 
-pub (super) fn infer_fn(gamma: &mut Env, v: &TermVar, e: &Expr) ->
-    Result<(Subst, Type, Expr)>
+pub (super) fn infer_fn(gamma: &mut Env, v: &idtree::TermVar, e: &idtree::Expr) ->
+    Result<(Subst, Type, xir::Expr)>
 {
     infer_letrec(gamma, v, e)
 }
 
-fn infer_if(gamma: &mut Env, if_expr: &If) -> Result<(Subst, Type, Expr)>
+fn infer_if(gamma: &mut Env, if_expr: &idtree::If) -> Result<(Subst, Type, xir::Expr)>
 {
     let (s1, t1, cond) = infer(gamma, if_expr.cond())?;
     let (s2, t2, texp) = infer(gamma, if_expr.texpr())?;
@@ -217,6 +220,6 @@ fn infer_if(gamma: &mut Env, if_expr: &If) -> Result<(Subst, Type, Expr)>
         compose(&s3)?.
         compose(&s2)?.
         compose(&s1)?;
-    let if_expr = Expr::If(Box::new(If::new(cond, texp, fexp, ty.clone())));
+    let if_expr = xir::Expr::If(Box::new(xir::If::new(cond, texp, fexp, ty.clone())));
     Ok((subst, ty, if_expr))
 }
