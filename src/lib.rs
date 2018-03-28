@@ -2,7 +2,7 @@ pub mod ast;
 pub mod prelude;
 pub mod parser;
 pub mod xir;
-pub mod alpha_convert;
+pub mod rename;
 pub mod typing;
 pub mod specialize;
 pub mod monoir;
