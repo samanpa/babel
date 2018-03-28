@@ -1,8 +1,8 @@
-fn id(x) {
+let id(x) {
     x
 }
 
-fn recbar(f, x, n) {
+let recbar(f, x, n) {
     if i32_gt(n, 0) {
         let n_1 = i32_sub(n, 1);
         recbar(f, x, n_1)
@@ -12,20 +12,20 @@ fn recbar(f, x, n) {
     }
 }
 
-fn foo(f, x) {
+let foo(f, x) {
     let id  = id;
     let id  = id;
     let x'  = id(x);
     f(x')
 }
 
-fn poly(n) {
+let poly(n) {
     let a = id(n);
     let b = foo(id, a);
     b
 }
 
-fn max(n, m, f) {
+let max(n, m, f) {
     let n1 = poly(n);
     let lt = i32_lt;
     let m1 = recbar(id, m, 10);
@@ -38,6 +38,6 @@ fn max(n, m, f) {
     x
 }
 
-fn main() {
+let main() {
     max(10, 10000, i32_print)
 }

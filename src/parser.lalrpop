@@ -40,10 +40,10 @@ pub LamTyVars: Vec<String> = {
 };
 
 pub Func: (String,Lam) = {
-    "fn" <name:Ident> "(" <p:List<Ident>> ")" "{" <body: Expr> "}" => {
+    "let" <name:Ident> "(" <p:List<Ident>> ")" "{" <body: Expr> "}" => {
         (name, Lam::new(p, body))
     },
-    "fn" <name:Ident> "()" "{" <body: Expr> "}" => {
+    "let" <name:Ident> "()" "{" <body: Expr> "}" => {
         (name, Lam::new(vec![], body))
     }
 };
@@ -54,7 +54,6 @@ pub Param: (String,Type) = {
 
 pub Var: Expr = {
     Ident   => Expr::Var(<>),
-    //<Ident> "<" <List<Type>> ">" => Expr::Var(<>),
 };
 
 pub Callee: Expr = {
@@ -66,7 +65,6 @@ pub Expr: Expr = {
     "true"  => Expr::BoolLit(true),
     "false" => Expr::BoolLit(false),
     "()"    => Expr::UnitLit,
-    //Ident   => Expr::Var(<>),
     Var     => <>,
     "(" <t:Expr> ")" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
@@ -103,6 +101,5 @@ ArrowType: Vec<Type> = {
         p.push(r);
         p
     },
-    //"(" <p:List<Type>> ")" "->" <r:Type> => make_fnty(p, r, r.arity() + 1),
 };
 
