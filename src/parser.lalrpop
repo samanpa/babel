@@ -31,7 +31,7 @@ pub Decl: Decl = {
         Decl::external(name, params, ty),
     "extern" <name:Ident> "()" "->" <ty:Type> ";" =>
         Decl::external(name, vec![], ty),
-    Func => { let (name, lam) = <>; Decl::Func(name, lam) },
+    Func => { Decl::Func(<>) },
 };
 
 pub LamTyVars: Vec<String> = {
@@ -39,12 +39,13 @@ pub LamTyVars: Vec<String> = {
                                   => vec![]
 };
 
-pub Func: (String,Lam) = {
+pub Func: LetBinding = {
     "let" <name:Ident> "(" <p:List<Ident>> ")" "{" <body: Expr> "}" => {
-        (name, Lam::new(p, body))
+        LetBinding::NonRec{name,
+                           expr: Expr::Lam(Box::new(Lam::new(p, body)))}
     },
     "let" <name:Ident> "()" "{" <body: Expr> "}" => {
-        (name, Lam::new(vec![], body))
+        LetBinding::NonRec{name, expr: Expr::Lam(Box::new(Lam::new(vec![], body)))}
     }
 };
 

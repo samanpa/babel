@@ -14,7 +14,7 @@ pub struct Module {
 #[derive(Debug)]
 pub enum Decl {
     Extern(String, Type),
-    Func(String, Lam),
+    Func(LetBinding),
 }
 
 #[derive(Debug)]
@@ -28,6 +28,12 @@ pub struct If {
     cond:  Expr,
     texpr: Expr,
     fexpr: Expr,
+}
+
+#[derive(Debug)]
+pub enum LetBinding {
+    NonRec{name: String, expr: Expr},
+    //Rec(Vec<(String,Expr)>)
 }
 
 #[derive(Debug)]
