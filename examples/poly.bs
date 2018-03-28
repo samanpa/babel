@@ -13,9 +13,9 @@ fn recbar(f, x, n) {
 }
 
 fn foo(f, x) {
-    let id'  = id;
-    let id'' = id';
-    let x'   = id''(x);
+    let id  = id;
+    let id  = id;
+    let x'  = id(x);
     f(x')
 }
 

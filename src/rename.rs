@@ -64,8 +64,10 @@ impl Rename {
     }
 
     fn insert_var(&mut self, nm: &String, v: &xir::TermVar) -> Result<()> {
+        let at_top_level = self.names.scope() == 0;
         match self.names.insert(nm.clone(), v.clone()) {
             None => Ok(()),
+            Some(..) if !at_top_level => Ok(()),
             Some(..) => Err(Error::new(format!("Name {} already declared", nm)))
         }
     }

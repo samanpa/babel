@@ -6,6 +6,7 @@ use std::hash::Hash;
 use std::cmp::Eq;
 
 struct Inner<K,V> {
+    scope: u32,
     curr_map: HashMap<K,V>,
     prev_scope: Option<Box<Inner<K,V>>>,
 }
@@ -45,12 +46,18 @@ impl <K: Hash + Eq,V> Inner<K,V> {
 
 impl <K: Hash + Eq,V> ScopedMap<K,V> {
     pub fn new() -> Self {
-        let inner = Inner{curr_map: HashMap::new(), prev_scope: None };
+        let inner = Inner{curr_map: HashMap::new()
+                          , prev_scope: None
+                          , scope: 0};
         ScopedMap{ inner: Box::new(inner) }
     }
 
+    pub fn scope(&self) -> u32 {
+        self.inner.scope
+    }
     pub fn begin_scope(&mut self) {
-        let inner = Inner{curr_map: HashMap::new(), prev_scope: None };
+        let inner = Inner{curr_map: HashMap::new(), prev_scope: None,
+                          scope: self.inner.scope + 1 };
         let old = mem::replace(&mut self.inner, Box::new(inner));
         self.inner.prev_scope = Some(old);
     }
