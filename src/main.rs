@@ -25,7 +25,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     let link         = babel::link::Link::new(mod_name.clone());
     
     use babel::Pass;
-    let mut module  = babel::parser::parse_Module(&file_contents)?;
+    let mut module  = babel::parser::ModuleParser::new().parse(&file_contents)?;
     module.set_name(mod_name);
     let modules = vec![module];
     

@@ -43,9 +43,10 @@ impl Error {
 }
 
 extern crate lalrpop_util;
-impl <'a> From<lalrpop_util::ParseError<usize, (usize, &'a str), ()>> for Error
+type ParseError<'a> = lalrpop_util::ParseError<usize, parser::Token<'a>, &'a str>;
+impl <'a> From<ParseError<'a>> for Error
 {
-    fn from(f: lalrpop_util::ParseError<usize, (usize, &'a str), ()>) -> Self {
+    fn from(f: ParseError<'a>) -> Self {
         Self{ msg: format!("{:?}", f)}
     }
 }
