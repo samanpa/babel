@@ -9,15 +9,105 @@ use std::rc::Rc;
 
 pub struct Specialize {}
 
-struct Specializer {
-    cache: Cache,
+impl Default for Specialize {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-struct Cache {
+impl ::Pass for Specialize {
+    type Input  = Vec<Module>;
+    type Output = Vec<Module>;
+
+    fn run(mut self, module_vec: Self::Input) -> Result<Self::Output> {
+        let res = Vector::mapt(module_vec, |module| self.mono_module(module))?;
+        Ok(res)
+    }
+}
+
+impl Specialize {
+    pub fn new() -> Self {
+        Specialize{}
+    }
+
+    //Go in reverse dependency order when specializing
+    //    let id(x)     { x }
+    //    let foo(f, x) { f(x) }
+    //    let bar(x)    { foo(id, x)}
+    //    let main()    { bar(2) }
+    //  we specialize in order main, bar, foo, and id. So by the time we
+    //     specialize any function we know all its type instantiations
+    fn mono_module(&mut self, module: Module) -> Result<Module> {
+        let mut spec      = Specializer::new();
+        let mut decls     = Vec::new();
+        let mut poly_exps = Vec::new();
+        let mut mono_exps = Vec::new();
+        let modname       = module.name().clone();
+        
+        for decl in module.take_decls() {
+            match decl {
+                e @ Decl::Extern( _) => decls.push(e),
+                Decl::Let(id, expr)  => {
+                    match spec.add_if_poly(id.clone(), &expr) {
+                        false => mono_exps.push((id, expr)),
+                        true  => poly_exps.push((id, expr)),
+                    }
+                }
+            }
+        }
+
+        for (id, expr) in mono_exps.into_iter().rev() {
+            let mut sub = Subst::new();
+            let expr = spec.specialize(&id, &expr, &mut sub, vec![])?;
+            decls.push(Decl::Let(id, expr));
+        }
+
+        for (id, expr) in poly_exps.into_iter().rev() {
+            let mut sub = Subst::new();
+            for (id, expr) in spec.specialize_all(&id, &expr, &mut sub)? {
+                decls.push(Decl::Let(id, expr));
+            }
+        }
+
+        let decls = decls.into_iter().rev().collect();
+        Ok(Module::new(modname, decls))
+    }
+}
+
+struct Instances {
+    tyvars: Vec<TyVar>,
+    inner: HashMap<Vec<Type>, TermVar>,
+}
+
+impl Instances {
+    fn new(tyvars: Vec<TyVar>) -> Self {
+        Self{ tyvars, inner: HashMap::new() }
+    }
+
+    fn add(&mut self, var: &TermVar, sub: &mut Subst, args: Vec<Type>) -> TermVar {
+        for (tyvar, ty) in self.tyvars.iter().zip(args.into_iter()) {
+            sub.bind(*tyvar, ty)
+        }
+        let args = self.tyvars.iter()
+            .map( |ty| sub.apply(&Type::Var(*ty)) )
+            .collect::<Vec<_>>();
+        let var = self.inner.entry(args.clone())
+            .or_insert_with( || {
+                let name = format!("{}<{:?}>", var.name(), args);
+                let ty = sub.apply(var.ty());
+                TermVar::new(Rc::new(name), ty, fresh_id())
+            });
+        var.clone()
+    }
+}
+
+
+struct Specializer {
     entries: ScopedMap<TermVar, Instances>,
 }
 
-impl Cache {
+impl Specializer
+{
     fn new() -> Self {
         Self{ entries: ScopedMap::new() }
     }
@@ -63,101 +153,12 @@ impl Cache {
     fn get(&self, id: &TermVar) -> Option<&Instances> {
         self.entries.get(id)
     }
-}
 
-
-struct Instances {
-    tyvars: Vec<TyVar>,
-    inner: HashMap<Vec<Type>, TermVar>,
-}
-
-impl Instances {
-    fn new(tyvars: Vec<TyVar>) -> Self {
-        Self{ tyvars, inner: HashMap::new() }
-    }
-
-    fn add(&mut self, var: &TermVar, sub: &mut Subst, args: Vec<Type>) -> TermVar {
-        for (tyvar, ty) in self.tyvars.iter().zip(args.into_iter()) {
-            sub.bind(*tyvar, ty.clone())
-        }
-        let args = self.tyvars.iter()
-            .map( |ty| sub.apply(&Type::Var(*ty)) )
-            .collect::<Vec<_>>();
-        let var = self.inner.entry(args.clone())
-            .or_insert_with( || {
-                let name = format!("{}<{:?}>", var.name(), args);
-                let ty = sub.apply(var.ty());
-                TermVar::new(Rc::new(name), ty, fresh_id())
-            });
-        var.clone()
-    }
-}
-
-
-impl Default for Specialize {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ::Pass for Specialize {
-    type Input  = Vec<Module>;
-    type Output = Vec<Module>;
-
-    fn run(mut self, module_vec: Self::Input) -> Result<Self::Output> {
-        let res = Vector::mapt(module_vec, |module| self.mono_module(module))?;
-        Ok(res)
-    }
-}
-
-impl Specialize {
-    pub fn new() -> Self {
-        Specialize{}
-    }
-
-    fn mono_module(&mut self, module: Module) -> Result<Module> {
-        let mut decls   = Vec::new();
-        let mut spec    = Specializer{ cache: Cache::new()};
-        let mut polytys = Vec::new();
-        let mut monotys = Vec::new();
-        let modname     = module.name().clone();
-        for decl in module.take_decls() {
-            match decl {
-                e @ Decl::Extern( _) => decls.push(e),
-                Decl::Let(id, expr)  => {
-                    match spec.cache.add_if_poly(id.clone(), &expr) {
-                        false => monotys.push((id, expr)),
-                        true  => polytys.push((id, expr)),
-                    }
-                }
-            }
-        }
-
-        for (id, expr) in monotys.into_iter().rev() {
-            let mut sub = Subst::new();
-            let expr = spec.specialize(&id, &expr, &mut sub, vec![])?;
-            decls.push(Decl::Let(id, expr));
-        }
-
-        for (id, expr) in polytys.into_iter().rev() {
-            let mut sub = Subst::new();
-            for (id, expr) in spec.specialize_all(&id, &expr, &mut sub)? {
-                decls.push(Decl::Let(id, expr));
-            }
-        }
-
-        let decls = decls.into_iter().rev().collect();
-        Ok(Module::new(modname, decls))
-    }
-}
-
-impl Specializer
-{
     fn specialize_all(&mut self, id: &TermVar, expr: &Expr
-                       , sub: &mut Subst) -> Result<Vec<(TermVar, Expr)>>
+                      , sub: &mut Subst) -> Result<Vec<(TermVar, Expr)>>
     {
         let mut result = Vec::new();
-        let instances = match self.cache.get(&id) {
+        let instances = match self.get(&id) {
             None => HashMap::new(),
             Some(ref instances) => instances.inner.clone()
         };
@@ -175,9 +176,9 @@ impl Specializer
         //println!("==========\nSpecialize {:?} {:?}\n", id, args);
         //println!("{:?}\n", expr);
 
-        self.cache.begin_scope();
+        self.begin_scope();
         let expr    = self.run(&expr, sub, args)?;
-        self.cache.end_scope();
+        self.end_scope();
         //println!("{:?}\n", expr);
         Ok(expr)
     }
@@ -224,17 +225,15 @@ impl Specializer
                 self.run(e, sub, args)?
             }
             Var(ref id) => {
-                //Check if the variable is monomorphic by looking in the
-                //    polymorphic cache
-                let id = match self.cache.is_poly(&id) {
+                let id = match self.is_poly(&id) {
                     false => id.with_ty(sub.apply(id.ty())),
-                    true  => self.cache.add_instance(&id, sub, args)?
+                    true  => self.add_instance(&id, sub, args)?
                 };
                 Var(id)
             }
             Let(ref exp) => {
                 let let_id = exp.id();
-                if self.cache.add_if_poly(let_id.clone(), exp.bind()) {
+                if self.add_if_poly(let_id.clone(), exp.bind()) {
                     let mut let_expr = self.run(exp.expr(), sub, vec![])?;
                     let res  = self.specialize_all(&let_id, exp.bind(), sub)?;
                     for (id, bind) in res {
