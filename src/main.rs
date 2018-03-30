@@ -4,6 +4,8 @@ use std::env;
 use std::fs::File;
 use std::path::Path;
 
+use babel::passes::*;
+
 fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     use std::io::Read;
     
@@ -17,23 +19,25 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         .unwrap()
         .to_string();
 
-    let rename       = babel::rename::Rename::new();
-    let typecheck    = babel::typing::TypeChecker::new();
-    let monomorphize = babel::specialize::Specialize::new();
-    let uncurry      = babel::uncurry::Uncurry::new();
-    let codegen      = babel::codegen::CodeGen::new(mod_name.clone());
-    let link         = babel::link::Link::new(mod_name.clone());
+    let rename     = Rename::new();
+    let typecheck  = TypeChecker::new();
+    let specialize = Specialize::new();
+    let uncurry    = Uncurry::new();
+    let codegen    = CodeGen::new(mod_name.clone());
+    let link       = Link::new(mod_name.clone());
+
+    let parser     = babel::parser::ModuleParser::new();
+    let mut module = parser.parse(&file_contents)
+        .map_err( |lalr_err| babel::Error::new(format!("{:?}", lalr_err) ))?;
     
-    use babel::Pass;
-    let mut module  = babel::parser::ModuleParser::new().parse(&file_contents)?;
     module.set_name(mod_name);
     let modules = vec![module];
-    
+
     let _ = passes![
         modules
         => rename
         => typecheck
-        => monomorphize
+        => specialize
         => uncurry
         => codegen
         => link    

@@ -32,15 +32,10 @@ impl Cache {
 
     fn add_if_poly(&mut self, var: TermVar, expr: &Expr) -> bool {
         match *expr {
-            Expr::TyLam(ref ty_args, _) => {
-                if ty_args.len() > 0 {
-                    self.entries.entry(var)
-                        .or_insert_with( || Instances::new(ty_args.clone()) );
-                    true
-                }
-                else {
-                    false
-                }
+            Expr::TyLam(ref ty_args, _) if ty_args.len() > 0 => {
+                self.entries.entry(var)
+                    .or_insert_with( || Instances::new(ty_args.clone()) );
+                true
             }
             _ => false
         }
