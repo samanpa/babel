@@ -40,13 +40,12 @@ pub LamTyVars: Vec<String> = {
                                   => vec![]
 };
 
-pub Func: LetBinding = {
+pub Func: Bind = {
     "let" <name:Ident> "(" <p:List<Ident>> ")" "{" <body: Expr> "}" => {
-        LetBinding::NonRec{name,
-                           expr: Expr::Lam(Box::new(Lam::new(p, body)))}
+        Bind::NonRec{name, expr: Expr::Lam(Box::new(Lam::new(p, body)))}
     },
     "let" <name:Ident> "()" "{" <body: Expr> "}" => {
-        LetBinding::NonRec{name, expr: Expr::Lam(Box::new(Lam::new(vec![], body)))}
+        Bind::NonRec{name, expr: Expr::Lam(Box::new(Lam::new(vec![], body)))}
     }
 };
 

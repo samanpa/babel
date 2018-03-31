@@ -47,25 +47,25 @@ impl Specialize {
         for decl in module.take_decls() {
             match decl {
                 e @ Decl::Extern( _) => decls.push(e),
-                Decl::Let(id, expr)  => {
-                    match spec.add_if_poly(id.clone(), &expr) {
-                        false => mono_exps.push((id, expr)),
-                        true  => poly_exps.push((id, expr)),
+                Decl::Let(b @ Bind::NonRec{..})  => {
+                    match spec.add_if_poly(&b) {
+                        false => mono_exps.push(b),
+                        true  => poly_exps.push(b),
                     }
                 }
             }
         }
 
-        for (id, expr) in mono_exps.into_iter().rev() {
+        for bind in mono_exps.into_iter().rev() {
             let mut sub = Subst::new();
-            let expr = spec.specialize(&id, &expr, &mut sub, vec![])?;
-            decls.push(Decl::Let(id, expr));
+            let bind    = spec.process(&bind, &mut sub, vec![])?;
+            decls.push(Decl::Let(bind));
         }
 
-        for (id, expr) in poly_exps.into_iter().rev() {
+        for bind in poly_exps.into_iter().rev() {
             let mut sub = Subst::new();
-            for (id, expr) in spec.specialize_all(&id, &expr, &mut sub)? {
-                decls.push(Decl::Let(id, expr));
+            for bind in spec.process_all(&bind, &mut sub)? {
+                decls.push(Decl::Let(bind));
             }
         }
 
@@ -76,7 +76,7 @@ impl Specialize {
 
 struct Instances {
     tyvars: Vec<TyVar>,
-    inner: HashMap<Vec<Type>, TermVar>,
+    inner: HashMap<Vec<Type>, Symbol>,
 }
 
 impl Instances {
@@ -84,7 +84,7 @@ impl Instances {
         Self{ tyvars, inner: HashMap::new() }
     }
 
-    fn add(&mut self, var: &TermVar, sub: &mut Subst, args: Vec<Type>) -> TermVar {
+    fn add(&mut self, var: &Symbol, sub: &mut Subst, args: Vec<Type>) -> Symbol {
         for (tyvar, ty) in self.tyvars.iter().zip(args.into_iter()) {
             sub.bind(*tyvar, ty)
         }
@@ -95,7 +95,7 @@ impl Instances {
             .or_insert_with( || {
                 let name = format!("{}<{:?}>", var.name(), args);
                 let ty = sub.apply(var.ty());
-                TermVar::new(Rc::new(name), ty, fresh_id())
+                Symbol::new(Rc::new(name), ty, fresh_id())
             });
         var.clone()
     }
@@ -103,7 +103,7 @@ impl Instances {
 
 
 struct Specializer {
-    entries: ScopedMap<TermVar, Instances>,
+    entries: ScopedMap<Symbol, Instances>,
 }
 
 impl Specializer
@@ -120,66 +120,90 @@ impl Specializer
         self.entries.end_scope();
     }
 
-    fn add_if_poly(&mut self, var: TermVar, expr: &Expr) -> bool {
-        match *expr {
-            Expr::TyLam(ref ty_args, _) if ty_args.len() > 0 => {
-                self.entries.entry(var)
-                    .or_insert_with( || Instances::new(ty_args.clone()) );
-                true
+    fn add_if_poly(&mut self, b: &Bind) -> bool {
+        use self::Bind::*;
+        use self::Expr::TyLam;
+        match *b {
+            NonRec{ref symbol, ref expr} => {
+                match *expr {
+                    TyLam(ref tys, _) if tys.len() > 0 => {
+                        self.entries.entry(symbol.clone())
+                            .or_insert_with( || Instances::new(tys.clone()) );
+                        true
+                    },
+                    _ => false,
+                }
             }
-            _ => false
         }
     }
     
-    fn add_instance(&mut self, var: &TermVar, sub: &mut Subst, args: Vec<Type>)
-                    -> Result<TermVar>
+    fn is_poly(&self, var: &Symbol) -> bool {
+        self.entries.get(var).is_some()
+    }
+
+    fn add_instance(&mut self, var: &Symbol, sub: &mut Subst, args: Vec<Type>)
+                    -> Result<Symbol>
     {
         match self.entries.get_mut(&var) {
             None => {
                 Err(Error::new(format!("Could not find var {:?} -> {:?}"
                                        , var, args)))
             }
-            Some(ref mut instance) => {
-                let id = instance.add(var, sub, args);
+            Some(ref mut instances) => {
+                let id = instances.add(var, sub, args);
                 Ok(id)
             }
         }
     }
 
-    fn is_poly(&self, var: &TermVar) -> bool {
-        self.entries.get(var).is_some()
-    }
-
-    fn get(&self, id: &TermVar) -> Option<&Instances> {
+    fn get(&self, id: &Symbol) -> Option<&Instances> {
         self.entries.get(id)
     }
-
-    fn specialize_all(&mut self, id: &TermVar, expr: &Expr
-                      , sub: &mut Subst) -> Result<Vec<(TermVar, Expr)>>
+    
+    fn process_all(&mut self, bind: &Bind, sub: &mut Subst) -> Result<Vec<Bind>>
     {
         let mut result = Vec::new();
-        let instances = match self.get(&id) {
-            None => HashMap::new(),
-            Some(ref instances) => instances.inner.clone()
-        };
-        for (tys, id) in instances {
-            let tys = tys.iter().map( |ty| sub.apply(ty) ).collect();
-            let mono_expr = self.specialize(&id, expr, sub, tys)?;
-            result.push((id, mono_expr))
-        };
+        match *bind {
+            Bind::NonRec{ref symbol, ref expr} => {
+                let instances  = match self.get(&symbol) {
+                    None => HashMap::new(),
+                    Some(ref instances) => instances.inner.clone()
+                };
+                for (tys, symbol) in instances {
+                    let tys  = tys.iter().map( |ty| sub.apply(ty) ).collect();
+                    let spec   = self.spec(&symbol, expr, sub, tys)?;
+                    let bind   = Bind::non_rec(symbol, spec);
+                    result.push(bind);
+                }
+            }
+        }
         Ok(result)
     }
 
-    fn specialize(&mut self, _id: &TermVar, expr: &Expr, sub: &mut Subst
-              , args: Vec<Type>) -> Result<Expr>
+    fn process(&mut self, bind: &Bind, sub: &mut Subst
+               , args: Vec<Type>) -> Result<Bind>
     {
-        //println!("==========\nSpecialize {:?} {:?}\n", id, args);
-        //println!("{:?}\n", expr);
+        let bind = match *bind {
+            Bind::NonRec{ref symbol, ref expr} => {
+                let spec = self.spec(symbol, expr, sub, args)?;
+                // handle let symbol: 'a = ... Where 'a is monomorphic
+                let symbol = symbol.with_ty(sub.apply(symbol.ty()));
+                Bind::non_rec(symbol, spec)
+            }
+        };
+        Ok(bind)
+    }
+
+    fn spec(&mut self, _sym: &Symbol, expr: &Expr, sub: &mut Subst
+            , args: Vec<Type>) -> Result<Expr>
+    {
+        //println!("=============\nSpecialize {:?} \n{:?} {:?}", _sym, sub, args);
+        //        println!("{:?}\n---------\n", expr);
 
         self.begin_scope();
-        let expr    = self.run(&expr, sub, args)?;
+        let expr   = self.run(expr, sub, args)?;
         self.end_scope();
-        //println!("{:?}\n", expr);
+        //println!("{:?}\n++++++++++++++\n\n", expr);
         Ok(expr)
     }
 
@@ -232,22 +256,20 @@ impl Specializer
                 Var(id)
             }
             Let(ref exp) => {
-                let let_id = exp.id();
-                if self.add_if_poly(let_id.clone(), exp.bind()) {
+                let b        = exp.bind();
+                if self.add_if_poly(b) {
                     let mut let_expr = self.run(exp.expr(), sub, vec![])?;
-                    let res  = self.specialize_all(&let_id, exp.bind(), sub)?;
-                    for (id, bind) in res {
-                        let exp  = xir::Let::new(id, bind, let_expr);
+                    let res  = self.process_all(b, sub)?;
+                    for bind in res {
+                        let exp  = xir::Let::new(bind, let_expr);
                         let_expr = Expr::Let(Box::new(exp))
                     }
                     let_expr
                 }
                 else {
-                    // handle let x: 'a = ... Where 'a is monomorphic
-                    let let_id   = let_id.with_ty(sub.apply(let_id.ty()));
                     let let_body = self.run(exp.expr(), sub, vec![])?;
-                    let bind     = self.run(exp.bind(), sub, vec![])?;
-                    let exp      = xir::Let::new(let_id, bind, let_body);
+                    let bind = self.process(b, sub, vec![])?;
+                    let exp  = xir::Let::new(bind, let_body);
                     Expr::Let(Box::new(exp))
                 }
             }

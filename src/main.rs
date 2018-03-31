@@ -54,6 +54,9 @@ fn main() {
     use std::error::Error;
     match compile(file, file_name) {
         Ok(()) => (),
-        Err(e) => println!("ERROR: {}", e.description())
+        Err(e) => {
+            println!("ERROR: {}", e.description());
+            std::process::exit(1);
+        }
     }
 }

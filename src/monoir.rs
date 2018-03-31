@@ -12,12 +12,12 @@ pub enum Type {
 pub struct Module {
     name:  String,
     types: Vec<Type>,
-    funcs: Vec<Func>,
-    ext_funcs: Vec<TermVar>,
+    funcs: Vec<Bind>,
+    ext_funcs: Vec<Symbol>,
 }
 
 #[derive(Debug)]
-pub struct TermVar {
+pub struct Symbol {
     name: Rc<String>,
     ty:   Type,
     id:   u32,
@@ -31,14 +31,14 @@ pub enum Literal {
 }
 
 #[derive(Debug)]
-pub struct Func {
-    name: TermVar,
-    body: Expr,
+pub struct Bind {
+    sym: Symbol,
+    expr: Expr,
 }
 
 #[derive(Debug)]
 pub struct Lam {
-    params: Vec<TermVar>,
+    params: Vec<Symbol>,
     body: Expr,
 }
 
@@ -49,11 +49,11 @@ pub enum Expr {
     BoolLit(bool),
     Lam(Box<Lam>),
     App(Box<Expr>, Vec<Expr>),
-    Var(TermVar),
+    Var(Symbol),
     //FIXME: introduce an If struct to reduce number or allocations
     If(Box<Expr>, Box<Expr>, Box<Expr>, Type ),
-    //FIXME: introduce an If struct to reduce number or allocations
-    Let(TermVar, Box<Expr>, Box<Expr>),
+    //FIXME: introduce an Let struct to reduce number or allocations
+    Let(Box<Bind>, Box<Expr>),
 }
 
 impl Module {
@@ -69,15 +69,15 @@ impl Module {
         &self.types
     }
     
-    pub fn funcs(&self) -> &Vec<Func> {
+    pub fn funcs(&self) -> &Vec<Bind> {
         &self.funcs
     }
 
-    pub fn externs(&self) -> &Vec<TermVar> {
+    pub fn externs(&self) -> &Vec<Symbol> {
         &self.ext_funcs
     }
 
-    pub fn add_func(&mut self, lam: Func) {
+    pub fn add_func(&mut self, lam: Bind) {
         self.funcs.push(lam)
     }
 
@@ -85,28 +85,28 @@ impl Module {
         self.types.push(ty)
     }
 
-    pub fn add_extern(&mut self, name: TermVar) {
+    pub fn add_extern(&mut self, name: Symbol) {
         self.ext_funcs.push(name)
     }
 }
 
-impl Func {
-    pub fn new(name: TermVar, body: Expr) -> Self {
-        Func{name, body}
+impl Bind {
+    pub fn new(sym: Symbol, expr: Expr) -> Self {
+        Bind{sym, expr}
     }
-    pub fn name(&self) -> &TermVar {
-        &self.name
+    pub fn symbol(&self) -> &Symbol {
+        &self.sym
     }
-    pub fn body(&self) -> &Expr {
-        &self.body
+    pub fn expr(&self) -> &Expr {
+        &self.expr
     }
 }
 
 impl Lam {
-    pub fn new(params: Vec<TermVar>, body: Expr) -> Self {
+    pub fn new(params: Vec<Symbol>, body: Expr) -> Self {
         Lam{params, body}
     }
-    pub fn params(&self) -> &Vec<TermVar> {
+    pub fn params(&self) -> &Vec<Symbol> {
         &self.params
     }
     pub fn body(&self) -> &Expr {
@@ -114,7 +114,7 @@ impl Lam {
     }
 }
 
-impl TermVar {
+impl Symbol {
     pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
         Self{name, ty, id}
     }

@@ -26,13 +26,16 @@ impl Uncurry {
         Uncurry{}
     }
 
-    fn func(&self, var: &xir::TermVar, body: &xir::Expr)
-            -> Result<monoir::Func>
+    fn func(&self, f: &xir::Bind) -> Result<monoir::Bind>
     {
-        let var  = process_termvar(var)?;
-        let mut args = Vec::new();
-        let body = process(body, &mut args)?;
-        Ok(monoir::Func::new(var, body))
+        match *f {
+            xir::Bind::NonRec{ref symbol, ref expr} => {
+                let sym      = process_symbol(symbol)?;
+                let mut args = Vec::new();
+                let expr     = process(expr, &mut args)?;
+                Ok(monoir::Bind::new(sym, expr))
+            }
+        }
     }
     
     fn uncurry_module(&self, module: &xir::Module) -> Result<monoir::Module>
@@ -43,11 +46,11 @@ impl Uncurry {
         for decl in module.decls() {
             match *decl {
                 xir::Decl::Extern(ref name) => {
-                    modl.add_extern(process_termvar(name)?);
+                    modl.add_extern(process_symbol(name)?);
                 },
-                xir::Decl::Let(ref id, ref expr) => {
-                    //println!("{:?} ===========\n  {:?}\n", id, expr);
-                    let res = self.func(id, expr)?;
+                xir::Decl::Let(ref bind) => {
+                    //println!("{:?} ===========\n  \n", bind);
+                    let res = self.func(bind)?;
                     //println!("{:?}\n====================\n", res);
                     modl.add_func(res);
                 }
@@ -58,12 +61,25 @@ impl Uncurry {
     }
 }
 
-fn process_termvar(termvar: &xir::TermVar) -> Result<monoir::TermVar> {
-    let ty = get_type(termvar.ty())?;
-    let tv = monoir::TermVar::new(termvar.name().clone(), ty, termvar.id());
+fn process_symbol(sym: &xir::Symbol) -> Result<monoir::Symbol> {
+    let ty = get_type(sym.ty())?;
+    let tv = monoir::Symbol::new(sym.name().clone(), ty, sym.id());
     Ok(tv)
 }
 
+
+fn process_bind(bind: &xir::Bind, args: &mut Vec<monoir::Expr>)
+                -> Result<monoir::Bind>
+{
+    let bind = match *bind {
+        xir::Bind::NonRec{ref symbol, ref expr} => {
+            let sym  = process_symbol(symbol)?;
+            let expr = process(expr, args)?;
+            monoir::Bind::new(sym, expr)
+        }
+    };
+    Ok(bind)
+}
 
 fn process(expr: &xir::Expr, args: &mut Vec<monoir::Expr>)
            -> Result<monoir::Expr>
@@ -74,7 +90,7 @@ fn process(expr: &xir::Expr, args: &mut Vec<monoir::Expr>)
         UnitLit      => monoir::Expr::UnitLit,
         I32Lit(n)    => monoir::Expr::I32Lit(n),
         BoolLit(b)   => monoir::Expr::BoolLit(b),
-        Var(ref var) => monoir::Expr::Var(process_termvar(var)?),
+        Var(ref var) => monoir::Expr::Var(process_symbol(var)?),
         If(ref e) => {
             monoir::Expr::If(Box::new(process(e.cond(),  args)?),
                              Box::new(process(e.texpr(), args)?),
@@ -82,12 +98,12 @@ fn process(expr: &xir::Expr, args: &mut Vec<monoir::Expr>)
                              get_type(e.ty())?)
         }
         Let(ref e) => {
-            monoir::Expr::Let(process_termvar(e.id())?,
-                              Box::new(process(e.bind(), args)?),
-                              Box::new(process(e.expr(), args)?))
+            let bind = process_bind(e.bind(), args)?;
+            let expr = process(e.expr(), args)?;
+            monoir::Expr::Let(Box::new(bind), Box::new(expr))
         }
         Lam(ref params, ref body) => {
-            let params = Vector::map(params, process_termvar)?;
+            let params = Vector::map(params, process_symbol)?;
             let body   = process(body, args)?;
             let lam    = monoir::Lam::new(params, body);
             monoir::Expr::Lam(Box::new(lam))

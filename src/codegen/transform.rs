@@ -66,28 +66,28 @@ impl <'a> LowerToLlvm<'a> {
         }
     }
     
-    fn gen_proto(&mut self, name: &monoir::TermVar) -> Result<LLVMValueRef> {
+    fn gen_proto(&mut self, sym: &monoir::Symbol) -> Result<LLVMValueRef> {
         unsafe {
-            let fn_ty = self.get_type(name.ty(), false);
-            let cname = to_cstr(name.name());
+            let fn_ty = self.get_type(sym.ty(), false);
+            let cname = to_cstr(sym.name());
             let func  = LLVMAddFunction(self.module, cname.as_ptr(), fn_ty);
-            self.var_env.insert(name.id(), func);
+            self.var_env.insert(sym.id(), func);
             Ok(func)
         }
     }
 
-    pub fn gen_extern(&mut self, name: &monoir::TermVar) -> Result<()> {
-        let func = self.gen_proto(name)?;
+    pub fn gen_extern(&mut self, sym: &monoir::Symbol) -> Result<()> {
+        let func = self.gen_proto(sym)?;
         let _ = unsafe {
-            Prelude::emit(name, func, self.module, self.builder)?
+            Prelude::emit(sym, func, self.module, self.builder)?
         };
         Ok(())
     }
     
-    pub fn gen_func(&mut self, func: &monoir::Func) -> Result<()> {
-        let llfunc = self.gen_proto(func.name())?;
+    pub fn gen_func(&mut self, func: &monoir::Bind) -> Result<()> {
+        let llfunc = self.gen_proto(func.symbol())?;
         let bb     = self.add_bb(llfunc, "func_entry");
-        self.emit(func.body(), bb, llfunc)?;
+        self.emit(func.expr(), bb, llfunc)?;
         
         Ok(())
     }
@@ -190,10 +190,10 @@ impl <'a> LowerToLlvm<'a> {
                     self.var_env.end_scope();
                     body
                 }
-                Let( ref id, ref expr, ref body) => {
+                Let( ref bind, ref body) => {
                     //FIXME: do rest
-                    let expr = self.emit(expr, bb, func)?;
-                    self.var_env.insert(id.id(), expr);
+                    let expr = self.emit(bind.expr(), bb, func)?;
+                    self.var_env.insert(bind.symbol().id(), expr);
                     let body = self.emit(body, bb, func)?;
                     body
                 }

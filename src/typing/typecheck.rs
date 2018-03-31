@@ -31,8 +31,8 @@ impl TypeChecker {
         TypeChecker{ gamma: Env::new() }
     }
 
-    fn into_xir_tv(var: &idtree::TermVar, ty: &super::types::Type) -> xir::TermVar {
-        xir::TermVar::new(var.name().clone(), ty.clone(), var.id())
+    fn into_xir_tv(var: &idtree::Symbol, ty: &super::types::Type) -> xir::Symbol {
+        xir::Symbol::new(var.name().clone(), ty.clone(), var.id())
     }
 
     fn tc_module(&mut self, module: &idtree::Module) -> Result<xir::Module> {
@@ -49,11 +49,10 @@ impl TypeChecker {
                 let v = Self::into_xir_tv(v, v.ty());
                 xir::Decl::Extern(v)
             }
-            idtree::Decl::Let(ref id, ref expr) => {
-
-                let (s, ty, e) = infer_fn(&mut self.gamma, id, expr)?;
+            idtree::Decl::Let(ref bind) => {
+                let (s, ty, e) = infer_fn(&mut self.gamma, bind)?;
                 let res        = app_subst(&e, &s)?;
-                let id         = Self::into_xir_tv(id, &ty);
+                let symbol     = Self::into_xir_tv(bind.symbol(), &ty);
                 /*
                 println!("{:?}", id);
                 println!("->\n{:?}", expr);
@@ -61,7 +60,7 @@ impl TypeChecker {
                 println!("->\n{:?}", s);
                 println!("->\n{:?}\n=================\n\n", res);
                 */
-                xir::Decl::Let(id, res)
+                xir::Decl::Let(xir::Bind::non_rec(symbol, res))
             }
         };
         Ok(res)
@@ -69,6 +68,21 @@ impl TypeChecker {
 }
 
 
+fn mk_symbol(tv: &xir::Symbol, sub: &Subst) -> xir::Symbol {
+    tv.with_ty(sub.apply(tv.ty()))
+}
+
+fn bind_subst(bind: &xir::Bind, sub: &Subst) -> Result<xir::Bind> {
+    use xir::Bind::*;
+    let bind = match *bind {
+        NonRec{ref symbol, ref expr } => {
+            let symbol = mk_symbol(symbol, sub);
+            let expr = app_subst(expr, sub)?;
+            NonRec{symbol, expr}
+        }
+    };
+    Ok(bind)
+}
 fn app_subst(expr: &xir::Expr, sub: &Subst) -> Result<xir::Expr>
 {
     use ::xir::*;
@@ -77,11 +91,11 @@ fn app_subst(expr: &xir::Expr, sub: &Subst) -> Result<xir::Expr>
         UnitLit     => UnitLit,
         I32Lit(n)   => I32Lit(n),
         BoolLit(b)  => BoolLit(b),
-        Var(ref id) => Var(id.with_ty(sub.apply(id.ty()))),
+        Var(ref id) => Var(mk_symbol(id, sub)),
         Lam(ref proto, ref body) => {
             let body  = app_subst(body, sub)?;
             let proto = proto.iter()
-                .map( |v| v.with_ty(sub.apply(v.ty())) )
+                .map( |v| mk_symbol(v, sub) )
                 .collect();
             Lam(proto, Box::new(body))
         }
@@ -97,11 +111,11 @@ fn app_subst(expr: &xir::Expr, sub: &Subst) -> Result<xir::Expr>
             let arg    = app_subst(arg, sub)?;
             xir::Expr::App(n, Box::new(callee), Box::new(arg))
         }
-        Let(ref exp) => {
-            let exp = xir::Let::new(exp.id().with_ty(sub.apply(exp.id().ty())),
-                                    app_subst(exp.bind(), sub)?,
-                                    app_subst(exp.expr(), sub)?);
-            Expr::Let(Box::new(exp))
+        Let(ref le) => {
+            let bind = bind_subst(le.bind(), sub)?;
+            let expr = app_subst(le.expr(), sub)?;
+            let expr = xir::Let::new(bind, expr);
+            Expr::Let(Box::new(expr))
         }
         TyLam(ref args, ref b) => {
             let body  = app_subst(b, sub)?;
