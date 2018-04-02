@@ -67,7 +67,7 @@ pub Expr: Expr = {
     "false" => Expr::BoolLit(false),
     "()"    => Expr::UnitLit,
     Var     => <>,
-    "(" <t:Expr> ")" => t,
+    "{" <t:Expr> "}" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
     <callee:Callee> "(" <args:List<Expr>> ")" 
