@@ -42,10 +42,10 @@ pub LamTyVars: Vec<String> = {
 
 pub Func: Bind = {
     "let" <name:Ident> "(" <p:List<Ident>> ")" "{" <body: Expr> "}" => {
-        Bind::NonRec{name, expr: Expr::Lam(Box::new(Lam::new(p, body)))}
+        Bind::Rec(name, Expr::Lam(Box::new(Lam::new(p, body))))
     },
     "let" <name:Ident> "()" "{" <body: Expr> "}" => {
-        Bind::NonRec{name, expr: Expr::Lam(Box::new(Lam::new(vec![], body)))}
+        Bind::Rec(name, Expr::Lam(Box::new(Lam::new(vec![], body))))
     }
 };
 
@@ -75,7 +75,9 @@ pub Expr: Expr = {
     <callee:Callee> "()" 
         => mk_app(callee, vec![]),
     "let" <id:Ident> "=" <e1:Expr> ";" <e2:Expr>
-        => Expr::Let(id, Box::new(e1), Box::new(e2)),
+        => { let bind = Bind::NonRec(id, e1 );
+             Expr::Let(Box::new(bind), Box::new(e2)) },
+    
 };
 
 BaseType: Type = {

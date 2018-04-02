@@ -32,8 +32,8 @@ pub struct If {
 
 #[derive(Debug)]
 pub enum Bind {
-    NonRec{name: String, expr: Expr},
-    //Rec(Vec<(String,Expr)>)
+    NonRec(String, Expr),
+    Rec(String, Expr)
 }
 
 #[derive(Debug)]
@@ -45,7 +45,7 @@ pub enum Expr {
     BoolLit(bool),
     Var(String),
     If(Box<If>),
-    Let(String, Box<Expr>, Box<Expr>)
+    Let(Box<Bind>, Box<Expr>)
 }
 
 impl Type {

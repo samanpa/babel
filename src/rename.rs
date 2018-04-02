@@ -111,13 +111,19 @@ impl Rename {
         Ok(idtree::Expr::Lam(params, Box::new(body)))
     }
 
-    fn conv_letbind(&mut self, letbind: &ast::Bind) -> Result<idtree::Bind> {
-        match *letbind {
-            ast::Bind::NonRec{ref name, ref expr} => {
+    fn conv_bind(&mut self, bind: &ast::Bind) -> Result<(idtree::Symbol, idtree::Expr)> {
+        match *bind {
+            ast::Bind::NonRec(ref name, ref expr) => {
+                let lam  = self.conv(expr)?;
+                let fnty = Self::new_tyvar();
+                let fnid = self.add_var(name, fnty)?;
+                Ok((fnid, lam))
+            },
+            ast::Bind::Rec(ref name, ref expr) => {
                 let fnty = Self::new_tyvar();
                 let fnid = self.add_var(name, fnty)?;
                 let lam  = self.conv(expr)?;
-                Ok(idtree::Bind::new(fnid, lam))
+                Ok((fnid, lam))
             }
         }
     }
@@ -127,8 +133,9 @@ impl Rename {
         let res = match *decl {
             Extern(ref name, ref ty) =>
                 self.conv_extern(name, ty)?,
-            Func(ref letbind)        => {
-                let bind = self.conv_letbind(letbind)?;
+            Func(ref bind)           => {
+                let (name,expr) = self.conv_bind(bind)?;
+                let bind = idtree::Bind::new(name, expr);
                 idtree::Decl::Let(bind)
             }
         };
@@ -163,12 +170,10 @@ impl Rename {
                     }
                 }
             }
-            Let(ref name, ref bind, ref expr) => {
-                let letty = Self::new_tyvar();
-                let bind  = self.conv(bind)?;
-                let id    = self.add_var(name, letty)?;
+            Let(ref bind, ref expr) => {
+                let (bind_name, bind_expr)  = self.conv_bind(bind)?;
                 let expr  = self.conv(expr)?;
-                let let_  = idtree::Let::new(id, bind, expr);
+                let let_  = idtree::Let::new(bind_name, bind_expr, expr);
                 idtree::Expr::Let(Box::new(let_))
             }
         };
