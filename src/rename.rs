@@ -111,19 +111,19 @@ impl Rename {
         Ok(idtree::Expr::Lam(params, Box::new(body)))
     }
 
-    fn conv_bind(&mut self, bind: &ast::Bind) -> Result<(idtree::Symbol, idtree::Expr)> {
+    fn conv_bind(&mut self, bind: &ast::Bind) -> Result<idtree::Bind> {
         match *bind {
             ast::Bind::NonRec(ref name, ref expr) => {
                 let lam  = self.conv(expr)?;
                 let fnty = Self::new_tyvar();
                 let fnid = self.add_var(name, fnty)?;
-                Ok((fnid, lam))
+                Ok(idtree::Bind::new(fnid, lam))
             },
             ast::Bind::Rec(ref name, ref expr) => {
                 let fnty = Self::new_tyvar();
                 let fnid = self.add_var(name, fnty)?;
                 let lam  = self.conv(expr)?;
-                Ok((fnid, lam))
+                Ok(idtree::Bind::new(fnid, lam))
             }
         }
     }
@@ -134,8 +134,7 @@ impl Rename {
             Extern(ref name, ref ty) =>
                 self.conv_extern(name, ty)?,
             Func(ref bind)           => {
-                let (name,expr) = self.conv_bind(bind)?;
-                let bind = idtree::Bind::new(name, expr);
+                let bind = self.conv_bind(bind)?;
                 idtree::Decl::Let(bind)
             }
         };
@@ -171,9 +170,9 @@ impl Rename {
                 }
             }
             Let(ref bind, ref expr) => {
-                let (bind_name, bind_expr)  = self.conv_bind(bind)?;
+                let bind  = self.conv_bind(bind)?;
                 let expr  = self.conv(expr)?;
-                let let_  = idtree::Let::new(bind_name, bind_expr, expr);
+                let let_  = idtree::Let::new(bind, expr);
                 idtree::Expr::Let(Box::new(let_))
             }
         };

@@ -22,8 +22,7 @@ pub struct Symbol {
 }
 
 pub struct Let {
-    id:   Symbol,
-    bind: Expr,
+    bind: Bind,
     expr: Expr,
 }
 
@@ -116,13 +115,10 @@ impl If {
 }
 
 impl Let {
-    pub fn new(id: Symbol, bind: Expr, expr: Expr) -> Self {
-        Let{id, bind: bind, expr}
+    pub fn new(bind: Bind, expr: Expr) -> Self {
+        Let{bind, expr}
     }
-    pub fn id(&self) -> &Symbol {
-        &self.id
-    }
-    pub fn bind(&self) -> &Expr {
+    pub fn bind(&self) -> &Bind {
         &self.bind
     }
     pub fn expr(&self) -> &Expr {
@@ -132,7 +128,7 @@ impl Let {
 
 impl fmt::Debug for Let {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "let {:?} = {:?}\n{:?}", self.id, self.bind, self.expr)
+        write!(f, "let {:?}\n{:?}", self.bind, self.expr)
     }
 }
 
