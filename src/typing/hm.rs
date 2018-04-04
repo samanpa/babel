@@ -212,8 +212,9 @@ pub (super) fn infer_fn(gamma: &mut Env, bind: &idtree::Bind) ->
 fn infer_if(gamma: &mut Env, if_expr: &idtree::If) -> Result<(Subst, Type, xir::Expr)>
 {
     let (s1, t1, cond) = infer(gamma, if_expr.cond())?;
-    let (s2, t2, texp) = infer(gamma, if_expr.texpr())?;
-    let (s3, t3, fexp) = infer(gamma, if_expr.fexpr())?;
+    let mut gamma      = gamma.apply_subst(&s1);
+    let (s2, t2, texp) = infer(&mut gamma, if_expr.texpr())?;
+    let (s3, t3, fexp) = infer(&mut gamma, if_expr.fexpr())?;
 
     let s4 = unify(&t1, &mk_tycon("bool", 0))?;
     let s5 = unify(&t2, &t3)?;

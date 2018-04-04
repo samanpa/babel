@@ -1,0 +1,11 @@
+let id(x) {x}
+
+let min(n, m) {
+    let n1 = id(n);
+    let m1 = id(m);
+    if i32_lt(n1, m1) {
+       n1
+    } else {
+       m1
+    }
+}
