@@ -61,12 +61,18 @@ pub Callee: Expr = {
     Var   => <>
 };
 
+pub Lam: Lam = {
+    r"\\" <p:Ident> "->" <body: Expr> => Lam::new(vec![p], body),
+    r"\\" "(" <p:List<Ident>> ")" "->" "{" <body: Expr> "}" => Lam::new(p, body),
+};
+
 pub Expr: Expr = {
     Num     => Expr::I32Lit(<>),
     "true"  => Expr::BoolLit(true),
     "false" => Expr::BoolLit(false),
     "()"    => Expr::UnitLit,
     Var     => <>,
+    Lam     => Expr::Lam(Box::new(<>)),
     "{" <t:Expr> "}" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
@@ -77,7 +83,6 @@ pub Expr: Expr = {
     "let" <id:Ident> "=" <e1:Expr> ";" <e2:Expr>
         => { let bind = Bind::NonRec(id, e1 );
              Expr::Let(Box::new(bind), Box::new(e2)) },
-    
 };
 
 BaseType: Type = {
