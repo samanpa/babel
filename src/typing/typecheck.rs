@@ -87,12 +87,12 @@ fn subst(expr: &xir::Expr, sub: &Subst) -> Result<xir::Expr>
         I32Lit(n)   => I32Lit(n),
         BoolLit(b)  => BoolLit(b),
         Var(ref id) => Var(mk_symbol(id, sub)),
-        Lam(ref proto, ref body) => {
+        Lam(ref proto, ref body, ref retty) => {
             let body  = subst(body, sub)?;
             let proto = proto.iter()
                 .map( |v| mk_symbol(v, sub) )
                 .collect();
-            Lam(proto, Box::new(body))
+            Lam(proto, Box::new(body), sub.apply(retty))
         }
         If(ref e) => {
             let if_expr = xir::If::new(subst(e.cond(),  sub)?,

@@ -19,12 +19,13 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         .unwrap()
         .to_string();
 
-    let rename     = Rename::new();
-    let typecheck  = TypeChecker::new();
-    let specialize = Specialize::new();
-    let uncurry    = Uncurry::new();
-    let codegen    = CodeGen::new(mod_name.clone());
-    let link       = Link::new(mod_name.clone());
+    let rename      = Rename::new();
+    let typecheck   = TypeChecker::new();
+    let specialize  = Specialize::new();
+    let lambda_lift = LambdaLift::new();
+    let uncurry     = Uncurry::new();
+    let codegen     = CodeGen::new(mod_name.clone());
+    let link        = Link::new(mod_name.clone());
 
     let parser     = babel::parser::ModuleParser::new();
     let mut module = parser.parse(&file_contents)
@@ -38,6 +39,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         => rename
         => typecheck
         => specialize
+        => lambda_lift
         => uncurry
         => codegen
         => link    

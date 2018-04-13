@@ -215,12 +215,12 @@ impl Specializer
             UnitLit     => UnitLit,
             I32Lit(n)   => I32Lit(n),
             BoolLit(b)  => BoolLit(b),
-            Lam(ref proto, ref body) => {
+            Lam(ref proto, ref body, ref retty) => {
                 let body  = self.run(body, sub, vec![])?;
                 let proto = proto.iter()
                     .map( | id | id.with_ty(sub.apply(id.ty())) )
                     .collect();
-                Lam(proto, Box::new(body))
+                Lam(proto, Box::new(body), sub.apply(retty))
             }
             If(ref e) => {
                 let ty = sub.apply(e.ty());

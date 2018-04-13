@@ -6,6 +6,7 @@ pub mod xir;
 pub mod rename;
 pub mod typing;
 pub mod specialize;
+pub mod lambda_lift;
 pub mod monoir;
 pub mod uncurry;
 pub mod codegen;

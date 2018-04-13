@@ -25,8 +25,13 @@ let poly(n) {
     b
 }
 
+let nested(n) {
+    let poly = \n -> poly(n);
+    poly(n)
+}
+
 let max(n, m, f) {
-    let n1 = poly(n);
+    let n1 = nested(n);
     let lt = i32_lt;
     let m1 = recbar(id, m, 10);
     let maxv = if lt(n1, m1) { 

@@ -102,7 +102,7 @@ fn process(expr: &xir::Expr, args: &mut Vec<monoir::Expr>)
             let expr = process(e.expr(), args)?;
             monoir::Expr::Let(Box::new(bind), Box::new(expr))
         }
-        Lam(ref params, ref body) => {
+        Lam(ref params, ref body, ref _retty) => {
             let params = Vector::map(params, process_symbol)?;
             let body   = process(body, args)?;
             let lam    = monoir::Lam::new(params, body);

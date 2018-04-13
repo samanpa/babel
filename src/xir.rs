@@ -52,7 +52,7 @@ pub enum Expr {
     Var(Symbol),
     If(Box<If>),
     Let(Box<Let>),
-    Lam(Vec<Symbol>, Box<Expr>),
+    Lam(Vec<Symbol>, Box<Expr>, Type),
     App(u32, Box<Expr>, Box<Expr>),
     TyLam(Vec<TyVar>, Box<Expr>),
     TyApp(Box<Expr>, Vec<Type>),

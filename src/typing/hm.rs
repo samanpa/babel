@@ -85,14 +85,14 @@ fn infer_var(gamma: &mut Env, var: &idtree::Symbol) -> Result<(Subst, Type, xir:
     Ok((Subst::new(), ty, expr))
 }
 
-fn translate_lam(body: xir::Expr, params: &Vec<idtree::Symbol>, params_ty: &Vec<Type>)
+fn translate_lam(body: xir::Expr, params: &Vec<idtree::Symbol>, params_ty: &Vec<Type>, retty: Type)
                  -> xir::Expr {
     let params  = params
         .iter()
         .zip(params_ty)
         .map( |(v,ty)| into_xir_symbol(v, ty) )
         .collect::<Vec<_>>();
-    xir::Expr::Lam(params, Box::new(body))
+    xir::Expr::Lam(params, Box::new(body), retty)
 }
 
 fn infer_lam(mut gamma: Env, params: &Vec<idtree::Symbol>, body: &idtree::Expr)
@@ -108,7 +108,7 @@ fn infer_lam(mut gamma: Env, params: &Vec<idtree::Symbol>, body: &idtree::Expr)
         })
         .collect();
     let (s1, t1, body) = infer(&mut gamma, body)?;
-    let expr = translate_lam(body, params, &params_ty);
+    let expr = translate_lam(body, params, &params_ty, t1.clone());
     let fnty = mk_func(&params_ty, t1);
     let fnty = s1.apply(&fnty);
     Ok((s1, fnty, expr))
@@ -145,7 +145,6 @@ fn is_value(expr: &idtree::Expr) -> bool {
 fn infer_let(gamma: &mut Env, let_exp: &idtree::Let) -> Result<(Subst, Type, xir::Expr)>
 {
     let bind         = let_exp.bind();
-
     let (s1, t1, e1) = infer(gamma, bind.expr())?;
     
     let name         = into_xir_symbol(bind.symbol(), &t1);
