@@ -2,11 +2,12 @@ use ::xir::*;
 use ::types::{Type};
 use ::{Result,Vector};
 use ::fresh_id;
+use ::scoped_map::ScopedMap;
 
 use std::rc::Rc;
 
 pub struct LambdaLift {
-    scope: u32,
+    map: ScopedMap<u32, Symbol>,
 }
 
 impl Default for LambdaLift {
@@ -27,7 +28,7 @@ impl ::Pass for LambdaLift {
 
 impl LambdaLift {
     pub fn new() -> Self {
-        LambdaLift{scope: 0}
+        LambdaLift{map: ScopedMap::new()}
     }
 
     fn lift_module(&mut self, module: &Module) -> Result<Module> {
@@ -45,7 +46,7 @@ impl LambdaLift {
         }
 
         for decl in decls.iter() {
-            println!("{:?}", decl);
+            println!("{:?}\n", decl);
         }
         
         Ok(Module::new(module.name().clone(), decls))
@@ -53,24 +54,26 @@ impl LambdaLift {
     
     fn lift_bind(&mut self, bind: &Bind, acc: &mut Vec<Decl>) -> Bind
     {
-        self.scope += 1;
+        self.map.begin_scope();
         let bind = match *bind {
             Bind::NonRec{ref symbol, ref expr} => {
                 let expr = self.lift(expr, acc, true);
                 match expr {
-                    Expr::Lam(_, _, _) if self.scope > 1 => {
-                        let fnnm = Rc::new(format!("@__anon_{}", fresh_id()));
+                    Expr::Lam(_, _, _) if self.map.scope() > 1 => {
+                        let fnid = fresh_id();
+                        let fnnm = Rc::new(format!("@__anon_{}", fnid));
                         let fnty = symbol.ty().clone();
-                        let sym  = Symbol::new(fnnm, fnty, fresh_id());
-                        let bind = Bind::non_rec(sym.clone(), expr);
+                        let sym  = Symbol::new(fnnm, fnty, fnid);
+                        let bind = Bind::non_rec(symbol.clone(), expr);
+                        self.map.insert(symbol.id(), sym.clone());
                         acc.push(Decl::Let(bind));
-                        Bind::non_rec(symbol.clone(), Expr::Var(sym))
+                        Bind::non_rec(sym, Expr::Var(symbol.clone()))
                     }
                     _ =>  Bind::non_rec(symbol.clone(), expr)
                 }                    
             }
         };
-        self.scope -= 1;
+        self.map.end_scope();
         bind
     }
 
@@ -83,9 +86,21 @@ impl LambdaLift {
             UnitLit     => UnitLit,
             I32Lit(n)   => I32Lit(n),
             BoolLit(b)  => BoolLit(b),
-            Var(ref id) => Var(id.clone()),
-            TyLam(_, _) => unimplemented!(),
-            TyApp(_, _) => unimplemented!(),
+            Var(ref id) => {
+                let sym = match self.map.get(&id.id()) {
+                    Some(sym) => sym.clone(),
+                    None      => id.clone()
+                };
+                Var(sym)
+            }
+            TyLam(ref t, ref e) => {
+                let e = self.lift(e, acc, false);
+                TyLam(t.clone(), Box::new(e))
+            }
+            TyApp(ref e, ref t) => {
+                let e = self.lift(e, acc, false);
+                TyApp(Box::new(e), t.clone())
+            }
             If(ref e) => {
                 let if_expr = xir::If::new(self.lift(e.cond(),  acc, false),
                                            self.lift(e.texpr(), acc, false),
