@@ -6,11 +6,13 @@ pub mod xir;
 pub mod rename;
 pub mod typing;
 pub mod specialize;
+pub mod lambda_lift;
 pub mod monoir;
 pub mod uncurry;
 pub mod codegen;
 pub mod link;
 pub (crate) mod scoped_map;
+pub mod passes;
 
 pub use typing::types;
 
@@ -39,14 +41,6 @@ impl std::error::Error for Error {
 impl Error {
     pub fn new<T>(msg: T) -> Self where T: Into<String>{
         Error{ msg: msg.into() }
-    }
-}
-
-extern crate lalrpop_util;
-impl <'a> From<lalrpop_util::ParseError<usize, (usize, &'a str), ()>> for Error
-{
-    fn from(f: lalrpop_util::ParseError<usize, (usize, &'a str), ()>) -> Self {
-        Self{ msg: format!("{:?}", f)}
     }
 }
 
@@ -90,15 +84,3 @@ pub fn fresh_id() -> u32 {
     }
 }
 
-#[macro_export]
-macro_rules! passes {
-    ( $expr:expr => $($pass:expr) => + ) => {
-        {
-            let ret = $expr;
-            $(
-                let ret = Pass::run($pass, ret)?;
-            )*
-            ret
-        }
-    };
-}

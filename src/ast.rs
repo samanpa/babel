@@ -14,7 +14,7 @@ pub struct Module {
 #[derive(Debug)]
 pub enum Decl {
     Extern(String, Type),
-    Func(String, Lam),
+    Func(Bind),
 }
 
 #[derive(Debug)]
@@ -31,6 +31,12 @@ pub struct If {
 }
 
 #[derive(Debug)]
+pub enum Bind {
+    NonRec(String, Expr),
+    Rec(String, Expr)
+}
+
+#[derive(Debug)]
 pub enum Expr {
     Lam(Box<Lam>),
     App(u32, Box<Expr>, Box<Expr>),
@@ -39,7 +45,7 @@ pub enum Expr {
     BoolLit(bool),
     Var(String),
     If(Box<If>),
-    Let(String, Box<Expr>, Box<Expr>)
+    Let(Box<Bind>, Box<Expr>)
 }
 
 impl Type {

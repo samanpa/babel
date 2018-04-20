@@ -7,7 +7,7 @@ extern i32_mul(a: i32, b: i32) -> i32;
 extern i32_mod(a: i32, b: i32) -> i32;
 extern i32_div(a: i32, b: i32) -> i32;
 extern putchar(a: i32) -> i32;
-fn i32_print(n) {
+let i32_print(n) {
     if i32_lt(n, 10) {
         putchar(i32_add(n, 48))
     } else {

@@ -1,6 +1,6 @@
 use std::collections::{HashMap,HashSet};
 use ::{Result,Error};
-use idtree::TermVar;
+use idtree::Symbol;
 use super::types::{TyVar,ForAll};
 use super::subst::Subst;
 
@@ -14,14 +14,14 @@ impl Env {
         Self{ map: HashMap::new() }
     }
     
-    pub fn lookup(&self, id: &TermVar) -> Result<ForAll> {
+    pub fn lookup(&self, id: &Symbol) -> Result<ForAll> {
         match self.map.get(&id.id()) {
             Some(ty) => Ok(ty.clone()),
             None     => Err(Error::new(format!("Could not find {:?}", id)))
         }
     }
 
-    pub fn extend(&mut self, id: &TermVar, ty: ForAll) {
+    pub fn extend(&mut self, id: &Symbol, ty: ForAll) {
         self.map.insert(id.id(), ty);
     }
 

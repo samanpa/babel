@@ -2,7 +2,7 @@ use ::idtree;
 use ::xir;
 use super::types::{ForAll};
 use super::subst::Subst;
-use super::hm::{infer_fn};
+use super::hm::{infer_fn,into_xir_symbol};
 use super::env::Env;
 use ::{Result,Vector};
 
@@ -31,10 +31,6 @@ impl TypeChecker {
         TypeChecker{ gamma: Env::new() }
     }
 
-    fn into_xir_tv(var: &idtree::TermVar, ty: &super::types::Type) -> xir::TermVar {
-        xir::TermVar::new(var.name().clone(), ty.clone(), var.id())
-    }
-
     fn tc_module(&mut self, module: &idtree::Module) -> Result<xir::Module> {
         let decls = Vector::map(module.decls(), |decl| {
             self.tc_decl(decl)
@@ -46,22 +42,19 @@ impl TypeChecker {
         let res = match *decl {
             idtree::Decl::Extern(ref v) => {
                 self.gamma.extend(v, ForAll::new(vec![], v.ty().clone()));
-                let v = Self::into_xir_tv(v, v.ty());
+                let v = into_xir_symbol(v, v.ty());
                 xir::Decl::Extern(v)
             }
-            idtree::Decl::Let(ref id, ref expr) => {
-
-                let (s, ty, e) = infer_fn(&mut self.gamma, id, expr)?;
-                let res        = app_subst(&e, &s)?;
-                let id         = Self::into_xir_tv(id, &ty);
+            idtree::Decl::Let(ref bind) => {
+                let (s, b)   = infer_fn(&mut self.gamma, bind)?;
+                let bind_res = bind_subst(&b, &s)?;
                 /*
-                println!("{:?}", id);
-                println!("->\n{:?}", expr);
-                println!("->\n{:?}", e);
+                println!("{:?}", bind);
+                println!("->\n{:?}", b);
                 println!("->\n{:?}", s);
-                println!("->\n{:?}\n=================\n\n", res);
+                println!("->\n{:?}\n=================\n\n", bind_res);
                 */
-                xir::Decl::Let(id, res)
+                xir::Decl::Let(bind_res)
             }
         };
         Ok(res)
@@ -69,7 +62,23 @@ impl TypeChecker {
 }
 
 
-fn app_subst(expr: &xir::Expr, sub: &Subst) -> Result<xir::Expr>
+fn mk_symbol(tv: &xir::Symbol, sub: &Subst) -> xir::Symbol {
+    tv.with_ty(sub.apply(tv.ty()))
+}
+
+fn bind_subst(bind: &xir::Bind, sub: &Subst) -> Result<xir::Bind> {
+    use xir::Bind::*;
+    let bind = match *bind {
+        NonRec{ref symbol, ref expr } => {
+            let symbol = mk_symbol(symbol, sub);
+            let expr = subst(expr, sub)?;
+            NonRec{symbol, expr}
+        }
+    };
+    Ok(bind)
+}
+
+fn subst(expr: &xir::Expr, sub: &Subst) -> Result<xir::Expr>
 {
     use ::xir::*;
     use xir::Expr::*;
@@ -77,38 +86,38 @@ fn app_subst(expr: &xir::Expr, sub: &Subst) -> Result<xir::Expr>
         UnitLit     => UnitLit,
         I32Lit(n)   => I32Lit(n),
         BoolLit(b)  => BoolLit(b),
-        Var(ref id) => Var(id.with_ty(sub.apply(id.ty()))),
-        Lam(ref proto, ref body) => {
-            let body  = app_subst(body, sub)?;
+        Var(ref id) => Var(mk_symbol(id, sub)),
+        Lam(ref proto, ref body, ref retty) => {
+            let body  = subst(body, sub)?;
             let proto = proto.iter()
-                .map( |v| v.with_ty(sub.apply(v.ty())) )
+                .map( |v| mk_symbol(v, sub) )
                 .collect();
-            Lam(proto, Box::new(body))
+            Lam(proto, Box::new(body), sub.apply(retty))
         }
         If(ref e) => {
-            let if_expr = xir::If::new(app_subst(e.cond(),  sub)?,
-                                       app_subst(e.texpr(), sub)?,
-                                       app_subst(e.fexpr(), sub)?,
+            let if_expr = xir::If::new(subst(e.cond(),  sub)?,
+                                       subst(e.texpr(), sub)?,
+                                       subst(e.fexpr(), sub)?,
                                        e.ty().clone());
             Expr::If(Box::new(if_expr))
         }
         App(n, ref callee, ref arg) => {
-            let callee = app_subst(callee, sub)?;
-            let arg    = app_subst(arg, sub)?;
+            let callee = subst(callee, sub)?;
+            let arg    = subst(arg, sub)?;
             xir::Expr::App(n, Box::new(callee), Box::new(arg))
         }
-        Let(ref exp) => {
-            let exp = xir::Let::new(exp.id().with_ty(sub.apply(exp.id().ty())),
-                                    app_subst(exp.bind(), sub)?,
-                                    app_subst(exp.expr(), sub)?);
-            Expr::Let(Box::new(exp))
+        Let(ref le) => {
+            let bind = bind_subst(le.bind(), sub)?;
+            let expr = subst(le.expr(), sub)?;
+            let expr = xir::Let::new(bind, expr);
+            Expr::Let(Box::new(expr))
         }
         TyLam(ref args, ref b) => {
-            let body  = app_subst(b, sub)?;
+            let body  = subst(b, sub)?;
             TyLam(args.clone(), Box::new(body))
         }
         TyApp(ref e, ref args) => {
-            let e = app_subst(e, sub)?;
+            let e = subst(e, sub)?;
             let args = args.iter()
                 .map( |ty| sub.apply(ty) )
                 .collect();

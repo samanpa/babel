@@ -3,6 +3,7 @@
 use ast::*;
 use std::str::FromStr;
 
+
 grammar;
 
 //Macros
@@ -31,7 +32,7 @@ pub Decl: Decl = {
         Decl::external(name, params, ty),
     "extern" <name:Ident> "()" "->" <ty:Type> ";" =>
         Decl::external(name, vec![], ty),
-    Func => { let (name, lam) = <>; Decl::Func(name, lam) },
+    Func => { Decl::Func(<>) },
 };
 
 pub LamTyVars: Vec<String> = {
@@ -39,12 +40,12 @@ pub LamTyVars: Vec<String> = {
                                   => vec![]
 };
 
-pub Func: (String,Lam) = {
-    "fn" <name:Ident> "(" <p:List<Ident>> ")" "{" <body: Expr> "}" => {
-        (name, Lam::new(p, body))
+pub Func: Bind = {
+    "let" <name:Ident> "(" <p:List<Ident>> ")" "{" <body: Expr> "}" => {
+        Bind::Rec(name, Expr::Lam(Box::new(Lam::new(p, body))))
     },
-    "fn" <name:Ident> "()" "{" <body: Expr> "}" => {
-        (name, Lam::new(vec![], body))
+    "let" <name:Ident> "()" "{" <body: Expr> "}" => {
+        Bind::Rec(name, Expr::Lam(Box::new(Lam::new(vec![], body))))
     }
 };
 
@@ -54,11 +55,15 @@ pub Param: (String,Type) = {
 
 pub Var: Expr = {
     Ident   => Expr::Var(<>),
-    //<Ident> "<" <List<Type>> ">" => Expr::Var(<>),
 };
 
 pub Callee: Expr = {
     Var   => <>
+};
+
+pub Lam: Lam = {
+    r"\\" <p:Ident> "->" <body: Expr> => Lam::new(vec![p], body),
+    r"\\" "(" <p:List<Ident>> ")" "->" "{" <body: Expr> "}" => Lam::new(p, body),
 };
 
 pub Expr: Expr = {
@@ -66,9 +71,9 @@ pub Expr: Expr = {
     "true"  => Expr::BoolLit(true),
     "false" => Expr::BoolLit(false),
     "()"    => Expr::UnitLit,
-    //Ident   => Expr::Var(<>),
     Var     => <>,
-    "(" <t:Expr> ")" => t,
+    Lam     => Expr::Lam(Box::new(<>)),
+    "{" <t:Expr> "}" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
     <callee:Callee> "(" <args:List<Expr>> ")" 
@@ -76,7 +81,8 @@ pub Expr: Expr = {
     <callee:Callee> "()" 
         => mk_app(callee, vec![]),
     "let" <id:Ident> "=" <e1:Expr> ";" <e2:Expr>
-        => Expr::Let(id, Box::new(e1), Box::new(e2)),
+        => { let bind = Bind::NonRec(id, e1 );
+             Expr::Let(Box::new(bind), Box::new(e2)) },
 };
 
 BaseType: Type = {
@@ -103,6 +109,5 @@ ArrowType: Vec<Type> = {
         p.push(r);
         p
     },
-    //"(" <p:List<Type>> ")" "->" <r:Type> => make_fnty(p, r, r.arity() + 1),
 };
 

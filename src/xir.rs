@@ -5,7 +5,7 @@
 
 use std::rc::Rc;
 use std::fmt;
-use ::types::{Type,TyVar,Kind};
+use ::types::{Type,TyVar};
 
 #[derive(Debug)]
 pub struct Module {
@@ -15,26 +15,24 @@ pub struct Module {
 
 #[derive(Debug)]
 pub enum Decl {
-    Extern(TermVar),
-    Let(TermVar, Expr),
+    Extern(Symbol),
+    Let(Bind),
 }
 
 #[derive(Clone,Hash,Eq,PartialEq)]
-pub struct TermVar {
+pub struct Symbol {
     name: Rc<String>,
     id: u32,
     ty: Type
 }
 
-#[derive(Clone)]
-pub enum Var {
-    Term(TermVar),
-    Type(TyVar, Kind)
+pub enum Bind {
+    NonRec{symbol: Symbol, expr: Expr},
+    //Rec(Vec<(String,Expr)>)
 }
 
 pub struct Let {
-    id:   TermVar,
-    bind: Expr,
+    bind: Bind,
     expr: Expr,
 }
 
@@ -51,10 +49,10 @@ pub enum Expr {
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
-    Var(TermVar),
+    Var(Symbol),
     If(Box<If>),
     Let(Box<Let>),
-    Lam(Vec<TermVar>, Box<Expr>),
+    Lam(Vec<Symbol>, Box<Expr>, Type),
     App(u32, Box<Expr>, Box<Expr>),
     TyLam(Vec<TyVar>, Box<Expr>),
     TyApp(Box<Expr>, Vec<Type>),
@@ -82,12 +80,12 @@ impl Module {
     }
 }
 
-impl TermVar {
+impl Symbol {
     pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
-        TermVar{name, ty, id}
+        Self{name, ty, id}
     }
-    pub fn with_ty(&self, ty: Type) -> TermVar {
-        TermVar::new(self.name.clone(), ty, self.id)
+    pub fn with_ty(&self, ty: Type) -> Self {
+        Self::new(self.name.clone(), ty, self.id)
     }
     pub fn name(&self) -> &Rc<String> {
         &self.name
@@ -100,7 +98,7 @@ impl TermVar {
     }
 }
 
-impl fmt::Debug for TermVar {
+impl fmt::Debug for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}_{}: {:?}", self.name, self.id, self.ty)
     }
@@ -125,13 +123,10 @@ impl If {
 }
 
 impl Let {
-    pub fn new(id: TermVar, bind: Expr, expr: Expr) -> Self {
-        Let{id, bind: bind, expr}
+    pub fn new(bind: Bind, expr: Expr) -> Self {
+        Let{bind, expr}
     }
-    pub fn id(&self) -> &TermVar {
-        &self.id
-    }
-    pub fn bind(&self) -> &Expr {
+    pub fn bind(&self) -> &Bind {
         &self.bind
     }
     pub fn expr(&self) -> &Expr {
@@ -139,9 +134,26 @@ impl Let {
     }
 }
 
+impl Bind {
+    pub fn non_rec(symbol: Symbol, expr: Expr) -> Self {
+        Bind::NonRec{symbol, expr}
+    }
+}
+
+impl fmt::Debug for Bind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Bind::*;
+        match *self {
+            NonRec{ref symbol, ref expr} => {
+                write!(f, "{:?} = {:?}", symbol, expr)
+            }
+        }
+    }
+}
+
 impl fmt::Debug for Let {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "let {:?} = {:?}\n{:?}", self.id, self.bind, self.expr)
+        write!(f, "let {:?}\n{:?}", self.bind, self.expr)
     }
 }
 

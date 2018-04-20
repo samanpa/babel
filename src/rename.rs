@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use fresh_id;
 
 pub struct Rename {
-    names: ScopedMap<String, idtree::TermVar>,
+    names: ScopedMap<String, idtree::Symbol>,
     //Store uniq names across all scopes to reduce memory.
     // FIXME: Is this even worth it?
     uniq_names: HashMap<String, Rc<String>>, 
@@ -63,7 +63,7 @@ impl Rename {
         self.add_uniq_name(nm)
     }
 
-    fn insert_var(&mut self, nm: &String, v: &idtree::TermVar) -> Result<()> {
+    fn insert_var(&mut self, nm: &String, v: &idtree::Symbol) -> Result<()> {
         let at_top_level = self.names.scope() == 0;
         match self.names.insert(nm.clone(), v.clone()) {
             None => Ok(()),
@@ -72,9 +72,9 @@ impl Rename {
         }
     }
 
-    fn add_var(&mut self, nm: &String, ty: Type) -> Result<idtree::TermVar> {
+    fn add_var(&mut self, nm: &String, ty: Type) -> Result<idtree::Symbol> {
         let var_name = self.add_uniq_name(nm);
-        let var = idtree::TermVar::new(var_name, ty, fresh_id());
+        let var = idtree::Symbol::new(var_name, ty, fresh_id());
         self.insert_var(nm, &var)?;
         Ok(var)
     }
@@ -110,18 +110,32 @@ impl Rename {
      
         Ok(idtree::Expr::Lam(params, Box::new(body)))
     }
+
+    fn conv_bind(&mut self, bind: &ast::Bind) -> Result<idtree::Bind> {
+        match *bind {
+            ast::Bind::NonRec(ref name, ref expr) => {
+                let lam  = self.conv(expr)?;
+                let fnty = Self::new_tyvar();
+                let fnid = self.add_var(name, fnty)?;
+                Ok(idtree::Bind::new(fnid, lam))
+            },
+            ast::Bind::Rec(ref name, ref expr) => {
+                let fnty = Self::new_tyvar();
+                let fnid = self.add_var(name, fnty)?;
+                let lam  = self.conv(expr)?;
+                Ok(idtree::Bind::new(fnid, lam))
+            }
+        }
+    }
     
     fn conv_decl(&mut self, decl: &ast::Decl) -> Result<idtree::Decl> {
         use ast::Decl::*;
         let res = match *decl {
-            Extern(ref name, ref ty) => {
-                self.conv_extern(name, ty)?
-            }
-            Func(ref name, ref lam) => {
-                let fnty = Self::new_tyvar();
-                let fnid = self.add_var(name, fnty)?;
-                let lam  = self.conv_lam(lam)?;
-                idtree::Decl::Let(fnid, lam)
+            Extern(ref name, ref ty) =>
+                self.conv_extern(name, ty)?,
+            Func(ref bind)           => {
+                let bind = self.conv_bind(bind)?;
+                idtree::Decl::Let(bind)
             }
         };
         Ok(res)
@@ -155,12 +169,10 @@ impl Rename {
                     }
                 }
             }
-            Let(ref name, ref bind, ref expr) => {
-                let letty = Self::new_tyvar();
-                let bind  = self.conv(bind)?;
-                let id    = self.add_var(name, letty)?;
+            Let(ref bind, ref expr) => {
+                let bind  = self.conv_bind(bind)?;
                 let expr  = self.conv(expr)?;
-                let let_  = idtree::Let::new(id, bind, expr);
+                let let_  = idtree::Let::new(bind, expr);
                 idtree::Expr::Let(Box::new(let_))
             }
         };

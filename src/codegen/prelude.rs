@@ -22,12 +22,12 @@ impl Prelude {
         LLVMPositionBuilderAtEnd(builder, bb);
     }
 
-    pub  unsafe fn emit(name: &monoir::TermVar, func: LLVMValueRef
+    pub  unsafe fn emit(sym: &monoir::Symbol, func: LLVMValueRef
                        , module: LLVMModuleRef
                        , builder: LLVMBuilderRef) 
                        -> Result<Option<LLVMValueRef>>
     {
-        let res = match name.name().as_str() {
+        let res = match sym.name().as_str() {
             "i32_add" => {
                 Self::prepare(LLVMGetModuleContext(module), func, builder);
                 let p0  = LLVMGetParam(func, 0);
