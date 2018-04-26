@@ -31,8 +31,7 @@ impl Uncurry {
         match *f {
             xir::Bind::NonRec{ref symbol, ref expr} => {
                 let sym      = process_symbol(symbol)?;
-                let mut args = Vec::new();
-                let expr     = process(expr, &mut args)?;
+                let expr     = process(expr)?;
                 Ok(monoir::Bind::new(sym, expr))
             }
         }
@@ -68,22 +67,18 @@ fn process_symbol(sym: &xir::Symbol) -> Result<monoir::Symbol> {
 }
 
 
-fn process_bind(bind: &xir::Bind, args: &mut Vec<monoir::Expr>)
-                -> Result<monoir::Bind>
-{
+fn process_bind(bind: &xir::Bind) -> Result<monoir::Bind> {
     let bind = match *bind {
         xir::Bind::NonRec{ref symbol, ref expr} => {
             let sym  = process_symbol(symbol)?;
-            let expr = process(expr, args)?;
+            let expr = process(expr)?;
             monoir::Bind::new(sym, expr)
         }
     };
     Ok(bind)
 }
 
-fn process(expr: &xir::Expr, args: &mut Vec<monoir::Expr>)
-           -> Result<monoir::Expr>
-{
+fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
     use xir::Expr::*;
 
     let expr = match *expr {
@@ -92,34 +87,26 @@ fn process(expr: &xir::Expr, args: &mut Vec<monoir::Expr>)
         BoolLit(b)   => monoir::Expr::BoolLit(b),
         Var(ref var) => monoir::Expr::Var(process_symbol(var)?),
         If(ref e) => {
-            monoir::Expr::If(Box::new(process(e.cond(),  args)?),
-                             Box::new(process(e.texpr(), args)?),
-                             Box::new(process(e.fexpr(), args)?),
+            monoir::Expr::If(Box::new(process(e.cond())?),
+                             Box::new(process(e.texpr())?),
+                             Box::new(process(e.fexpr())?),
                              get_type(e.ty())?)
         }
         Let(ref e) => {
-            let bind = process_bind(e.bind(), args)?;
-            let expr = process(e.expr(), args)?;
+            let bind = process_bind(e.bind())?;
+            let expr = process(e.expr())?;
             monoir::Expr::Let(Box::new(bind), Box::new(expr))
         }
         Lam(ref params, ref body, ref _retty) => {
             let params = Vector::map(params, process_symbol)?;
-            let body   = process(body, args)?;
+            let body   = process(body)?;
             let lam    = monoir::Lam::new(params, body);
             monoir::Expr::Lam(Box::new(lam))
         }
-        App(1, ref caller, ref arg) => {
-            let mut args = Vec::with_capacity(2);
-            let caller   = process(caller, &mut args)?;
-            let arg      = process(arg, &mut args)?;
-            args.push(arg);
+        App(ref caller, ref args) => {
+            let caller = process(caller)?;
+            let args   = Vector::map( args, |arg| process(arg))?;
             monoir::Expr::App(Box::new(caller), args)
-        }
-        App(_, ref caller, ref arg) => {
-            let caller = process(caller, args)?;
-            let arg    = process(arg, args)?;
-            args.push(arg);
-            caller
         }
         _ => {
             let msg = format!("EXPR not supported {:?}", expr);

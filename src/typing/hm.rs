@@ -46,8 +46,8 @@ pub (super) fn infer(gamma: &mut Env, expr: &idtree::Expr) -> Result<(Subst, Typ
         Var(ref v)    => infer_var(gamma, v)?,
         If(ref exp)   => infer_if(gamma, exp)?,
         Let(ref exp)  => infer_let(gamma, exp)?,
-        App(n, ref callee, ref args) => infer_app(n, gamma, callee, args)?,
-        Lam(ref proto, ref body)     => infer_lam(gamma.clone(), proto, body)?,
+        App(ref callee, ref args) => infer_app(gamma, callee, args)?,
+        Lam(ref proto, ref body)  => infer_lam(gamma.clone(), proto, body)?,
     };
     Ok((subst, ty, expr))
 }
@@ -114,19 +114,37 @@ fn infer_lam(mut gamma: Env, params: &Vec<idtree::Symbol>, body: &idtree::Expr)
     Ok((s1, fnty, expr))
 }
 
-fn infer_app(n: u32, gamma: &mut Env, callee: &idtree::Expr, arg: &idtree::Expr)
+fn infer_args(mut gamma: Env, args: &[idtree::Expr])
+              -> Result<(Subst, Vec<Type>, Vec<xir::Expr>)>
+{
+    let mut s     = Subst::new();
+    let mut tys   = Vec::with_capacity(args.len());
+    let mut exprs = Vec::with_capacity(args.len());
+    
+    for arg in args {
+        let (s1, t1, arg) = infer(&mut gamma, arg)?;
+        gamma = gamma.apply_subst(&s1);
+        s     = s1.compose(&s)?;
+        tys.push(t1);
+        exprs.push(arg);
+        
+    }
+    Ok((s, tys, exprs))
+}
+
+fn infer_app(gamma: &mut Env, caller: &idtree::Expr, args: &[idtree::Expr])
              -> Result<(Subst, Type, xir::Expr)>
 {
-    let (s1, t1, callee) = infer(gamma, callee)?;
-    let mut gamma        = gamma.apply_subst(&s1);
-    let (s2, t2, arg)    = infer(&mut gamma, arg)?;
+    let (s1, t1, caller) = infer(gamma, caller)?;
+    let gamma            = gamma.apply_subst(&s1);
+    let (s2, t2, args)   = infer_args(gamma, args)?;
     let retty            = Type::Var(fresh_tyvar());
-    let fnty             = mk_fn(t2.clone(), retty.clone(), n+1);
+    let fnty             = mk_func(&t2, retty.clone());
     let s3               = unify(&s2.apply(&t1), &fnty)?;
     let t                = s3.apply(&retty);
     let subst            = s3.compose(&s2)?.
         compose(&s1)?;
-    let app              = xir::Expr::App(n, Box::new(callee), Box::new(arg));
+    let app              = xir::Expr::App(Box::new(caller), args);
     Ok((subst, t, app))
 }
 

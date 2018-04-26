@@ -39,7 +39,7 @@ pub enum Bind {
 #[derive(Debug)]
 pub enum Expr {
     Lam(Box<Lam>),
-    App(u32, Box<Expr>, Box<Expr>),
+    App(Box<Expr>, Vec<Expr>),
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
@@ -76,15 +76,7 @@ impl Module {
 }
 
 pub fn mk_app(expr: Expr, args: Vec<Expr>) -> Expr {
-    let app = |(expr,n), arg| {
-        let expr = Expr::App(n, Box::new(expr), Box::new(arg));
-        (expr, n-1)
-    };
-    let (expr, _) = match args.len() as u32 {
-        0 => app((expr,1), Expr::UnitLit),
-        n => args.into_iter().fold((expr,n), app)
-    };
-    expr
+    Expr::App(Box::new(expr), args)
 }        
 
 pub fn make_func(param: Vec<Type>, ret: Type) -> Type {

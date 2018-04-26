@@ -47,7 +47,7 @@ pub enum Expr {
     If(Box<If>),
     Let(Box<Let>),
     Lam(Vec<Symbol>, Box<Expr>),
-    App(u32, Box<Expr>, Box<Expr>),
+    App(Box<Expr>, Vec<Expr>),
 }
 
 impl Module {

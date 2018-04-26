@@ -46,7 +46,7 @@ impl LambdaLift {
         }
 
         for decl in decls.iter() {
-            println!("{:?}\n", decl);
+            //println!("{:?}\n", decl);
         }
         
         Ok(Module::new(module.name().clone(), decls))
@@ -108,10 +108,12 @@ impl LambdaLift {
                                            e.ty().clone());
                 Expr::If(Box::new(if_expr))
             }
-            App(n, ref callee, ref arg) => {
+            App(ref callee, ref args) => {
                 let callee = self.lift(callee, acc, false);
-                let arg    = self.lift(arg, acc, false);
-                App(n, Box::new(callee), Box::new(arg))
+                let args   = args.iter()
+                    .map( | arg | self.lift(arg, acc, false) )
+                    .collect::<Vec<_>>();
+                App(Box::new(callee), args)
             }
             Let(ref exp) => {
                 let bind = self.lift_bind(exp.bind(), acc);

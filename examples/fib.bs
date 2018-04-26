@@ -1,8 +1,8 @@
-fn id(x) {
+let id(x) {
     x
 }
 
-fn fib(n) {
+let fib(n) {
     if i32_lt(n, 2) {
         id(1)
     }
@@ -13,11 +13,11 @@ fn fib(n) {
     }
 }
 
-fn fib_print(print, n) {
+let fib_print(print, n) {
    print(fib(n))
 }
 
-fn main() {
+let main() {
     fib_print(i32_print, 10)
 }
 

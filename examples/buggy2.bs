@@ -1,13 +1,13 @@
-fn id(a) {
+let id(a) {
    a
 }
 
-fn buggy() {
+let buggy() {
    let f = id(id);
    let x = f(1);
    f(true)
 }
 
-fn main() {
+let main() {
    buggy()
 }

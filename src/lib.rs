@@ -67,7 +67,7 @@ impl Vector {
     }
     pub fn mapt<I,O,F>(v: Vec<I>, mut f: F) -> Result<Vec<O>> 
         where F: FnMut(I) -> Result<O>{
-        let mut res = Vec::new();
+        let mut res = Vec::with_capacity(v.len());
         for val in v {
             let val = f(val)?;
             res.push(val);

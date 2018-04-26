@@ -57,6 +57,7 @@ impl Specialize {
         }
 
         for bind in mono_exps.into_iter().rev() {
+            println!("=====> {:?}", bind);
             let mut sub = Subst::new();
             let bind    = spec.process(&bind, &mut sub, vec![])?;
             decls.push(Decl::Let(bind));
@@ -230,10 +231,11 @@ impl Specializer
                                            ty);
                 Expr::If(Box::new(if_expr))
             }
-            App(n, ref callee, ref arg) => {
+            App(ref callee, ref args) => {
                 let callee = self.run(callee, sub, vec![])?;
-                let arg    = self.run(arg, sub, vec![])?;
-                xir::Expr::App(n, Box::new(callee), Box::new(arg))
+                let args   = Vector::map(args
+                                         , |arg| self.run(arg, sub, vec![]))?;
+                xir::Expr::App(Box::new(callee), args)
             }
             TyLam(ref param, ref b) => {
                 for (tyvar, ty) in param.iter().zip(args.into_iter()) {

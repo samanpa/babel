@@ -155,10 +155,10 @@ impl Rename {
                                               Self::new_tyvar());
                 idtree::Expr::If(Box::new(if_expr))
             }
-            App(n, ref callee, ref arg) => {
+            App(ref callee, ref args) => {
                 let callee = Box::new(self.conv(callee)?);
-                let arg    = Box::new(self.conv(arg)?);
-                idtree::Expr::App(n, callee, arg)
+                let args   = Vector::map(args, |arg| self.conv(arg))?;
+                idtree::Expr::App(callee, args)
             }
             Var(ref nm) => {
                 match self.names.get(nm) {
