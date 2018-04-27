@@ -1,7 +1,10 @@
+use std::rc::Rc;
+use super::typing::Kind;
+
 #[derive(Debug)]
 pub enum Type {
     App(Box<Type>, Box<Type>),
-    Con(String, u32),
+    Con(String, Kind),
     Var(String)
 }
 
@@ -48,16 +51,6 @@ pub enum Expr {
     Let(Box<Bind>, Box<Expr>)
 }
 
-impl Type {
-    pub fn arity(&self) -> u32 {
-        match *self {
-            Type::App(ref l, _) => l.arity() - 1,
-            Type::Con(_, arity) => arity,
-            Type::Var(_)        => 0, //FIXME: not true when we have HKT
-        }
-    }
-}
-
 impl Module {
     pub fn new(decls: Vec<Decl>) -> Self {
         Self{name: "".to_string(), decls}
@@ -75,24 +68,27 @@ impl Module {
     }
 }
 
-pub fn mk_app(expr: Expr, args: Vec<Expr>) -> Expr {
-    Expr::App(Box::new(expr), args)
-}        
+fn con(nm: &str, kind: Kind) -> Type {
+    Type::Con(nm.to_string(), kind)
+}
 
-pub fn make_func(param: Vec<Type>, ret: Type) -> Type {
+pub fn func(mut params: Vec<Type>, ret: Type) -> Type {
     use self::Type::*;
-    let mk_fn = |(ret, arity), param| {
-        let con  = Box::new(Con("->".to_string(), arity));
-        let app1 = App(con, Box::new(param));
-        let func = App(Box::new(app1), Box::new(ret));
-        (func, arity + 1)
+    let mk_kind = |n| {
+        let mut kind = Kind::Star;
+        for _ in 0..(n+1) {
+            kind = Kind::Fun(Rc::new(Kind::Star), Rc::new(kind));
+        }
+        kind
     };
-    let itr = param.into_iter().rev();
-    let (ty, _arity) = match itr.len() as u32 {
-        0 => mk_fn((ret, 2), Con("unit".to_string(), 0)),
-        _ => itr.fold((ret, 2), mk_fn),
-    };
-    ty
+    if params.len() == 0 {
+        params = vec![con("unit", Kind::Star)];
+    }
+    let mut ty = con("->", mk_kind(params.len()));
+    for param in params {
+        ty = App(Box::new(ty), Box::new(param));
+    }
+    App(Box::new(ty), Box::new(ret))
 }
 
 impl Decl {
@@ -101,7 +97,7 @@ impl Decl {
         let params_ty : Vec<Type> = params.into_iter()
             .map(|(_,ty)| ty)
             .collect();
-        let ty = make_func(params_ty, retty);
+        let ty = func(params_ty, retty);
         Decl::Extern(name, ty)
     }
 }

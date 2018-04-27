@@ -1,6 +1,7 @@
 //Standard Hindley Milner augmented with value restriction
 //    "Simple imperative polymorphism" - Wright
 
+use super::Kind;
 use super::types::{Type,TyVar,ForAll,fresh_tyvar,generalize};
 use super::subst::Subst;
 use super::env::Env;
@@ -10,39 +11,37 @@ use ::xir;
 use ::Result;
 use std::rc::Rc;
 
-fn mk_tycon(str: &str, arity: u32) -> Type {
-    Type::Con(Rc::new(str.to_string()), arity)
+fn tycon(str: &str, kind: Kind) -> Type {
+    Type::Con(Rc::new(str.to_string()), kind)
 }
 
-fn mk_fn(param: Type, ret: Type, arity: u32) -> Type {
+pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
     use self::Type::*;
-    let fncon = Box::new(mk_tycon("->", arity));
-    App(Box::new(App(fncon, Box::new(param))), Box::new(ret))
-}
-
-fn mk_func(param: &Vec<Type>, ret: Type) -> Type {
-    let itr = param.into_iter().rev();
-    match itr.len() as u32 {
-        0 => mk_fn(mk_tycon("unit", 0), ret, 2),
-        _ => {
-            let mut ty = ret;
-            let mut arity = 2;
-            for param in itr {
-                ty = mk_fn(param.clone(), ty, arity);
-                arity += 1;
-            };
-            ty
-        },
+    let mk_kind = |n| {
+        let mut kind = Kind::Star;
+        for _ in 0..(n+1) {
+            kind = Kind::Fun(Rc::new(Kind::Star), Rc::new(kind));
+        }
+        kind
+    };
+    if params.len() == 0 {
+        params = vec![tycon("unit", Kind::Star)];
     }
+    let mut ty = tycon("->", mk_kind(params.len()));
+    for param in params {
+        ty = App(Box::new(ty), Box::new(param));
+    }
+    App(Box::new(ty), Box::new(ret))
 }
 
 pub (super) fn infer(gamma: &mut Env, expr: &idtree::Expr) -> Result<(Subst, Type, xir::Expr)> {
+    use self::Kind::*;
     use idtree::Expr::*;
     let subst = Subst::new();
     let (subst, ty, expr) = match *expr {
-        UnitLit       => (subst, mk_tycon("unit", 0), xir::Expr::UnitLit),
-        I32Lit(n)     => (subst, mk_tycon("i32", 0),  xir::Expr::I32Lit(n)),
-        BoolLit(b)    => (subst, mk_tycon("bool", 0), xir::Expr::BoolLit(b)),
+        UnitLit       => (subst, tycon("unit", Star), xir::Expr::UnitLit),
+        I32Lit(n)     => (subst, tycon("i32", Star),  xir::Expr::I32Lit(n)),
+        BoolLit(b)    => (subst, tycon("bool", Star), xir::Expr::BoolLit(b)),
         Var(ref v)    => infer_var(gamma, v)?,
         If(ref exp)   => infer_if(gamma, exp)?,
         Let(ref exp)  => infer_let(gamma, exp)?,
@@ -109,7 +108,7 @@ fn infer_lam(mut gamma: Env, params: &Vec<idtree::Symbol>, body: &idtree::Expr)
         .collect();
     let (s1, t1, body) = infer(&mut gamma, body)?;
     let expr = translate_lam(body, params, &params_ty, t1.clone());
-    let fnty = mk_func(&params_ty, t1);
+    let fnty = mk_func(params_ty, t1);
     let fnty = s1.apply(&fnty);
     Ok((s1, fnty, expr))
 }
@@ -139,7 +138,7 @@ fn infer_app(gamma: &mut Env, caller: &idtree::Expr, args: &[idtree::Expr])
     let gamma            = gamma.apply_subst(&s1);
     let (s2, t2, args)   = infer_args(gamma, args)?;
     let retty            = Type::Var(fresh_tyvar());
-    let fnty             = mk_func(&t2, retty.clone());
+    let fnty             = mk_func(t2, retty.clone());
     let s3               = unify(&s2.apply(&t1), &fnty)?;
     let t                = s3.apply(&retty);
     let subst            = s3.compose(&s2)?.
@@ -233,7 +232,7 @@ fn infer_if(gamma: &mut Env, if_expr: &idtree::If) -> Result<(Subst, Type, xir::
     let (s2, t2, texp) = infer(&mut gamma, if_expr.texpr())?;
     let (s3, t3, fexp) = infer(&mut gamma, if_expr.fexpr())?;
 
-    let s4 = unify(&t1, &mk_tycon("bool", 0))?;
+    let s4 = unify(&t1, &tycon("bool", Kind::Star))?;
     let s5 = unify(&t2, &t3)?;
 
     let ty = s5.apply(&t2);

@@ -42,7 +42,8 @@ impl Rename {
         use ast::Type::*;
         let ty = match *ty {
             Var(ref _v)           => Self::new_tyvar(),
-            Con(ref tycon, n)     => Type::Con(self.mk_tycon(tycon), n),
+            Con(ref nm, ref kind) => Type::Con(self.mk_tycon(nm)
+                                               , kind.clone()),
             App(ref con, ref arg) => {
                 let con = self.conv_ty(con)?;
                 let arg = self.conv_ty(arg)?;

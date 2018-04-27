@@ -1,5 +1,7 @@
+use std::rc::Rc;
 use xir;
 use typing::types::Type;
+use typing::Kind;
 use monoir;
 use {Result,Vector,Error};
 
@@ -116,71 +118,65 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
     Ok(expr)
 }
 
-struct FuncTy<'t> {
-    nargs: u32,
-    first_arg: &'t Type,
-    rest: &'t Type,
-}
-
-fn get_functy<'t>(ty: &'t Type) -> Option<FuncTy<'t>> {
-    use self::Type::*;
-    if let App(ref caller, ref rest) = *ty {
-        if let App(ref caller2, ref first_arg) = **caller {
-            match **caller2 {
-                Con(ref name, nargs) if name.as_ref() == "->" => { 
-                    let res = FuncTy{nargs, first_arg, rest};
-                    return Some(res)
-                }
-                _ => {}
-            }
-        }
-    }
-    None
-}
-
-fn process_fnty(arg_cnt:u32, ret: &Type, args: &mut Vec<monoir::Type>)
-                -> Result<monoir::Type>
+fn flatten(ty: &Type)-> Result<(Rc<String>, &Kind, Vec<monoir::Type>)>
 {
-    match arg_cnt {
-        1 => get_type(ret),
-        n => {
-            match get_functy(ret) {
-                Some(fty) =>  {
-                    let p = get_type(fty.first_arg)?;
-                    args.push(p);
-                    process_fnty(fty.nargs-1, fty.rest, args)
-                }
-                None => {
-                    let msg = format!("not a functy {:?}", ret);
-                    return Err(Error::new(msg));                        
-                }
+    let mut args = Vec::new();
+    let mut itr  = ty;
+
+    loop {
+        match *itr {
+            Type::Con(ref nm, ref kind) => {
+                args.reverse();
+                return Ok((nm.clone(), kind, args))
+            }
+            Type::App(ref lhs, ref rhs) => {
+            let arg = get_type(rhs)?;
+                args.push(arg);
+                itr = lhs;
+            }
+            Type::Var(_) => {
+                let msg = format!("Could not flatten {:?} it has a type var"
+                                  , ty);
+                return Err(Error::new(msg))
             }
         }
     }
+    
 }
 
 fn get_appty(ty: &Type) -> Result<monoir::Type> {
-    if let Some(FuncTy{nargs, first_arg, rest}) = get_functy(ty) {
-        let mut params_ty = Vec::with_capacity(nargs as usize);
-        params_ty.push(get_type(first_arg)?);
-        let return_ty = process_fnty(nargs-1, rest, &mut params_ty)?;
-        let return_ty = Box::new(return_ty);
-        return Ok(monoir::Type::Function{ params_ty, return_ty });
+    //FIXME: check kind
+    let (tycon, _kind, mut args) = flatten(ty)?;
+    match tycon.as_str() {
+        "->" => {
+            if args.len() < 2 {
+                let msg = format!("Function with one arg found {:?}", ty);
+                Err(Error::new(msg))
+            } else {
+                let slice_end = args.len() - 1; //borrow_chk
+                let params_ty = args.drain(..slice_end)
+                    .collect::<Vec<_>>();
+                let return_ty = Box::new(args.pop().unwrap());
+                Ok(monoir::Type::Function{params_ty, return_ty})
+            }
+        }
+        _   => {
+            let msg = format!("not supported {:?}", ty);
+            Err(Error::new(msg))
+        }
     }
-
-    let msg = format!("not supported {:?}", ty);
-    Err(Error::new(msg))
 }
 
 fn get_type(ty: &Type) -> Result<monoir::Type> {
     use self::Type::*;
+    use self::Kind::*;
     let ty = match *ty {
         App(_, _) => get_appty(ty)?,
-        Con(ref name, n) => {
-            match (name.as_str(), n) {
-                ("i32",  0) => monoir::Type::I32,
-                ("bool", 0) => monoir::Type::Bool,
-                ("unit", 0) => monoir::Type::Unit,
+        Con(ref name, ref k) => {
+            match (name.as_str(), k) {
+                ("i32",  &Star) => monoir::Type::I32,
+                ("bool", &Star) => monoir::Type::Bool,
+                ("unit", &Star) => monoir::Type::Unit,
                 _           => {
                     let msg = format!("not supported {:?}", ty);
                     return Err(Error::new(msg))

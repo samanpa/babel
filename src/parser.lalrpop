@@ -2,7 +2,7 @@
 #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 use ast::*;
 use std::str::FromStr;
-
+use ::typing::Kind;
 
 grammar;
 
@@ -57,7 +57,7 @@ pub Var: Expr = {
     Ident   => Expr::Var(<>),
 };
 
-pub Callee: Expr = {
+pub Caller: Expr = {
     Var   => <>
 };
 
@@ -76,18 +76,18 @@ pub Expr: Expr = {
     "{" <t:Expr> "}" => t,
     "if" <cond:Expr> "{" <true_expr:Expr> "}" "else" "{" <false_expr:Expr> "}"
         => Expr::If(Box::new(If::new(cond, true_expr, false_expr))),
-    <callee:Callee> "(" <args:List<Expr>> ")" 
-        => mk_app(callee, args),
-    <callee:Callee> "()" 
-        => mk_app(callee, vec![]),
+    <caller:Caller> "(" <args:List<Expr>> ")" 
+        => Expr::App(Box::new(caller), args),
+    <caller:Caller> "()" 
+        => Expr::App(Box::new(caller), vec![]),
     "let" <id:Ident> "=" <e1:Expr> ";" <e2:Expr>
         => { let bind = Bind::NonRec(id, e1 );
              Expr::Let(Box::new(bind), Box::new(e2)) },
 };
 
 BaseType: Type = {
-    "()"   => Type::Con("unit".to_string(), 0),
-    Ident  => Type::Con(<>, 0)
+    "()"   => Type::Con("unit".to_string(), Kind::Star),
+    Ident  => Type::Con(<>, Kind::Star)
 };
 
 Type: Type = {
@@ -95,7 +95,7 @@ Type: Type = {
     ArrowType => {
         let mut params = <>;
         let retty  = params.pop().unwrap();
-        make_func(params, retty)
+        func(params, retty)
     }
 };
 

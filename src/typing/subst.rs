@@ -56,8 +56,8 @@ impl Subst {
     pub fn apply(&self, ty: &Type) -> Type {
         use types::Type::*;
         match *ty {
-            Con(ref con, arity)   => Con(con.clone(), arity),
-            App(ref con, ref arg) => {
+            Con(ref con, ref kind) => Con(con.clone(), kind.clone()),
+            App(ref con, ref arg)  => {
                 let con = self.apply(con);
                 let arg = self.apply(arg);
                 App(Box::new(con), Box::new(arg))

@@ -45,9 +45,11 @@ impl LambdaLift {
             decls.push(decl)
         }
 
+        /*
         for decl in decls.iter() {
             //println!("{:?}\n", decl);
         }
+        */
         
         Ok(Module::new(module.name().clone(), decls))
     }
@@ -61,7 +63,7 @@ impl LambdaLift {
                 match expr {
                     Expr::Lam(_, _, _) if self.map.scope() > 1 => {
                         let fnid = fresh_id();
-                        let fnnm = Rc::new(format!("@__anon_{}", fnid));
+                        let fnnm = Rc::new(format!("@__fnanon_{}", fnid));
                         let fnty = symbol.ty().clone();
                         let sym  = Symbol::new(fnnm, fnty, fnid);
                         let bind = Bind::non_rec(symbol.clone(), expr);

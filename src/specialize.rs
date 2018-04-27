@@ -57,7 +57,6 @@ impl Specialize {
         }
 
         for bind in mono_exps.into_iter().rev() {
-            println!("=====> {:?}", bind);
             let mut sub = Subst::new();
             let bind    = spec.process(&bind, &mut sub, vec![])?;
             decls.push(Decl::Let(bind));

@@ -20,8 +20,8 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<Subst>
 {
     use types::Type::*;
     let subst = match (lhs, rhs) {
-        (&Con(ref l, ln), &Con(ref r, rn)) => {
-            if *l == *r && ln == rn {
+        (&Con(ref l, ref lk), &Con(ref r, ref rk)) => {
+            if *l == *r && lk == rk {
                 Subst::new()
             } else {
                 let msg = format!("Can not unify {:?} with {:?}", lhs, rhs);

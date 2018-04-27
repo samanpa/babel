@@ -1,25 +1,21 @@
 use std::rc::Rc;
 use super::subst::Subst;
 use std::collections::HashSet;
+use super::Kind;
 use std::fmt;
 
-#[derive(Copy,Clone,Hash,Eq,PartialEq)]
+#[derive(Copy,Clone,Hash,PartialEq,Eq)]
 pub struct TyVar(u32);
 
 pub fn fresh_tyvar() -> TyVar {
     TyVar(::fresh_id())
 }
 
-#[derive(Clone,Hash,Eq,PartialEq)]
+#[derive(Clone,Hash,PartialEq,Eq)]
 pub enum Type {
-    Con(Rc<String>, u32),
+    Con(Rc<String>, Kind),
     App(Box<Type>, Box<Type>),
     Var(TyVar)
-}
-
-#[derive(Clone)]
-pub enum Kind {
-    Type
 }
 
 #[derive(Debug,Clone,Hash,Eq,PartialEq)]
@@ -30,14 +26,6 @@ pub struct ForAll {
 
 
 impl Type {
-    pub fn arity(&self) -> u32 {
-        match *self {
-            Type::App(ref l, _) => l.arity() - 1,
-            Type::Con(_, arity) => arity,
-            Type::Var(_)        => 0, //FIXME: not true when we have HKT
-        }
-    }
-
     pub fn free_tyvars(&self) -> HashSet<TyVar>
     {
         use self::Type::*;
@@ -59,9 +47,9 @@ impl fmt::Debug for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Type::*;
         match *self {
-            Con(ref str, n)   => write!(f, "{}:{}", str, n),
-            App(ref a, ref b) => write!(f, "App({:?}, {:?})", a, b),
-            Var(v)            => write!(f, "{:?}", v),
+            Con(ref str, ref k) => write!(f, "{}:{:?}", str, k),
+            App(ref a, ref b)   => write!(f, "App({:?}, {:?})", a, b),
+            Var(v)              => write!(f, "{:?}", v),
         }
     }
 }
