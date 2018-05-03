@@ -12,8 +12,17 @@ pub fn fresh_tyvar() -> TyVar {
 }
 
 #[derive(Clone,Hash,PartialEq,Eq)]
+pub enum TyCon {
+    Cus(Rc<String>),
+    I32,
+    Bool,
+    Unit,
+    Func,
+}
+
+#[derive(Clone,Hash,PartialEq,Eq)]
 pub enum Type {
-    Con(Rc<String>, Kind),
+    Con(TyCon, Kind),
     App(Box<Type>, Box<Type>),
     Var(TyVar)
 }
@@ -47,7 +56,7 @@ impl fmt::Debug for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Type::*;
         match *self {
-            Con(ref str, ref k) => write!(f, "{}:{:?}", str, k),
+            Con(ref str, ref k) => write!(f, "{:?}:{:?}", str, k),
             App(ref a, ref b)   => write!(f, "App({:?}, {:?})", a, b),
             Var(v)              => write!(f, "{:?}", v),
         }
@@ -57,6 +66,20 @@ impl fmt::Debug for Type {
 impl fmt::Debug for TyVar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "'a{}", self.0)
+    }
+}
+
+impl fmt::Debug for TyCon {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::TyCon::*;
+        let v = match *self {
+            I32   => "i32",
+            Bool  => "bool",
+            Unit  => "()",
+            Func  => "->",
+            Cus(ref nm) => nm.as_str(),
+        };
+        write!(f, "{}", v)
     }
 }
 

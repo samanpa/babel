@@ -1,6 +1,6 @@
 use ast;
 use idtree;
-use types::{Type,fresh_tyvar};
+use types::{Type,TyCon,fresh_tyvar};
 use {Vector,Result,Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
@@ -42,8 +42,16 @@ impl Rename {
         use ast::Type::*;
         let ty = match *ty {
             Var(ref _v)           => Self::new_tyvar(),
-            Con(ref nm, ref kind) => Type::Con(self.mk_tycon(nm)
-                                               , kind.clone()),
+            Con(ref nm, ref kind) => {
+                let tycon = match nm.as_str() {
+                    "i32"  => TyCon::I32,
+                    "bool" => TyCon::Bool,
+                    "()"   => TyCon::Unit,
+                    "->"   => TyCon::Func,
+                    _      => TyCon::Cus(self.mk_tycon(nm))
+                };
+                Type::Con(tycon, kind.clone())
+            }
             App(ref con, ref arg) => {
                 let con = self.conv_ty(con)?;
                 let arg = self.conv_ty(arg)?;

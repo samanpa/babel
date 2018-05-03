@@ -16,7 +16,7 @@ llvm-sys = "50"
 libc = "0.2"
 
 [dependencies.regex]
-version = "0.2.0"
+version = "1.0"
 
 # Add a dependency on the LALRPOP runtime library:
 [dependencies.lalrpop-util]

@@ -1,6 +1,5 @@
-use std::rc::Rc;
 use xir;
-use typing::types::Type;
+use typing::types::{TyCon,Type};
 use typing::Kind;
 use monoir;
 use {Result,Vector,Error};
@@ -118,16 +117,16 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
     Ok(expr)
 }
 
-fn flatten(ty: &Type)-> Result<(Rc<String>, &Kind, Vec<monoir::Type>)>
+fn flatten(ty: &Type)-> Result<(TyCon, &Kind, Vec<monoir::Type>)>
 {
     let mut args = Vec::new();
     let mut itr  = ty;
 
     loop {
         match *itr {
-            Type::Con(ref nm, ref kind) => {
+            Type::Con(ref tycon, ref kind) => {
                 args.reverse();
-                return Ok((nm.clone(), kind, args))
+                return Ok((tycon.clone(), kind, args))
             }
             Type::App(ref lhs, ref rhs) => {
             let arg = get_type(rhs)?;
@@ -147,8 +146,8 @@ fn flatten(ty: &Type)-> Result<(Rc<String>, &Kind, Vec<monoir::Type>)>
 fn get_appty(ty: &Type) -> Result<monoir::Type> {
     //FIXME: check kind
     let (tycon, _kind, mut args) = flatten(ty)?;
-    match tycon.as_str() {
-        "->" => {
+    match tycon {
+        TyCon::Func => {
             if args.len() < 2 {
                 let msg = format!("Function with one arg found {:?}", ty);
                 Err(Error::new(msg))
@@ -169,14 +168,15 @@ fn get_appty(ty: &Type) -> Result<monoir::Type> {
 
 fn get_type(ty: &Type) -> Result<monoir::Type> {
     use self::Type::*;
+    use self::TyCon::*;
     use self::Kind::*;
     let ty = match *ty {
         App(_, _) => get_appty(ty)?,
-        Con(ref name, ref k) => {
-            match (name.as_str(), k) {
-                ("i32",  &Star) => monoir::Type::I32,
-                ("bool", &Star) => monoir::Type::Bool,
-                ("unit", &Star) => monoir::Type::Unit,
+        Con(ref tycon, ref k) => {
+            match (tycon, k) {
+                (&I32,  &Star) => monoir::Type::I32,
+                (&Bool, &Star) => monoir::Type::Bool,
+                (&Unit, &Star) => monoir::Type::Unit,
                 _           => {
                     let msg = format!("not supported {:?}", ty);
                     return Err(Error::new(msg))

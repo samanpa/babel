@@ -2,7 +2,7 @@
 //    "Simple imperative polymorphism" - Wright
 
 use super::Kind;
-use super::types::{Type,TyVar,ForAll,fresh_tyvar,generalize};
+use super::types::{TyCon,Type,TyVar,ForAll,fresh_tyvar,generalize};
 use super::subst::Subst;
 use super::env::Env;
 use super::unify::unify;
@@ -10,10 +10,6 @@ use ::idtree;
 use ::xir;
 use ::Result;
 use std::rc::Rc;
-
-fn tycon(str: &str, kind: Kind) -> Type {
-    Type::Con(Rc::new(str.to_string()), kind)
-}
 
 pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
     use self::Type::*;
@@ -25,9 +21,9 @@ pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
         kind
     };
     if params.len() == 0 {
-        params = vec![tycon("unit", Kind::Star)];
+        params = vec![Type::Con(TyCon::Unit, Kind::Star)];
     }
-    let mut ty = tycon("->", mk_kind(params.len()));
+let mut ty = Type::Con(TyCon::Func, mk_kind(params.len()));
     for param in params {
         ty = App(Box::new(ty), Box::new(param));
     }
@@ -36,12 +32,14 @@ pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
 
 pub (super) fn infer(gamma: &mut Env, expr: &idtree::Expr) -> Result<(Subst, Type, xir::Expr)> {
     use self::Kind::*;
+    use self::TyCon::*;
     use idtree::Expr::*;
+
     let subst = Subst::new();
     let (subst, ty, expr) = match *expr {
-        UnitLit       => (subst, tycon("unit", Star), xir::Expr::UnitLit),
-        I32Lit(n)     => (subst, tycon("i32", Star),  xir::Expr::I32Lit(n)),
-        BoolLit(b)    => (subst, tycon("bool", Star), xir::Expr::BoolLit(b)),
+        UnitLit       => (subst, Type::Con(Unit, Star), xir::Expr::UnitLit),
+        I32Lit(n)     => (subst, Type::Con(I32, Star),  xir::Expr::I32Lit(n)),
+        BoolLit(b)    => (subst, Type::Con(Bool, Star), xir::Expr::BoolLit(b)),
         Var(ref v)    => infer_var(gamma, v)?,
         If(ref exp)   => infer_if(gamma, exp)?,
         Let(ref exp)  => infer_let(gamma, exp)?,
@@ -232,7 +230,7 @@ fn infer_if(gamma: &mut Env, if_expr: &idtree::If) -> Result<(Subst, Type, xir::
     let (s2, t2, texp) = infer(&mut gamma, if_expr.texpr())?;
     let (s3, t3, fexp) = infer(&mut gamma, if_expr.fexpr())?;
 
-    let s4 = unify(&t1, &tycon("bool", Kind::Star))?;
+    let s4 = unify(&t1, &Type::Con(TyCon::Bool, Kind::Star))?;
     let s5 = unify(&t2, &t3)?;
 
     let ty = s5.apply(&t2);
