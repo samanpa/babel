@@ -23,7 +23,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     let typecheck   = TypeChecker::new();
     let specialize  = Specialize::new();
     let lambda_lift = LambdaLift::new();
-    let uncurry     = Uncurry::new();
+    let simplify    = Simplify::new();
     let codegen     = CodeGen::new(mod_name.clone());
     let link        = Link::new(mod_name.clone());
 
@@ -40,7 +40,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         => typecheck
         => specialize
         => lambda_lift
-        => uncurry
+        => simplify
         => codegen
         => link    
     ];

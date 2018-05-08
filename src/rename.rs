@@ -52,10 +52,10 @@ impl Rename {
                 };
                 Type::Con(tycon, kind.clone())
             }
-            App(ref con, ref arg) => {
+            App(ref con, ref args) => {
                 let con = self.conv_ty(con)?;
-                let arg = self.conv_ty(arg)?;
-                Type::App(Box::new(con), Box::new(arg))
+                let args = Vector::map( args, |arg| self.conv_ty(arg))?;
+                Type::App(Box::new(con), args)
             }
         };
         Ok(ty)

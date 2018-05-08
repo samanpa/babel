@@ -3,7 +3,7 @@ use super::typing::Kind;
 
 #[derive(Debug)]
 pub enum Type {
-    App(Box<Type>, Box<Type>),
+    App(Box<Type>, Vec<Type>),
     Con(String, Kind),
     Var(String)
 }
@@ -84,11 +84,9 @@ pub fn func(mut params: Vec<Type>, ret: Type) -> Type {
     if params.len() == 0 {
         params = vec![con("unit", Kind::Star)];
     }
-    let mut ty = con("->", mk_kind(params.len()));
-    for param in params {
-        ty = App(Box::new(ty), Box::new(param));
-    }
-    App(Box::new(ty), Box::new(ret))
+    let ty = con("->", mk_kind(params.len()));
+    params.push(ret);
+    App(Box::new(ty), params)
 }
 
 impl Decl {

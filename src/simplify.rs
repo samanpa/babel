@@ -4,27 +4,27 @@ use typing::Kind;
 use monoir;
 use {Result,Vector,Error};
 
-pub struct Uncurry {}
+pub struct Simplify {}
 
-impl Default for Uncurry {
+impl Default for Simplify {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ::Pass for Uncurry {
+impl ::Pass for Simplify {
     type Input  = Vec<xir::Module>;
     type Output = Vec<monoir::Module>;
 
     fn run(self, module_vec: Self::Input) -> Result<Self::Output> {
-        let res = Vector::map(&module_vec, |modl| self.uncurry_module(modl))?;
+        let res = Vector::map(&module_vec, |modl| self.process(modl))?;
         Ok(res)
     }
 }
 
-impl Uncurry {
+impl Simplify {
     pub fn new() -> Self {
-        Uncurry{}
+        Simplify{}
     }
 
     fn func(&self, f: &xir::Bind) -> Result<monoir::Bind>
@@ -38,7 +38,7 @@ impl Uncurry {
         }
     }
     
-    fn uncurry_module(&self, module: &xir::Module) -> Result<monoir::Module>
+    fn process(&self, module: &xir::Module) -> Result<monoir::Module>
     {
         let modname  = module.name().clone();
         let mut modl = monoir::Module::new(modname);
@@ -117,37 +117,12 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
     Ok(expr)
 }
 
-fn flatten(ty: &Type)-> Result<(TyCon, &Kind, Vec<monoir::Type>)>
-{
-    let mut args = Vec::new();
-    let mut itr  = ty;
+fn get_appty(ty: &Type, args: &Vec<Type>) -> Result<monoir::Type> {
+    use self::Type::*;
 
-    loop {
-        match *itr {
-            Type::Con(ref tycon, ref kind) => {
-                args.reverse();
-                return Ok((tycon.clone(), kind, args))
-            }
-            Type::App(ref lhs, ref rhs) => {
-            let arg = get_type(rhs)?;
-                args.push(arg);
-                itr = lhs;
-            }
-            Type::Var(_) => {
-                let msg = format!("Could not flatten {:?} it has a type var"
-                                  , ty);
-                return Err(Error::new(msg))
-            }
-        }
-    }
-    
-}
-
-fn get_appty(ty: &Type) -> Result<monoir::Type> {
-    //FIXME: check kind
-    let (tycon, _kind, mut args) = flatten(ty)?;
-    match tycon {
-        TyCon::Func => {
+    let mut args = Vector::map(args, get_type)?;
+    match *ty {
+        Con(TyCon::Func, _) => {
             if args.len() < 2 {
                 let msg = format!("Function with one arg found {:?}", ty);
                 Err(Error::new(msg))
@@ -171,7 +146,7 @@ fn get_type(ty: &Type) -> Result<monoir::Type> {
     use self::TyCon::*;
     use self::Kind::*;
     let ty = match *ty {
-        App(_, _) => get_appty(ty)?,
+        App(ref ty, ref args) => get_appty(ty, args)?,
         Con(ref tycon, ref k) => {
             match (tycon, k) {
                 (&I32,  &Star) => monoir::Type::I32,

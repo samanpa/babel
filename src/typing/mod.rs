@@ -20,7 +20,7 @@ impl fmt::Debug for Kind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Kind::Star              => write!(f, "*"),
-            Kind::Fun(ref l, ref r) => write!(f, "{:?} -> {:?}", *l, *r),
+            Kind::Fun(ref l, ref r) => write!(f, "{:?} => {:?}", *l, *r),
         }
     }
 }

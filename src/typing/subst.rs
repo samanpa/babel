@@ -57,10 +57,12 @@ impl Subst {
         use types::Type::*;
         match *ty {
             Con(ref con, ref kind) => Con(con.clone(), kind.clone()),
-            App(ref con, ref arg)  => {
+            App(ref con, ref args)  => {
                 let con = self.apply(con);
-                let arg = self.apply(arg);
-                App(Box::new(con), Box::new(arg))
+                let args = args.iter()
+                    .map( |arg| self.apply(arg))
+                    .collect();
+                App(Box::new(con), args)
             }
             Var(id) => {
                 match self.map.get(&id) {

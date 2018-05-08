@@ -23,11 +23,9 @@ pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
     if params.len() == 0 {
         params = vec![Type::Con(TyCon::Unit, Kind::Star)];
     }
-let mut ty = Type::Con(TyCon::Func, mk_kind(params.len()));
-    for param in params {
-        ty = App(Box::new(ty), Box::new(param));
-    }
-    App(Box::new(ty), Box::new(ret))
+    let con = Type::Con(TyCon::Func, mk_kind(params.len()));
+    params.push(ret);
+    App(Box::new(con), params)
 }
 
 pub (super) fn infer(gamma: &mut Env, expr: &idtree::Expr) -> Result<(Subst, Type, xir::Expr)> {

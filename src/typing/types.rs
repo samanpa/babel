@@ -23,7 +23,7 @@ pub enum TyCon {
 #[derive(Clone,Hash,PartialEq,Eq)]
 pub enum Type {
     Con(TyCon, Kind),
-    App(Box<Type>, Box<Type>),
+    App(Box<Type>, Vec<Type>),
     Var(TyVar)
 }
 
@@ -42,10 +42,12 @@ impl Type {
         match *self {
             Con(_, _) => (),
             Var(v)    => {res.insert(v);}
-            App(ref con, ref arg) => {
-                let con_ftv = con.free_tyvars();
-                let arg_ftv = arg.free_tyvars();
-                res = &con_ftv | &arg_ftv;
+            App(ref con, ref args) => {
+                res = con.free_tyvars();
+                for arg in args {
+                    let arg_ftv = arg.free_tyvars();
+                    res = &res | &arg_ftv;
+                }
             }
         }
         res

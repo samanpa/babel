@@ -1,7 +1,7 @@
 pub use rename::Rename;
 pub use typing::TypeChecker;
 pub use specialize::Specialize;
-pub use uncurry::Uncurry;
+pub use simplify::Simplify;
 pub use codegen::CodeGen;
 pub use lambda_lift::LambdaLift;
 pub use link::Link;    

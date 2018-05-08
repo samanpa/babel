@@ -28,11 +28,19 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<Subst>
                 return Err(Error::new(msg));
             }
         }
-        (&App(ref lty, ref larg), &App(ref rty, ref rarg)) => {
-            let mut sub = unify(lty, rty)?;
-            let sub1 = unify(& sub.apply(larg), & sub.apply(rarg))?;
-            sub = sub1.compose(&sub)?;
-            sub
+        (&App(ref lty, ref largs), &App(ref rty, ref rargs)) => {
+            if largs.len() != rargs.len() {
+                let msg = format!("Can not unify {:?} with {:?}", lhs, rhs);
+                return Err(Error::new(msg));
+            }
+            else {
+                let mut sub = unify(lty, rty)?;
+                for (larg, rarg) in largs.iter().zip(rargs) {
+                    let sub1 = unify(&sub.apply(larg), &sub.apply(rarg))?;
+                    sub = sub1.compose(&sub)?;
+                }
+                sub
+            }
         }
         (&Var(tyvar), ty) |
         (ty, &Var(tyvar)) => {

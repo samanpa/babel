@@ -8,7 +8,7 @@ pub mod typing;
 pub mod specialize;
 pub mod lambda_lift;
 pub mod monoir;
-pub mod uncurry;
+pub mod simplify;
 pub mod codegen;
 pub mod link;
 pub (crate) mod scoped_map;
