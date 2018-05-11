@@ -8,6 +8,17 @@ extern i32_mod(a: i32, b: i32) -> i32;
 extern i32_div(a: i32, b: i32) -> i32;
 extern putchar(a: i32) -> i32;
 
+let rev_tc(n, acc) {
+    if i32_eq(n, 0) {
+        acc
+    } else {
+        let n_mod_10 = i32_mod(n, 10);
+        let n_div_10 = i32_div(n, 10);
+        let acc = i32_add(n_mod_10, i32_mul(10, acc));
+        rev_tc(n_div_10, acc)
+    }
+}
+
 let i32_print(n) {
     if i32_lt(n, 10) {
         putchar(i32_add(n, 48))

@@ -48,7 +48,7 @@ impl Rename {
                     "bool" => TyCon::Bool,
                     "()"   => TyCon::Unit,
                     "->"   => TyCon::Func,
-                    _      => TyCon::Cus(self.mk_tycon(nm))
+                    _      => TyCon::NewType(self.mk_tycon(nm))
                 };
                 Type::Con(tycon, kind.clone())
             }
