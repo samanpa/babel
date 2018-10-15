@@ -5,7 +5,7 @@ use super::Kind;
 use std::fmt;
 
 #[derive(Copy,Clone,Hash,PartialEq,Eq)]
-pub struct TyVar(u32);
+pub struct TyVar(pub (super) u32);
 
 pub fn fresh_tyvar() -> TyVar {
     TyVar(::fresh_id())
@@ -53,7 +53,6 @@ pub struct ForAll {
     bound_vars: Vec<TyVar>,
     ty: Type
 }
-
 
 impl Type {
     pub fn free_tyvars(&self) -> HashSet<TyVar>
@@ -150,11 +149,12 @@ impl ForAll {
         ftv.difference(&bound_tv);
         ftv
     }
-    pub fn instantiate(&self) -> (Vec<TyVar>, Type) {
+
+    pub (super) fn instantiate(&self, env: &mut super::env::Env) -> (Vec<TyVar>, Type) {
         let mut subst = Subst::new();
         let mut tvs   = Vec::new();
         for bv in &self.bound_vars {
-            let tv = fresh_tyvar();
+            let tv = env.fresh_tyvar();
             tvs.push(tv);
             subst.bind(*bv, Type::Var(tv));
         }

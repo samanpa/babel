@@ -49,6 +49,11 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
 }
 
 fn main() {
+    if env::args().len() == 1 {
+        println!("No filename provided");
+        std::process::exit(2);
+    }
+
     let file_name = env::args().nth(1).unwrap();
     let file_name = Path::new(&file_name);
     let file = File::open(file_name).unwrap();

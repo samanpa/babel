@@ -7,6 +7,7 @@ mod unify;
 mod hm;
 mod env;
 mod typecheck;
+mod type_env;
 
 pub use self::typecheck::TypeChecker;
 

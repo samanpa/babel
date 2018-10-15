@@ -2,7 +2,7 @@
 //    "Simple imperative polymorphism" - Wright
 
 use super::Kind;
-use super::types::{TyCon,Type,TyVar,ForAll,fresh_tyvar,generalize};
+use super::types::{TyCon,Type,TyVar,ForAll,generalize};
 use super::subst::Subst;
 use super::env::Env;
 use super::unify::unify;
@@ -75,7 +75,7 @@ fn translate_var(sigma: &ForAll, var: &idtree::Symbol, tvs: Vec<TyVar>) -> xir::
 
 fn infer_var(gamma: &mut Env, var: &idtree::Symbol) -> Result<(Subst, Type, xir::Expr)> {
     let sigma     = gamma.lookup(var)?;
-    let (tvs, ty) = sigma.instantiate();
+    let (tvs, ty) = sigma.instantiate(gamma);
     let expr      = translate_var(&sigma, var, tvs);
     Ok((Subst::new(), ty, expr))
 }
@@ -97,7 +97,7 @@ fn infer_lam(mut gamma: Env, params: &Vec<idtree::Symbol>, body: &idtree::Expr)
     let params_ty = params
         .iter()
         .map(| v | {
-            let tv = fresh_tyvar();
+            let tv = gamma.fresh_tyvar();
             gamma.extend(v, ForAll::new(vec![], Var(tv)));
             Var(tv)
         })
@@ -131,9 +131,9 @@ fn infer_app(gamma: &mut Env, caller: &idtree::Expr, args: &[idtree::Expr])
              -> Result<(Subst, Type, xir::Expr)>
 {
     let (s1, t1, caller) = infer(gamma, caller)?;
-    let gamma            = gamma.apply_subst(&s1);
+    let mut gamma        = gamma.apply_subst(&s1);
+    let retty            = Type::Var(gamma.fresh_tyvar());
     let (s2, t2, args)   = infer_args(gamma, args)?;
-    let retty            = Type::Var(fresh_tyvar());
     let fnty             = mk_func(t2, retty.clone());
     let s3               = unify(&s2.apply(&t1), &fnty)?;
     let t                = s3.apply(&retty);
@@ -192,7 +192,7 @@ fn infer_recbind(gamma: &mut Env, v: &idtree::Symbol, e: &idtree::Expr)
     //                 S2      = unify(β, τ1)
     //             in  (S2 ◦ S1, τ1)
 
-    let beta = Type::Var(fresh_tyvar());
+    let beta = Type::Var(gamma.fresh_tyvar());
     gamma.extend(v, ForAll::new(vec![], beta.clone()));
     let (s1, t1, e) = infer(gamma, e)?;
     let s2 = unify(&beta, &t1)?;

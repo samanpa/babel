@@ -1,7 +1,7 @@
 use ast;
 use idtree;
-use types::{Type,TyCon,fresh_tyvar};
-use {Vector,Result,Error};
+use types::{Type, TyCon, fresh_tyvar};
+use {Vector, Result, Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
 use std::collections::HashMap;

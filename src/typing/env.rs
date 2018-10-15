@@ -3,15 +3,23 @@ use ::{Result,Error};
 use idtree::Symbol;
 use super::types::{TyVar,ForAll};
 use super::subst::Subst;
+use super::type_env::TypeEnv;
+
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Clone,Debug)]
 pub (super) struct Env {
-    map: HashMap<u32, ForAll>
+    map: HashMap<u32, ForAll>,
+    type_env: Rc<RefCell<TypeEnv>>,
 }
 
 impl Env {
     pub fn new() -> Self {
-        Self{ map: HashMap::new() }
+        Self{
+            map: HashMap::new(),
+            type_env: Rc::new(RefCell::new(TypeEnv::new())),
+        }
     }
     
     pub fn lookup(&self, id: &Symbol) -> Result<ForAll> {
@@ -33,7 +41,7 @@ impl Env {
         env
     }
 
-    pub fn free_tyvars(&self) -> HashSet<TyVar>{
+    pub fn free_tyvars(&self) -> HashSet<TyVar> {
         let mut ftv = HashSet::new();
         for sigma in self.map.values() {
             ftv.extend(&sigma.free_tyvars());
@@ -41,4 +49,7 @@ impl Env {
         ftv
     }
 
+    pub fn fresh_tyvar(&mut self) -> TyVar {
+        self.type_env.borrow_mut().fresh_tyvar()
+    }
 }
