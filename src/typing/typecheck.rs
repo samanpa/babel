@@ -1,7 +1,6 @@
 use ::idtree;
 use ::xir;
 use super::types::{ForAll};
-use super::subst::Subst;
 use super::hm::{infer_fn,into_xir_symbol};
 use super::env::Env;
 use ::{Result,Vector};
@@ -46,8 +45,8 @@ impl TypeChecker {
                 xir::Decl::Extern(v)
             }
             idtree::Decl::Let(ref bind) => {
-                let (s, b)   = infer_fn(&mut self.gamma, bind)?;
-                let bind_res = bind_subst(&b, &s);
+                let b = infer_fn(&mut self.gamma, bind)?;
+                let bind_res = bind_subst(&b, &mut self.gamma);
                 /*
                 println!("{:?}", bind);
                 println!("->\n{:?}", b);
@@ -62,11 +61,11 @@ impl TypeChecker {
 }
 
 
-fn mk_symbol(tv: &xir::Symbol, sub: &Subst) -> xir::Symbol {
+fn mk_symbol(tv: &xir::Symbol, sub: &mut Env) -> xir::Symbol {
     tv.with_ty(sub.apply(tv.ty()))
 }
 
-fn bind_subst(bind: &xir::Bind, sub: &Subst) -> xir::Bind {
+fn bind_subst(bind: &xir::Bind, sub: &mut Env) -> xir::Bind {
     use xir::Bind::*;
     match *bind {
         NonRec{ref symbol, ref expr } => {
@@ -77,7 +76,7 @@ fn bind_subst(bind: &xir::Bind, sub: &Subst) -> xir::Bind {
     }
 }
 
-fn subst(expr: &xir::Expr, sub: &Subst) -> xir::Expr
+fn subst(expr: &xir::Expr, sub: &mut Env) -> xir::Expr
 {
     use ::xir::*;
     use xir::Expr::*;

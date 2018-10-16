@@ -153,7 +153,7 @@ impl fmt::Debug for Bind {
 
 impl fmt::Debug for Let {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "let {:?}\n{:?}", self.bind, self.expr)
+        write!(f, "let {:?}\n{:#?}", self.bind, self.expr)
     }
 }
 

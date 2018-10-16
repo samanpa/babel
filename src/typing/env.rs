@@ -1,8 +1,7 @@
 use std::collections::{HashMap,HashSet};
 use ::{Result,Error};
 use idtree::Symbol;
-use super::types::{TyVar,ForAll};
-use super::subst::Subst;
+use super::types::{TyVar,ForAll, Type};
 use super::type_env::TypeEnv;
 
 use std::rc::Rc;
@@ -33,12 +32,19 @@ impl Env {
         self.map.insert(id.id(), ty);
     }
 
-    pub fn apply_subst(&self, sub: &Subst) -> Env {
-        let mut env = self.clone();
-        for val in env.map.values_mut() {
-            val.apply_subst(sub)
-        }
+    pub fn apply_subst(&self) -> Env {
+        let env = self.clone();
         env
+    }
+
+    pub fn apply(&mut self, ty: &Type) -> Type {
+        self.type_env.borrow_mut().apply_subst(ty)
+    }
+
+
+    pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> ::Result<()>
+    {
+        self.type_env.borrow_mut().unify(lhs, rhs)
     }
 
     pub fn free_tyvars(&self) -> HashSet<TyVar> {
