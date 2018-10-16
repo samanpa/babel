@@ -51,14 +51,8 @@ impl TypeEnv {
         use types::Type::*;
         match (lhs, rhs) {
             (&Con(ref l, ref lk), &Con(ref r, ref rk)) => {
-                if *l == *r && lk == rk {
-                } else {
-                    let msg = format!(
-                        "Can not unify {:?} with {:?}",
-                        lhs,
-                        rhs
-                    );
-                    return Err(Error::new(msg));
+                if *l != *r || lk != rk {
+                    return cannot_unify(lhs, rhs);
                 }
             }
             (&App(ref lty, ref largs), &App(ref rty, ref rargs)) => {
