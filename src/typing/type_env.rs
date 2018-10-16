@@ -1,6 +1,7 @@
 use union_find::{NodeId, DisjointSet};
 use super::types::{Type, TyVar};
 use ::Error;
+use std;
 
 #[derive(Debug)]
 pub (super) struct TypeEnv {
@@ -79,11 +80,8 @@ impl TypeEnv {
                 }
                 let old = {
                     let new_ty = self.set.find(NodeId(tyvar.0 as usize));
-                    let old = new_ty.clone();
-                    *new_ty = ty.clone();
-                    old
+                    std::mem::replace(new_ty, ty.clone())
                 };
-
                 self.unify(&old, ty)?;
             }
             _ => {
