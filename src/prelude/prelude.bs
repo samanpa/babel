@@ -7,6 +7,7 @@ extern i32_mul(a: i32, b: i32) -> i32;
 extern i32_mod(a: i32, b: i32) -> i32;
 extern i32_div(a: i32, b: i32) -> i32;
 extern putchar(a: i32) -> i32;
+extern rand() -> i32;
 
 let rev_tc(n, acc) {
     if i32_eq(n, 0) {
