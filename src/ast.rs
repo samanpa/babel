@@ -74,16 +74,11 @@ fn con(nm: &str, kind: Kind) -> Type {
 
 pub fn func(mut params: Vec<Type>, ret: Type) -> Type {
     use self::Type::*;
-    let mk_kind = |n| {
-        let mut kind = Kind::Star;
-        for _ in 0..(n+1) {
-            kind = Kind::Fun(Rc::new(Kind::Star), Rc::new(kind));
-        }
-        kind
+    use self::Kind::*;
+    let mk_kind = |n| {  
+        (0..(n+1))
+            .fold( Star, |k, _| Fun(Rc::new((Star, k))))
     };
-    if params.len() == 0 {
-        params = vec![con("unit", Kind::Star)];
-    }
     let ty = con("->", mk_kind(params.len()));
     params.push(ret);
     App(Box::new(ty), params)

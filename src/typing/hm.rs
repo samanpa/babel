@@ -11,17 +11,12 @@ use std::rc::Rc;
 
 pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
     use self::Type::*;
+    use self::Kind::*;
     let mk_kind = |n| {
-        let mut kind = Kind::Star;
-        for _ in 0..(n+1) {
-            kind = Kind::Fun(Rc::new(Kind::Star), Rc::new(kind));
-        }
-        kind
+        (0..(n+1))
+            .fold( Star, |kind, _| Fun(Rc::new((Star, kind))))
     };
-    if params.len() == 0 {
-        params = vec![Type::Con(TyCon::Unit, Kind::Star)];
-    }
-    let con = Type::Con(TyCon::Func, mk_kind(params.len()));
+    let con = Con(TyCon::Func, mk_kind(params.len()));
     params.push(ret);
     App(Box::new(con), params)
 }
@@ -116,7 +111,7 @@ fn infer_args(
 {
     let mut tys   = Vec::with_capacity(args.len());
     let mut exprs = Vec::with_capacity(args.len());
-    
+
     for arg in args {
         let (t1, arg) = infer(gamma, arg)?;
         tys.push(t1);
