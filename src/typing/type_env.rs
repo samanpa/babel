@@ -60,11 +60,9 @@ impl TypeEnv {
                 if largs.len() != rargs.len() {
                     return cannot_unify(lhs, rhs);
                 }
-                else {
-                    self.unify(lty, rty)?;
-                    for (larg, rarg) in largs.iter().zip(rargs) {
-                        self.unify(larg, rarg)?;
-                    }
+                self.unify(lty, rty)?;
+                for (larg, rarg) in largs.iter().zip(rargs) {
+                    self.unify(larg, rarg)?;
                 }
             }
             (&Var(tyvar1), &Var(tyvar2)) => {
