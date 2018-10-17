@@ -32,23 +32,18 @@ impl <T> DisjointSet<T> {
         parent
     }
 
-    fn find_tc(&self, node: NodeId) -> NodeId {
-        let parent = unsafe{ self.nodes.get_unchecked(node.0).parent };
-        match node == parent {
-            false => self.find_tc(parent),
-            true  => node
+    fn find_tc(&self, mut node: NodeId) -> NodeId {
+        loop {
+            let parent = unsafe{ self.nodes.get_unchecked(node.0).parent };
+            match node == parent {
+                true  => return node,
+                false => node = parent,
+            }
         }
     }
 
     pub fn get_repr(&self, node_id: NodeId) -> NodeId {
         self.find_tc(node_id)
-    }
-
-    fn get(&mut self, node_id: NodeId) -> &mut T {
-        unsafe {
-            let curr = self.nodes.get_unchecked_mut(node_id.0 as usize);
-            &mut curr.value
-        }
     }
 
     pub fn merge(&mut self, node1: NodeId, node2: NodeId) -> &mut T {
@@ -83,7 +78,10 @@ impl <T> DisjointSet<T> {
 
     pub fn find(&mut self, node_id: NodeId) -> &mut T {
         let repr = self.get_repr(node_id);
-        self.get(repr)
+        unsafe {
+            let curr = self.nodes.get_unchecked_mut(repr.0 as usize);
+            &mut curr.value
+        }
     }
 }
 
@@ -99,16 +97,23 @@ mod tests {
         let node3 = set.add('3');
         let node4 = set.add('4');
         let node5 = set.add('5');
+        let node6 = set.add('6');
 
         assert_eq!(*set.find(node1), '1');
         assert_eq!(*set.find(node2), '2');
         assert_eq!(*set.find(node3), '3');
         assert_eq!(*set.find(node4), '4');
         assert_eq!(*set.find(node5), '5');
-
-        set.merge(node2, node4);
+        assert_eq!(*set.find(node6), '6');
         
-        assert_eq!(*set.find(node2), '2');
-        assert_eq!(*set.find(node4), '2');
+        (*set.merge(node2, node4)) = '7';
+        assert_eq!(*set.find(node2), '7');
+        assert_eq!(*set.find(node4), '7');
+        assert_eq!(*set.find(node6), '6');
+
+        (*set.merge(node4, node6)) = '8';
+        assert_eq!(*set.find(node2), '8');
+        assert_eq!(*set.find(node4), '8');
+        assert_eq!(*set.find(node6), '8');
     }
 }
