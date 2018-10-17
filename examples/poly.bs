@@ -50,6 +50,7 @@ let one() {
 let main() {
     let res = max(10, 123456, i32_print);
     let rnd = i32_mul(one(), rand());
-    let foo = putchar(32);
+    let pc   = \n -> putchar(n);
+    let foo = pc(32);
     i32_print(rnd)
 }
