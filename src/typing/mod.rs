@@ -13,14 +13,14 @@ pub use self::typecheck::TypeChecker;
 #[derive(Clone,Hash,PartialEq,Eq)]
 pub enum Kind {
     Star,
-    Fun(Rc<Kind>, Rc<Kind>)
+    Fun(Rc<(Kind, Kind)>)
 }
 
 impl fmt::Debug for Kind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Kind::Star              => write!(f, "*"),
-            Kind::Fun(ref l, ref r) => write!(f, "{:?} => {:?}", *l, *r),
+            Kind::Star       => write!(f, "*"),
+            Kind::Fun(ref k) => write!(f, "{:?} => {:?}", k.0, k.1),
         }
     }
 }

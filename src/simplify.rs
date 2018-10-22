@@ -88,10 +88,12 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
         BoolLit(b)   => monoir::Expr::BoolLit(b),
         Var(ref var) => monoir::Expr::Var(process_symbol(var)?),
         If(ref e) => {
-            monoir::Expr::If(Box::new(process(e.cond())?),
-                             Box::new(process(e.texpr())?),
-                             Box::new(process(e.fexpr())?),
-                             get_type(e.ty())?)
+            monoir::Expr::If(
+                Box::new(process(e.cond())?),
+                Box::new(process(e.texpr())?),
+                Box::new(process(e.fexpr())?),
+                get_type(e.ty())?
+            )
         }
         Let(ref e) => {
             let bind = process_bind(e.bind())?;
@@ -123,8 +125,11 @@ fn get_appty(ty: &Type, args: &Vec<Type>) -> Result<monoir::Type> {
     let mut args = Vector::map(args, get_type)?;
     match *ty {
         Con(TyCon::Func, _) => {
-            if args.len() < 2 {
-                let msg = format!("Function with one arg found {:?}", ty);
+            if args.len() == 0 {
+                let msg = format!(
+                    "Function with no return type found {:?}", 
+                    ty
+                );
                 Err(Error::new(msg))
             } else {
                 let slice_end = args.len() - 1; //borrow_chk

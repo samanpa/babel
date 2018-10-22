@@ -1,5 +1,4 @@
 use ::xir::*;
-use ::types::{Type};
 use ::{Result,Vector};
 use ::fresh_id;
 use ::scoped_map::ScopedMap;

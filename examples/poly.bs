@@ -43,6 +43,14 @@ let max(n, m, f) {
     x
 }
 
+let one() {
+    1
+}
+
 let main() {
-    max(10, 10000, i32_print)
+    let res = max(10, 123456, i32_print);
+    let rnd = i32_mul(one(), rand());
+    let pc   = \n -> putchar(n);
+    let foo = pc(32);
+    i32_print(rnd)
 }
