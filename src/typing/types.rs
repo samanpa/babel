@@ -1,13 +1,39 @@
-use std::rc::Rc;
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    fmt,
+    hash::{
+        Hash,
+        Hasher
+    },
+    rc::Rc
+};
 use super::subst::Subst;
-use std::collections::HashSet;
 use super::Kind;
-use std::fmt;
 
-#[derive(Copy,Clone,Hash,PartialEq,Eq)]
+#[derive(Clone,PartialEq,Eq)]
+pub struct TyRef {
+    level: u32,
+    subst: TyVarSubst
+}
+
+#[derive(Clone,PartialEq,Eq)]
+pub enum TyVarSubst {
+    Unbound,
+    Value(u32, Type),
+    TyRef(Rc<RefCell<TyRef>>)
+}
+         
+#[derive(Copy,Clone,PartialEq,Eq)]
 pub struct TyVar(u32);
 
-pub fn fresh_tyvar() -> TyVar {
+impl Hash for TyVar {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+pub fn fresh_tyvar(level: u32) -> TyVar {
     TyVar(::fresh_id())
 }
 
@@ -108,11 +134,11 @@ impl ForAll {
         ftv.difference(&bound_tv);
         ftv
     }
-    pub fn instantiate(&self) -> (Vec<TyVar>, Type) {
+    pub fn instantiate(&self, level: u32) -> (Vec<TyVar>, Type) {
         let mut subst = Subst::new();
         let mut tvs   = Vec::new();
         for bv in &self.bound_vars {
-            let tv = fresh_tyvar();
+            let tv = fresh_tyvar(level);
             tvs.push(tv);
             subst.bind(*bv, Type::Var(tv));
         }

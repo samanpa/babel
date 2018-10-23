@@ -46,7 +46,7 @@ impl TypeChecker {
                 xir::Decl::Extern(v)
             }
             idtree::Decl::Let(ref bind) => {
-                let (s, b)   = infer_fn(&mut self.gamma, bind)?;
+                let (s, b)   = infer_fn(&mut self.gamma, bind, 0)?;
                 let bind_res = bind_subst(&b, &s);
                 /*
                 println!("{:?}", bind);

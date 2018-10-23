@@ -23,7 +23,11 @@ pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
     App(Box::new(con), params)
 }
 
-pub (super) fn infer(gamma: &mut Env, expr: &idtree::Expr) -> Result<(Subst, Type, xir::Expr)> {
+pub (super) fn infer(
+    gamma: &mut Env,
+    expr: &idtree::Expr,
+    level: u32
+) -> Result<(Subst, Type, xir::Expr)> {
     use self::Kind::*;
     use self::TyCon::*;
     use idtree::Expr::*;
@@ -33,11 +37,16 @@ pub (super) fn infer(gamma: &mut Env, expr: &idtree::Expr) -> Result<(Subst, Typ
         UnitLit       => (subst, Type::Con(Unit, Star), xir::Expr::UnitLit),
         I32Lit(n)     => (subst, Type::Con(I32, Star),  xir::Expr::I32Lit(n)),
         BoolLit(b)    => (subst, Type::Con(Bool, Star), xir::Expr::BoolLit(b)),
-        Var(ref v)    => infer_var(gamma, v)?,
-        If(ref exp)   => infer_if(gamma, exp)?,
-        Let(ref exp)  => infer_let(gamma, exp)?,
-        App(ref callee, ref args) => infer_app(gamma, callee, args)?,
-        Lam(ref proto, ref body)  => infer_lam(gamma.clone(), proto, body)?,
+        Var(ref v)    => infer_var(gamma, v, level)?,
+        If(ref exp)   => infer_if(gamma, exp, level)?,
+        Let(ref exp)  => infer_let(gamma, exp, level)?,
+        App(ref callee, ref args) => infer_app(gamma, callee, args, level)?,
+        Lam(ref params, ref body) => infer_lam(
+            gamma.clone(),
+            params,
+            body,
+            level
+        )?,
     };
     Ok((subst, ty, expr))
 }
@@ -55,7 +64,11 @@ pub fn into_xir_symbol(var: &idtree::Symbol, ty: &Type) -> xir::Symbol {
 //   (foo {a1, b1}) inc_i32 1
 //   read as TyApp(Var(foo),
 //                 [a1, b1])
-fn translate_var(sigma: &ForAll, var: &idtree::Symbol, tvs: Vec<TyVar>) -> xir::Expr {
+fn translate_var(
+    sigma: &ForAll,
+    var: &idtree::Symbol,
+    tvs: Vec<TyVar>
+) -> xir::Expr {
     use xir::Expr::*;
     let ty_args = tvs.iter()
         .map( |tv| Type::Var(*tv) )
@@ -68,15 +81,22 @@ fn translate_var(sigma: &ForAll, var: &idtree::Symbol, tvs: Vec<TyVar>) -> xir::
     }
 }
 
-fn infer_var(gamma: &mut Env, var: &idtree::Symbol) -> Result<(Subst, Type, xir::Expr)> {
+fn infer_var(
+    gamma: &mut Env,
+    var: &idtree::Symbol,
+    level: u32
+) -> Result<(Subst, Type, xir::Expr)> {
     let sigma     = gamma.lookup(var)?;
-    let (tvs, ty) = sigma.instantiate();
+    let (tvs, ty) = sigma.instantiate(level);
     let expr      = translate_var(&sigma, var, tvs);
     Ok((Subst::new(), ty, expr))
 }
 
-fn translate_lam(body: xir::Expr, params: &Vec<idtree::Symbol>, params_ty: &Vec<Type>, retty: Type)
-                 -> xir::Expr {
+fn translate_lam(
+    body: xir::Expr,
+    params: &Vec<idtree::Symbol>,
+    params_ty: &Vec<Type>, retty: Type
+) -> xir::Expr {
     let params  = params
         .iter()
         .zip(params_ty)
@@ -85,34 +105,39 @@ fn translate_lam(body: xir::Expr, params: &Vec<idtree::Symbol>, params_ty: &Vec<
     xir::Expr::Lam(params, Box::new(body), retty)
 }
 
-fn infer_lam(mut gamma: Env, params: &Vec<idtree::Symbol>, body: &idtree::Expr)
-             -> Result<(Subst, Type, xir::Expr)>
-{
+fn infer_lam(
+    mut gamma: Env,
+    params: &Vec<idtree::Symbol>,
+    body: &idtree::Expr,
+    level: u32
+) -> Result<(Subst, Type, xir::Expr)> {
     use self::Type::*;
     let params_ty = params
         .iter()
         .map(| v | {
-            let tv = fresh_tyvar();
+            let tv = fresh_tyvar(level);
             gamma.extend(v, ForAll::new(vec![], Var(tv)));
             Var(tv)
         })
         .collect();
-    let (s1, t1, body) = infer(&mut gamma, body)?;
+    let (s1, t1, body) = infer(&mut gamma, body, level + 1)?;
     let expr = translate_lam(body, params, &params_ty, t1.clone());
     let fnty = mk_func(params_ty, t1);
     let fnty = s1.apply(&fnty);
     Ok((s1, fnty, expr))
 }
 
-fn infer_args(mut gamma: Env, args: &[idtree::Expr])
-              -> Result<(Subst, Vec<Type>, Vec<xir::Expr>)>
-{
+fn infer_args(
+    mut gamma: Env,
+    args: &[idtree::Expr],
+    level: u32
+) -> Result<(Subst, Vec<Type>, Vec<xir::Expr>)> {
     let mut s     = Subst::new();
     let mut tys   = Vec::with_capacity(args.len());
     let mut exprs = Vec::with_capacity(args.len());
     
     for arg in args {
-        let (s1, t1, arg) = infer(&mut gamma, arg)?;
+        let (s1, t1, arg) = infer(&mut gamma, arg, level)?;
         gamma = gamma.apply_subst(&s1);
         s     = s1.compose(&s)?;
         tys.push(t1);
@@ -122,13 +147,16 @@ fn infer_args(mut gamma: Env, args: &[idtree::Expr])
     Ok((s, tys, exprs))
 }
 
-fn infer_app(gamma: &mut Env, caller: &idtree::Expr, args: &[idtree::Expr])
-             -> Result<(Subst, Type, xir::Expr)>
-{
-    let (s1, t1, caller) = infer(gamma, caller)?;
+fn infer_app(
+    gamma: &mut Env,
+    caller: &idtree::Expr,
+    args: &[idtree::Expr],
+    level: u32
+) -> Result<(Subst, Type, xir::Expr)> {
+    let (s1, t1, caller) = infer(gamma, caller, level)?;
     let gamma            = gamma.apply_subst(&s1);
-    let (s2, t2, args)   = infer_args(gamma, args)?;
-    let retty            = Type::Var(fresh_tyvar());
+    let (s2, t2, args)   = infer_args(gamma, args, level)?;
+    let retty            = Type::Var(fresh_tyvar(level));
     let fnty             = mk_func(t2, retty.clone());
     let s3               = unify(&s2.apply(&t1), &fnty)?;
     let t                = s3.apply(&retty);
@@ -150,10 +178,14 @@ fn is_value(expr: &idtree::Expr) -> bool {
     }
 }
 
-fn infer_let(gamma: &mut Env, let_exp: &idtree::Let) -> Result<(Subst, Type, xir::Expr)>
+fn infer_let(
+    gamma: &mut Env,
+    let_exp: &idtree::Let,
+    level: u32
+) -> Result<(Subst, Type, xir::Expr)>
 {
     let bind         = let_exp.bind();
-    let (s1, t1, e1) = infer(gamma, bind.expr())?;
+    let (s1, t1, e1) = infer(gamma, bind.expr(), level)?;
     
     let name         = into_xir_symbol(bind.symbol(), &t1);
     let mut gamma1   = gamma.apply_subst(&s1);
@@ -163,7 +195,7 @@ fn infer_let(gamma: &mut Env, let_exp: &idtree::Let) -> Result<(Subst, Type, xir
         false => ForAll::new(vec![], t1)
     };
     gamma1.extend(bind.symbol(), t2.clone());
-    let (s2, t, e2)  = infer(&mut gamma1, let_exp.expr())?;
+    let (s2, t, e2)  = infer(&mut gamma1, let_exp.expr(), level)?;
     let s            = s2.compose(&s1)?;
     let tylam        = xir::Expr::TyLam(t2.bound_vars().clone(), Box::new(e1));
     let let_exp      = xir::Let::new(xir::Bind::non_rec(name, tylam), e2);
@@ -171,8 +203,12 @@ fn infer_let(gamma: &mut Env, let_exp: &idtree::Let) -> Result<(Subst, Type, xir
     Ok((s, t, expr))
 }
 
-fn infer_recbind(gamma: &mut Env, v: &idtree::Symbol, e: &idtree::Expr) 
-                -> Result<(Subst, xir::Bind)>
+fn infer_recbind(
+    gamma: &mut Env,
+    v: &idtree::Symbol,
+    e: &idtree::Expr,
+    level: u32
+) -> Result<(Subst, xir::Bind)>
 {
     //Typing let rec x = e is done by translating it to
     //    let x  = Y (λx.e) where Y is the fixed point combinator.
@@ -187,9 +223,9 @@ fn infer_recbind(gamma: &mut Env, v: &idtree::Symbol, e: &idtree::Expr)
     //                 S2      = unify(β, τ1)
     //             in  (S2 ◦ S1, τ1)
 
-    let beta = Type::Var(fresh_tyvar());
+    let beta = Type::Var(fresh_tyvar(level));
     gamma.extend(v, ForAll::new(vec![], beta.clone()));
-    let (s1, t1, e) = infer(gamma, e)?;
+    let (s1, t1, e) = infer(gamma, e, level)?;
     let s2 = unify(&beta, &t1)?;
     let s  = s2.compose(&s1)?;
 
@@ -210,18 +246,25 @@ fn infer_recbind(gamma: &mut Env, v: &idtree::Symbol, e: &idtree::Expr)
     Ok((s, xir::Bind::NonRec{symbol: name, expr: e}))
 }
 
-pub (super) fn infer_fn(gamma: &mut Env, bind: &idtree::Bind) ->
-    Result<(Subst, xir::Bind)>
+pub (super) fn infer_fn(
+    gamma: &mut Env,
+    bind: &idtree::Bind,
+    level: u32
+) -> Result<(Subst, xir::Bind)>
 {
-    infer_recbind(gamma, bind.symbol(), bind.expr())
+    infer_recbind(gamma, bind.symbol(), bind.expr(), level + 1)
 }
 
-fn infer_if(gamma: &mut Env, if_expr: &idtree::If) -> Result<(Subst, Type, xir::Expr)>
+fn infer_if(
+    gamma: &mut Env,
+    if_expr: &idtree::If,
+    level: u32
+) -> Result<(Subst, Type, xir::Expr)>
 {
-    let (s1, t1, cond) = infer(gamma, if_expr.cond())?;
+    let (s1, t1, cond) = infer(gamma, if_expr.cond(), level)?;
     let mut gamma      = gamma.apply_subst(&s1);
-    let (s2, t2, texp) = infer(&mut gamma, if_expr.texpr())?;
-    let (s3, t3, fexp) = infer(&mut gamma, if_expr.fexpr())?;
+    let (s2, t2, texp) = infer(&mut gamma, if_expr.texpr(), level)?;
+    let (s3, t3, fexp) = infer(&mut gamma, if_expr.fexpr(), level)?;
 
     let s4 = unify(&t1, &Type::Con(TyCon::Bool, Kind::Star))?;
     let s5 = unify(&t2, &t3)?;
