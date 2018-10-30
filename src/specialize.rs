@@ -86,10 +86,10 @@ impl Instances {
 
     fn add(&mut self, var: &Symbol, sub: &mut Subst, args: Vec<Type>) -> Symbol {
         for (tyvar, ty) in self.tyvars.iter().zip(args.into_iter()) {
-            sub.bind(*tyvar, ty)
+            sub.bind(tyvar.clone(), ty)
         }
         let args = self.tyvars.iter()
-            .map( |ty| sub.apply(&Type::Var(*ty)) )
+            .map( |ty| sub.apply(&Type::Var(ty.clone())) )
             .collect::<Vec<_>>();
         let var = self.inner.entry(args.clone())
             .or_insert_with( || {
@@ -238,7 +238,7 @@ impl Specializer
             }
             TyLam(ref param, ref b) => {
                 for (tyvar, ty) in param.iter().zip(args.into_iter()) {
-                    sub.bind(*tyvar, ty)
+                    sub.bind(tyvar.clone(), ty)
                 }
                 let body = self.run(b, sub, vec![])?;
                 body

@@ -65,13 +65,13 @@ pub fn into_xir_symbol(var: &idtree::Symbol, ty: &Type) -> xir::Symbol {
 //   read as TyApp(Var(foo),
 //                 [a1, b1])
 fn translate_var(
-    sigma: &ForAll,
+    sigma: &ForAll, 
     var: &idtree::Symbol,
     tvs: Vec<TyVar>
 ) -> xir::Expr {
     use xir::Expr::*;
     let ty_args = tvs.iter()
-        .map( |tv| Type::Var(*tv) )
+        .map( |tv| Type::Var(tv.clone()) )
         .collect::<Vec<_>>();
     let var = into_xir_symbol(var, sigma.ty());
     let var = xir::Expr::Var(var);
@@ -95,7 +95,8 @@ fn infer_var(
 fn translate_lam(
     body: xir::Expr,
     params: &Vec<idtree::Symbol>,
-    params_ty: &Vec<Type>, retty: Type
+    params_ty: &Vec<Type>,
+    retty: Type
 ) -> xir::Expr {
     let params  = params
         .iter()
@@ -116,7 +117,7 @@ fn infer_lam(
         .iter()
         .map(| v | {
             let tv = fresh_tyvar(level);
-            gamma.extend(v, ForAll::new(vec![], Var(tv)));
+            gamma.extend(v, ForAll::new(vec![], Var(tv.clone())));
             Var(tv)
         })
         .collect();
@@ -185,7 +186,7 @@ fn infer_let(
 ) -> Result<(Subst, Type, xir::Expr)>
 {
     let bind         = let_exp.bind();
-    let (s1, t1, e1) = infer(gamma, bind.expr(), level)?;
+    let (s1, t1, e1) = infer(gamma, bind.expr(), level + 1)?;
     
     let name         = into_xir_symbol(bind.symbol(), &t1);
     let mut gamma1   = gamma.apply_subst(&s1);
@@ -208,8 +209,7 @@ fn infer_recbind(
     v: &idtree::Symbol,
     e: &idtree::Expr,
     level: u32
-) -> Result<(Subst, xir::Bind)>
-{
+) -> Result<(Subst, xir::Bind)> {
     //Typing let rec x = e is done by translating it to
     //    let x  = Y (λx.e) where Y is the fixed point combinator.
     // 

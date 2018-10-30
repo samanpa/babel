@@ -28,7 +28,7 @@ impl Subst {
         let mut subst = self;
         for (tyvar, ty) in &rhs.map {
             let ty = subst.apply(ty);
-            let new_subst = match subst.map.entry(*tyvar) {
+            let new_subst = match subst.map.entry(tyvar.clone()) {
                 Entry::Vacant(elem)  => {
                     elem.insert(ty);
                     None
@@ -64,10 +64,10 @@ impl Subst {
                     .collect();
                 App(Box::new(con), args)
             }
-            Var(id) => {
+            Var(ref id) => {
                 match self.map.get(&id) {
                     Some(ty) => ty.clone(),
-                    None     => Var(id),
+                    None     => Var(id.clone()),
                 }
             }
         }

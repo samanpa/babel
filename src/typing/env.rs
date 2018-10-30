@@ -36,7 +36,7 @@ impl Env {
     pub fn free_tyvars(&self) -> HashSet<TyVar>{
         let mut ftv = HashSet::new();
         for sigma in self.map.values() {
-            ftv.extend(&sigma.free_tyvars());
+            ftv.extend(sigma.free_tyvars());
         }
         ftv
     }

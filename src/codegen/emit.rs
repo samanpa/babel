@@ -33,7 +33,7 @@ pub fn emit(module: LLVMModuleRef, output_file: &String) -> Result<String> {
         LLVM_InitializeAllAsmPrinters();
         LLVM_InitializeAllAsmParsers();
         LLVMEnablePrettyStackTrace();
-        LLVMInstallFatalErrorHandler(fatal_error);
+        LLVMInstallFatalErrorHandler(Some(fatal_error));
 
         let passreg = LLVMGetGlobalPassRegistry();
         LLVMInitializeCore(passreg);
