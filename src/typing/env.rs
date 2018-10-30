@@ -2,7 +2,6 @@ use std::collections::{HashMap,HashSet};
 use ::{Result,Error};
 use idtree::Symbol;
 use super::types::{TyVar,ForAll};
-use super::subst::Subst;
 
 #[derive(Clone,Debug)]
 pub (super) struct Env {
@@ -25,10 +24,10 @@ impl Env {
         self.map.insert(id.id(), ty);
     }
 
-    pub fn apply_subst(&self, sub: &Subst) -> Env {
+    pub fn apply_subst(&self) -> Env {
         let mut env = self.clone();
         for val in env.map.values_mut() {
-            val.apply_subst(sub)
+            val.apply_subst()
         }
         env
     }

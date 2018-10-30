@@ -72,6 +72,27 @@ impl Type {
         }
         res
     }
+
+    pub (super) fn apply_subst(&self) -> super::types::Type {
+        use super::types::TyVarSubst::*;
+        use super::types::Type::*;
+        match *self {
+            Var(ref tyvar) => {
+                match *tyvar.1.borrow() {
+                    Unbound{..} => self.clone(),
+                    Bound{ ref repr, .. } => repr.borrow().apply_subst()
+                }
+            }
+            App(ref con, ref args)  => {
+                let con = con.apply_subst();
+                let args = args.iter()
+                    .map( |arg| arg.apply_subst())
+                    .collect();
+                App(Box::new(con), args)
+            },
+            ref ty => ty.clone()
+        }
+    }
 }
 
 impl fmt::Debug for Type {
@@ -142,8 +163,8 @@ impl ForAll {
         }
         (tvs, subst.apply(self.ty()))
     }
-    pub fn apply_subst(&mut self, subst: &Subst ) {
-        self.ty = subst.apply(self.ty());
+    pub fn apply_subst(&mut self) {
+        self.ty = self.ty().apply_subst();
     }
 }
 

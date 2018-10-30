@@ -45,7 +45,7 @@ impl TypeChecker {
                 xir::Decl::Extern(v)
             }
             idtree::Decl::Let(ref bind) => {
-                let (_, b)   = infer_fn(&mut self.gamma, bind, 0)?;
+                let b = infer_fn(&mut self.gamma, bind, 0)?;
                 let bind_res = bind_subst(&b);
 
                 /*
@@ -61,29 +61,8 @@ impl TypeChecker {
 }
 
 
-fn apply_subst(ty: &super::types::Type) -> super::types::Type {
-    use super::types::TyVarSubst::*;
-    use super::types::Type::*;
-    match ty {
-        Var(ref tyvar) => {
-            match *tyvar.1.borrow() {
-                Unbound{..} =>        ty.clone(),
-                Bound{ ref repr, .. } => apply_subst(&repr.borrow())
-            }
-        }
-        App(ref con, ref args)  => {
-                let con = apply_subst(con);
-            let args = args.iter()
-                    .map( |arg| apply_subst(arg))
-                .collect();
-            App(Box::new(con), args)
-        },
-        ty => ty.clone()
-    }
-}
-
 fn mk_symbol(tv: &xir::Symbol) -> xir::Symbol {
-    let tv1 = tv.with_ty(apply_subst(tv.ty()));
+    let tv1 = tv.with_ty(tv.ty().apply_subst());
     tv1
 }
 
@@ -112,13 +91,13 @@ fn subst(expr: &xir::Expr) -> xir::Expr
             let proto = proto.iter()
                 .map( |v| mk_symbol(v) )
                 .collect();
-            Lam(proto, Box::new(body), apply_subst(retty))
+            Lam(proto, Box::new(body), retty.apply_subst())
         }
         If(ref e) => {
             let if_expr = xir::If::new(subst(e.cond()),
                                        subst(e.texpr()),
                                        subst(e.fexpr()),
-                                       apply_subst(e.ty()));
+                                       e.ty().apply_subst());
             Expr::If(Box::new(if_expr))
         }
         App(ref callee, ref args) => {
@@ -140,7 +119,7 @@ fn subst(expr: &xir::Expr) -> xir::Expr
         TyApp(ref e, ref args) => {
             let e = subst(e);
             let args = args.iter()
-                .map( |ty| apply_subst(ty) )
+                .map( |ty| ty.apply_subst() )
                 .collect();
             TyApp(Box::new(e), args)
         }
