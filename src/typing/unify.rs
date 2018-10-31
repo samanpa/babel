@@ -3,15 +3,31 @@ use ::{Error,Result};
 use std::rc::Rc;
 use std::cell::RefCell;
 
-fn occurs(tyvar: &TyVar, ty: &Type) -> bool {
+fn occurs(tyvar: &TyVar, lvl: u32, ty: &Type) -> bool {
     use types::Type::*;
     match *ty {
-        Con(_, _) |
-        Var(_)    => false,
-        ref app @ App(_, _) => {
-            app.free_tyvars()
-                .iter()
-                .fold( false, | acc, tv | acc || *tyvar == *tv )
+        Con(_, _)   => false,
+        Var(ref tv) => {
+            use self::TyVarSubst::*;
+            let min_level = {
+                match *tv.1.borrow() {
+                    Unbound{ level } => {
+                        if tyvar.0 == tv.0 { return true };
+                        if level < lvl { level } else { lvl }
+                    }
+                    Bound{ ref repr, .. } => {
+                        return occurs(tyvar, lvl, &repr.borrow())
+                    }
+                }
+            };
+            *tv.1.borrow_mut() = Unbound{ level: min_level };
+            false
+        }
+        App(ref con, ref args) => {
+            args.iter()
+                .fold( occurs(tyvar, lvl, con), |acc, arg| {
+                    acc || occurs(tyvar, lvl, arg)
+                })
         }
     }
 }
@@ -42,20 +58,24 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<()> {
             //println!("{:?} -> {:?}", tyvar, ty);
 
             use self::TyVarSubst::*;
-            if let Bound{ ref repr, .. } =  *tyvar.1.borrow() {
-                return unify(&repr.borrow(), ty)
-            }
-
-
-            if occurs(tyvar, ty) {
-                let msg = format!("Can not unify {:?} with {:?}", tyvar, ty);
-                return Err(Error::new(msg));
-            }
+            let level = {
+                match *tyvar.1.borrow() {
+                    Bound{ ref repr, .. } => return unify(&repr.borrow(), ty),
+                    Unbound{ level } => level
+                }
+            };
+            
             if let Var(ref tyvar_rhs) = ty {
                 if tyvar_rhs.0 == tyvar.0 {
                     return Ok(())
                 }
             }
+            
+            if occurs(tyvar, level, ty) {
+                let msg = format!("Can not unify {:?} with {:?}", tyvar, ty);
+                return Err(Error::new(msg));
+            }
+
             let bound = Bound {
                 rank: 0,
                 repr: Rc::new(RefCell::new(ty.clone()))

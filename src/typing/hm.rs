@@ -186,7 +186,7 @@ fn infer_let(
     let mut gamma1 = gamma.apply_subst();
     // Do value restriction: Don't generalize unless the bind expr is a value
     let t2         = match is_value(bind.expr()) {
-        true  => generalize(t1, &gamma1),
+        true  => generalize(t1, level),
         false => ForAll::new(vec![], t1)
     };
     gamma1.extend(bind.symbol(), t2.clone());
@@ -228,7 +228,7 @@ fn infer_recbind(
     //into
     //   let foo = Λ a b. ( λf. λy. f x )
     //
-    let t2 = generalize(t1.clone(), &gamma);
+    let t2 = generalize(t1.clone(), level);
     let bv = t2.bound_vars().clone();
     let e  = xir::Expr::TyLam(bv.clone(), Box::new(e));
 

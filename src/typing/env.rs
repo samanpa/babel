@@ -1,7 +1,7 @@
-use std::collections::{HashMap,HashSet};
+use std::collections::{HashMap};
 use ::{Result,Error};
 use idtree::Symbol;
-use super::types::{TyVar,ForAll};
+use super::types::{ForAll};
 
 #[derive(Clone,Debug)]
 pub (super) struct Env {
@@ -31,13 +31,4 @@ impl Env {
         }
         env
     }
-
-    pub fn free_tyvars(&self) -> HashSet<TyVar>{
-        let mut ftv = HashSet::new();
-        for sigma in self.map.values() {
-            ftv.extend(sigma.free_tyvars());
-        }
-        ftv
-    }
-
 }
