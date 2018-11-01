@@ -11,9 +11,15 @@ use std::{
 use super::subst::Subst;
 use super::Kind;
 
+#[derive(Clone,PartialEq,Eq,Copy)]
+pub struct UnboundTyVar {
+    pub (super) id: u32,
+    pub (super) level: u32
+}
+
 #[derive(Clone,PartialEq,Eq)]
 pub enum TyVarSubst {
-    Unbound{ level: u32 },
+    Unbound(UnboundTyVar),
     Bound{ rank: u32, repr: Rc<RefCell<Type>> }
 }
          
@@ -27,9 +33,11 @@ impl Hash for TyVar {
 }
 
 pub fn fresh_tyvar(level: u32) -> TyVar {
-    let subst = TyVarSubst::Unbound{ level };
+    let id = ::fresh_id();
+    let unbound = UnboundTyVar{id, level };
+    let subst = TyVarSubst::Unbound(unbound);
     let rc = Rc::new(RefCell::new(subst));
-    TyVar(::fresh_id(), rc)
+    TyVar(id, rc)
 }
 
 #[derive(Clone,Hash,PartialEq,Eq)]
@@ -61,8 +69,8 @@ impl Type {
             Con(_, _)  => (),
             Var(ref v) => {
                 match *v.1.borrow() {
-                    TyVarSubst::Unbound{ level } => {
-                        if level <= curr_level {
+                    TyVarSubst::Unbound( ref unbound ) => {
+                        if unbound.level <= curr_level {
                             res.insert(v.clone());
                         }
                     }
@@ -86,7 +94,7 @@ impl Type {
         match *self {
             Var(ref tyvar) => {
                 match *tyvar.1.borrow() {
-                    Unbound{..} => self.clone(),
+                    Unbound(_) => self.clone(),
                     Bound{ ref repr, .. } => repr.borrow().apply_subst()
                 }
             }
@@ -116,8 +124,8 @@ impl fmt::Debug for Type {
 impl fmt::Debug for TyVar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self.1.borrow() {
-            TyVarSubst::Bound{..} => write!(f, "'b{} ", self.0),
-            TyVarSubst::Unbound{level} => write!(f, "'u{}-{}", self.0, level)
+            TyVarSubst::Bound{ ref repr, .. } => repr.borrow().fmt(f),
+            TyVarSubst::Unbound(u) => write!(f, "'u{}", u.id)
         }
     }
 }

@@ -1,33 +1,37 @@
-use super::types::{Type,TyVar, TyVarSubst};
+use super::types::{Type, UnboundTyVar, TyVarSubst};
 use ::{Error,Result};
 use std::rc::Rc;
 use std::cell::RefCell;
 
-fn occurs(tyvar: &TyVar, lvl: u32, ty: &Type) -> bool {
+fn occurs(tv1: UnboundTyVar, ty: &Type) -> bool {
     use types::Type::*;
-    match *ty {
+    match ty {
         Con(_, _)   => false,
-        Var(ref tv) => {
-            use self::TyVarSubst::*;
-            let min_level = {
-                match *tv.1.borrow() {
-                    Unbound{ level } => {
-                        if tyvar.0 == tv.0 { return true };
-                        if level < lvl { level } else { lvl }
+        Var(ref tv2) => {
+            let unbound = {
+                match *tv2.1.borrow() {
+                    TyVarSubst::Unbound(tv2) => {
+                        if tv1.id == tv2.id { return true };
+                        //Move tv2 to the min of its level and tv1's level
+                        let level = match tv1.level < tv2.level {
+                            true  => tv1.level,
+                            false => tv2.level
+                        };
+                        UnboundTyVar{ id: tv2.id, level }
                     }
-                    Bound{ ref repr, .. } => {
-                        return occurs(tyvar, lvl, &repr.borrow())
+                    TyVarSubst::Bound{ ref repr, .. } => {
+                        return occurs(tv1, &repr.borrow())
                     }
                 }
             };
-            *tv.1.borrow_mut() = Unbound{ level: min_level };
+            *tv2.1.borrow_mut() = TyVarSubst::Unbound(unbound);
             false
         }
         App(ref con, ref args) => {
             args.iter()
-                .fold( occurs(tyvar, lvl, con), |acc, arg| {
-                    acc || occurs(tyvar, lvl, arg)
-                })
+                .fold(
+                    occurs(tv1, con), |acc, arg| { acc || occurs(tv1, arg) }
+                )
         }
     }
 }
@@ -58,20 +62,24 @@ pub fn unify<'a>(lhs: &'a Type, rhs: &'a Type) -> Result<()> {
             //println!("{:?} -> {:?}", tyvar, ty);
 
             use self::TyVarSubst::*;
-            let level = {
+            let unbound = {
                 match *tyvar.1.borrow() {
                     Bound{ ref repr, .. } => return unify(&repr.borrow(), ty),
-                    Unbound{ level } => level
+                    Unbound(unbound) => unbound
                 }
             };
             
             if let Var(ref tyvar_rhs) = ty {
-                if tyvar_rhs.0 == tyvar.0 {
-                    return Ok(())
+                match *tyvar_rhs.1.borrow() {
+                    TyVarSubst::Unbound(tyvar) =>
+                        if tyvar.id == unbound.id {
+                            return Ok(())
+                        },
+                    _ => ()
                 }
             }
             
-            if occurs(tyvar, level, ty) {
+            if occurs(unbound, ty) {
                 let msg = format!("Can not unify {:?} with {:?}", tyvar, ty);
                 return Err(Error::new(msg));
             }
