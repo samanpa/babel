@@ -1,24 +1,29 @@
-use union_find::{NodeId, DisjointSet};
+use union_find::{DisjointSet, self};
 use super::types::{Type, TyVar};
+use std::collections::HashMap;
 use ::Error;
 use std;
 
 #[derive(Debug)]
 pub (super) struct TypeEnv {
-    set: DisjointSet<Type>
+    subst: DisjointSet<u32, Type>,
+    indices: HashMap<u32, u32>
 }
 
+impl union_find::Value for Type {}
 
 impl TypeEnv {
     pub fn new() -> Self {
-        let set = DisjointSet::new();
-        TypeEnv{ set }
+        let subst = DisjointSet::with_capacity(100);
+        let indices = HashMap::new();
+        TypeEnv{ subst, indices }
     }
 
     pub fn fresh_tyvar(&mut self) -> TyVar {
-        let tyid  = self.set.next_node_id().0 as u32;
+        let tyid  = self.indices.len() as u32;
         let tyvar = TyVar(tyid);
-        self.set.add(Type::Var(tyvar));
+        let key   = self.subst.add(Type::Var(tyvar));
+        self.indices.insert(tyid, key);
         tyvar
     }
 
@@ -34,7 +39,8 @@ impl TypeEnv {
                 App(Box::new(con), args)
             }
             Var(TyVar(id)) => {
-                let ty = self.set.find(NodeId(*id as usize)).clone();
+                let key = *self.indices.get(id).unwrap();
+                let ty = self.subst.find(key).clone();
                 match ty {
                     Var(ty) => Var(ty),
                     ty      => self.apply_subst(&ty)
@@ -44,7 +50,6 @@ impl TypeEnv {
 
         //println!("APPLY SUBST \n{:?} = {:?} \n{:#?}", ty, res, self);
         res
-
     }
 
     pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> ::Result<()>
@@ -66,10 +71,9 @@ impl TypeEnv {
                 }
             }
             (&Var(tyvar1), &Var(tyvar2)) => {
-                self.set.merge(
-                    NodeId(tyvar1.0 as usize),
-                    NodeId(tyvar2.0 as usize)
-                );
+                let key1 = *self.indices.get(&tyvar1.0).unwrap();
+                let key2 = *self.indices.get(&tyvar2.0).unwrap();
+                self.subst.merge(key1, key2);
             }
             (&Var(tyvar), ty) |
             (ty, &Var(tyvar)) => {
@@ -77,7 +81,8 @@ impl TypeEnv {
                     return cannot_unify(&Type::Var(tyvar), ty);
                 }
                 let old = {
-                    let new_ty = self.set.find(NodeId(tyvar.0 as usize));
+                    let key = *self.indices.get(&tyvar.0).unwrap();
+                    let new_ty = self.subst.find(key);
                     std::mem::replace(new_ty, ty.clone())
                 };
                 self.unify(&old, ty)?;
