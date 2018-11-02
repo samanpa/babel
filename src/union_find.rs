@@ -1,40 +1,58 @@
-use std::num::NonZeroU32;
+use std::marker::PhantomData;
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct NodeId(pub (super) usize);
+pub trait Key {
+    fn make(index: u32) -> Self;
+    fn index(&self) -> u32;
+}
 
-#[derive(Debug)]
-pub struct Node<T> {
-    parent: NodeId,
-    rank: NonZeroU32,
-    value: T,
+impl Key for u32 {
+    fn make(index: u32) -> Self { index }
+    fn index(&self) -> u32 { *self }
+}
+
+pub trait Value : Sized {
+    fn unify(_val1: &Self, _val2: &Self) -> Option<Self> {
+        None
+    }
 }
 
 #[derive(Debug)]
-pub struct DisjointSet<T> {
-    nodes: Vec<Node<T>>,
+struct Node<V> {
+    parent: u32,
+    rank: u32,
+    value: V,
 }
 
-impl <T> DisjointSet<T> {
-    pub fn new() -> Self {
-        Self{ nodes: Vec::new() }
+#[derive(Debug)]
+pub struct DisjointSet<K, V> {
+    nodes: Vec<Node<V>>,
+    phantom: PhantomData<K>
+}
+
+impl <K: Key, V: Value> DisjointSet<K, V> {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self{
+            nodes: Vec::with_capacity(capacity),
+            phantom: PhantomData
+        }
     }
 
-    pub fn next_node_id(&self) -> NodeId {
-        NodeId(self.nodes.len())
+    pub fn reset(&mut self) {
+        self.nodes.clear()
     }
 
-    pub fn add(&mut self, value: T) -> NodeId {
-        let parent = self.next_node_id();
-        let rank   = unsafe { NonZeroU32::new_unchecked(1) };
+    pub fn add(&mut self, value: V) -> K {
+        let parent = self.nodes.len() as u32;
+        let rank   = 0;
         let node   = Node { parent, rank, value };
         self.nodes.push( node );
-        parent
+        Key::make( parent )
     }
 
-    fn find_tc(&self, mut node: NodeId) -> NodeId {
+    fn find_repr_node(&self, key: K) -> usize {
+        let mut node = key.index() as usize;
         loop {
-            let parent = unsafe{ self.nodes.get_unchecked(node.0).parent };
+            let parent = self.nodes[node].parent as usize;
             match node == parent {
                 true  => return node,
                 false => node = parent,
@@ -42,44 +60,37 @@ impl <T> DisjointSet<T> {
         }
     }
 
-    pub fn get_repr(&self, node_id: NodeId) -> NodeId {
-        self.find_tc(node_id)
-    }
+    pub fn merge(&mut self, key1: K, key2: K) {
+        let rep1 = self.find_repr_node(key1);
+        let rep2 = self.find_repr_node(key2);
 
-    pub fn merge(&mut self, node1: NodeId, node2: NodeId) -> &mut T {
-        let rep1 = self.get_repr(node1);
-        let rep2 = self.get_repr(node2);
-
-        let (nodeid, rank) = if rep1 == rep2 {
-            (rep2, None)
-        }
-        else {
+        if rep1 != rep2 {
             let (lo, hi, rank) = {
-                let n1  = unsafe { self.nodes.get_unchecked(rep1.0) };
-                let n2  = unsafe { self.nodes.get_unchecked(rep2.0) };
-                let inc = if n1.rank.get() == n2.rank.get() {1} else {0};
+                let n1  = unsafe { self.nodes.get_unchecked(rep1) };
+                let n2  = unsafe { self.nodes.get_unchecked(rep2) };
+                let inc = if n1.rank == n2.rank {1} else {0};
                 match n1.rank <= n2.rank {
-                    true  => (rep2, rep1, n1.rank.get() + inc),
-                    false => (rep1, rep2, n2.rank.get() + inc),
+                    true  => (rep2, rep1, n1.rank + inc),
+                    false => (rep1, rep2, n2.rank + inc),
                 }
             };
 
-            let lo = unsafe { self.nodes.get_unchecked_mut(lo.0) };
-            lo.parent = hi;
-            (hi, Some(rank))
-        };
-
-        let node = unsafe { self.nodes.get_unchecked_mut(nodeid.0) };
-        if let Some(rank) = rank {
-            node.rank =  unsafe { NonZeroU32::new_unchecked(rank) };
+            unsafe {
+                let lo : *mut _ = self.nodes.get_unchecked_mut(lo);
+                (*lo).parent = hi as u32;
+                let hi : *mut _ = self.nodes.get_unchecked_mut(hi);
+                (*hi).rank   = rank as u32;
+                if let Some(value) = V::unify(&(*lo).value, &(*hi).value) {
+                    (*hi).value = value;
+                }
+            }
         }
-        &mut node.value
     }
 
-    pub fn find(&mut self, node_id: NodeId) -> &mut T {
-        let repr = self.get_repr(node_id);
+    pub fn find(&mut self, key: K) -> &mut V {
+        let repr = self.find_repr_node(key);
         unsafe {
-            let curr = self.nodes.get_unchecked_mut(repr.0 as usize);
+            let curr = self.nodes.get_unchecked_mut(repr);
             &mut curr.value
         }
     }
@@ -88,10 +99,17 @@ impl <T> DisjointSet<T> {
 #[cfg(test)]
 mod tests {
     use super::DisjointSet;
+    use std::cmp::min;
     
     #[test]
     fn insert1() {
-        let mut set = DisjointSet::new();
+        impl super::Value for char {
+            fn unify(val1: &Self, val2: &Self) -> Option<Self> {
+                Some(min(*val1, *val2))
+            }
+        }
+        
+        let mut set = DisjointSet::<u32,char>::with_capacity(10);
         let node1 = set.add('1');
         let node2 = set.add('2');
         let node3 = set.add('3');
@@ -106,14 +124,17 @@ mod tests {
         assert_eq!(*set.find(node5), '5');
         assert_eq!(*set.find(node6), '6');
         
-        (*set.merge(node2, node4)) = '7';
-        assert_eq!(*set.find(node2), '7');
-        assert_eq!(*set.find(node4), '7');
+        set.merge(node2, node4);
+        assert_eq!(*set.find(node2), '2');
+        assert_eq!(*set.find(node4), '2');
         assert_eq!(*set.find(node6), '6');
 
-        (*set.merge(node4, node6)) = '8';
-        assert_eq!(*set.find(node2), '8');
-        assert_eq!(*set.find(node4), '8');
-        assert_eq!(*set.find(node6), '8');
+        set.merge(node4, node6);
+        assert_eq!(*set.find(node1), '1');
+        assert_eq!(*set.find(node2), '2');
+        assert_eq!(*set.find(node3), '3');
+        assert_eq!(*set.find(node4), '2');
+        assert_eq!(*set.find(node5), '5');
+        assert_eq!(*set.find(node6), '2');
     }
 }
