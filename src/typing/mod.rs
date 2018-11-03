@@ -3,11 +3,10 @@ use std::rc::Rc;
 
 pub mod types;
 pub mod subst;
-mod unify;
 mod hm;
 mod env;
 mod typecheck;
-mod type_env;
+mod unify;
 
 pub use self::typecheck::TypeChecker;
 

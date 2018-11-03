@@ -40,12 +40,13 @@ impl TypeChecker {
     fn tc_decl(&mut self, decl: &idtree::Decl) -> Result<xir::Decl> {
         let res = match *decl {
             idtree::Decl::Extern(ref v) => {
+                self.gamma.reset();
                 self.gamma.extend(v, ForAll::new(vec![], v.ty().clone()));
                 let v = into_xir_symbol(v, v.ty());
                 xir::Decl::Extern(v)
             }
             idtree::Decl::Let(ref bind) => {
-                let b = infer_fn(&mut self.gamma, bind)?;
+                let b = infer_fn(&mut self.gamma, bind, 1)?;
                 let bind_res = bind_subst(&b, &mut self.gamma);
                 /*
                 println!("{:?}", bind);

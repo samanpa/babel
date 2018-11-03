@@ -1,14 +1,35 @@
-use std::rc::Rc;
-use super::subst::Subst;
+use std::cell::RefCell;
 use std::collections::HashSet;
-use super::Kind;
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 
-#[derive(Copy,Clone,Hash,PartialEq,Eq)]
-pub struct TyVar(pub (super) u32);
+use super::subst::Subst;
+use super::Kind;
 
-pub fn fresh_tyvar() -> TyVar {
-    TyVar(::fresh_id())
+#[derive(Clone,PartialEq,Eq)]
+pub struct InnerTyVar {
+    pub level: u32
+}
+    
+#[derive(Clone,PartialEq,Eq)]
+pub struct TyVar {
+    pub id: u32,
+    pub inner: Rc<RefCell<InnerTyVar>>
+}
+
+impl Hash for TyVar {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+pub fn fresh_tyvar(level: u32) -> TyVar {
+    let inner = InnerTyVar{ level };
+    TyVar{
+        id: ::fresh_id(),
+        inner: Rc::new(RefCell::new(inner))
+    }
 }
 
 
@@ -55,23 +76,24 @@ pub struct ForAll {
 }
 
 impl Type {
-    pub fn free_tyvars(&self) -> HashSet<TyVar>
-    {
+    pub fn free_tyvars(&self, curr_level: u32, res: &mut HashSet<TyVar>) {
         use self::Type::*;
-        let mut res = HashSet::new();
         match *self {
-            Con(_, _) => (),
-            Var(v)    => {res.insert(v);}
+            Con(_, _)  => (),
+            Var(ref v) => {
+                if v.inner.borrow().level <= curr_level {
+                    res.insert(v.clone());
+                }
+            }
             App(ref con, ref args) => {
-                res = con.free_tyvars();
+                con.free_tyvars(curr_level, res);
                 for arg in args {
-                    let arg_ftv = arg.free_tyvars();
-                    res = &res | &arg_ftv;
+                    arg.free_tyvars(curr_level, res);
                 }
             }
         }
-        res
     }
+
 }
 
 impl fmt::Debug for Type {
@@ -80,14 +102,14 @@ impl fmt::Debug for Type {
         match *self {
             Con(ref str, ref k) => write!(f, "{:?}:{:?}", str, k),
             App(ref a, ref b)   => write!(f, "App({:?}, {:?})", a, b),
-            Var(v)              => write!(f, "{:?}", v),
+            Var(ref v)          => write!(f, "{:?}", v),
         }
     }
 }
 
 impl fmt::Debug for TyVar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "'a{}", self.0)
+        write!(f, "'a{}", self.id)
     }
 }
 
@@ -139,24 +161,19 @@ impl ForAll {
     pub fn is_monotype(&self) -> bool {
         self.bound_vars.is_empty()
     }
-    pub fn free_tyvars(&self) -> HashSet<TyVar>
-    {
-        let mut bound_tv = HashSet::new();
-        for v in self.bound_vars() {
-            bound_tv.insert(*v);
-        }
-        let ftv = self.ty.free_tyvars();
-        ftv.difference(&bound_tv);
-        ftv
-    }
-
-    pub (super) fn instantiate(&self, env: &mut super::env::Env) -> (Vec<TyVar>, Type) {
+    
+    pub (super) fn instantiate(
+        &self,
+        env: &mut super::env::Env,
+        level: u32
+    ) -> (Vec<TyVar>, Type) {
+        //FIXME: does this even make sense
         let mut subst = Subst::new();
         let mut tvs   = Vec::new();
         for bv in &self.bound_vars {
-            let tv = env.fresh_tyvar();
-            tvs.push(tv);
-            subst.bind(*bv, Type::Var(tv));
+            let tv = env.fresh_tyvar(level);
+            tvs.push(tv.clone());
+            subst.bind(bv, Type::Var(tv));
         }
         (tvs, subst.apply(self.ty()))
     }
@@ -165,12 +182,10 @@ impl ForAll {
     }
 }
 
-pub (super) fn generalize(ty: Type, env: &super::env::Env) -> ForAll {
-    let ftv1 = ty.free_tyvars();
-    let ftv2 = env.free_tyvars();
-    let ftv  = ftv1.difference(&ftv2)
-        .cloned()
-        .collect();
+pub (super) fn generalize(ty: Type, level: u32) -> ForAll {
+    let mut tyvars = HashSet::new();
+    ty.free_tyvars(level, &mut tyvars);
+    let ftv  = tyvars.into_iter().collect();
     ForAll::new(ftv, ty)
 }
-    
+

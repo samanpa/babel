@@ -41,7 +41,7 @@ impl Rename {
     fn conv_ty(&mut self, ty: &ast::Type) -> Result<Type> {
         use ast::Type::*;
         let ty = match *ty {
-            Var(ref _v)           => Self::new_tyvar(),
+            Var(ref _v)           => self.new_tyvar(),
             Con(ref nm, ref kind) => {
                 let tycon = match nm.as_str() {
                     "i32"  => TyCon::I32,
@@ -88,32 +88,38 @@ impl Rename {
         Ok(var)
     }
     
-    fn conv_module(&mut self, module: &ast::Module) -> Result<idtree::Module>
-    {
+    fn conv_module(&mut self, module: &ast::Module) -> Result<idtree::Module> {
         let decls = Vector::map(module.decls(), |decl| {
             self.conv_decl(decl)
         });
         Ok(idtree::Module::new(module.name().clone(), decls?))
     }
 
-    fn conv_extern(&mut self, name: &String, ty: &ast::Type)
-                     -> Result<idtree::Decl>
-    {
+    fn conv_extern(
+        &mut self,
+        name: &String,
+        ty: &ast::Type
+    ) -> Result<idtree::Decl> {
         let ty     = self.conv_ty(ty)?;
         let funcid = self.add_var(name, ty)?;
         
         Ok(idtree::Decl::Extern(funcid))
     }
     
-    fn new_tyvar() -> Type {
-        Type::Var(fresh_tyvar())
+    fn new_tyvar(&self) -> Type {
+        let level = self.names.scope();
+        Type::Var(fresh_tyvar(level))
     }
 
-    fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<idtree::Expr>
-    {
+    fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<idtree::Expr> {
         self.names.begin_scope();
-        let params = Vector::map(lam.params()
-                                 , |p| self.add_var(p, Self::new_tyvar()))?;
+        let params = Vector::map(
+            lam.params(),
+            |p| {
+                let tv = self.new_tyvar();
+                self.add_var(p, tv)
+            }
+        )?;
         let body   = self.conv(lam.body())?;
         self.names.end_scope();
      
@@ -124,12 +130,12 @@ impl Rename {
         match *bind {
             ast::Bind::NonRec(ref name, ref expr) => {
                 let lam  = self.conv(expr)?;
-                let fnty = Self::new_tyvar();
+                let fnty = self.new_tyvar();
                 let fnid = self.add_var(name, fnty)?;
                 Ok(idtree::Bind::new(fnid, lam))
             },
             ast::Bind::Rec(ref name, ref expr) => {
-                let fnty = Self::new_tyvar();
+                let fnty = self.new_tyvar();
                 let fnid = self.add_var(name, fnty)?;
                 let lam  = self.conv(expr)?;
                 Ok(idtree::Bind::new(fnid, lam))
@@ -160,8 +166,7 @@ impl Rename {
             If(ref e)    => {
                 let if_expr = idtree::If::new(self.conv(e.cond())?,
                                               self.conv(e.texpr())?,
-                                              self.conv(e.fexpr())?,
-                                              Self::new_tyvar());
+                                              self.conv(e.fexpr())?);
                 idtree::Expr::If(Box::new(if_expr))
             }
             App(ref callee, ref args) => {

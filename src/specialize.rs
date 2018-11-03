@@ -86,10 +86,10 @@ impl Instances {
 
     fn add(&mut self, var: &Symbol, sub: &mut Subst, args: Vec<Type>) -> Symbol {
         for (tyvar, ty) in self.tyvars.iter().zip(args.into_iter()) {
-            sub.bind(*tyvar, ty)
+            sub.bind(tyvar, ty)
         }
         let args = self.tyvars.iter()
-            .map( |ty| sub.apply(&Type::Var(*ty)) )
+            .map( |ty| sub.apply(&Type::Var(ty.clone())) )
             .collect::<Vec<_>>();
         let var = self.inner.entry(args.clone())
             .or_insert_with( || {
@@ -141,9 +141,12 @@ impl Specializer
         self.entries.get(var).is_some()
     }
 
-    fn add_instance(&mut self, var: &Symbol, sub: &mut Subst, args: Vec<Type>)
-                    -> Result<Symbol>
-    {
+    fn add_instance(
+        &mut self,
+        var: &Symbol,
+        sub: &mut Subst,
+        args: Vec<Type>
+    ) -> Result<Symbol> {
         match self.entries.get_mut(&var) {
             None => {
                 Err(Error::new(format!("Could not find var {:?} -> {:?}"
@@ -180,9 +183,12 @@ impl Specializer
         Ok(result)
     }
 
-    fn process(&mut self, bind: &Bind, sub: &mut Subst
-               , args: Vec<Type>) -> Result<Bind>
-    {
+    fn process(
+        &mut self,
+        bind: &Bind,
+        sub: &mut Subst,
+        args: Vec<Type>
+    ) -> Result<Bind> {
         let bind = match *bind {
             Bind::NonRec{ref symbol, ref expr} => {
                 let spec = self.spec(symbol, expr, sub, args)?;
@@ -238,7 +244,7 @@ impl Specializer
             }
             TyLam(ref param, ref b) => {
                 for (tyvar, ty) in param.iter().zip(args.into_iter()) {
-                    sub.bind(*tyvar, ty)
+                    sub.bind(tyvar, ty)
                 }
                 let body = self.run(b, sub, vec![])?;
                 body
@@ -278,4 +284,3 @@ impl Specializer
         Ok(expr)
     }
 }
-    
