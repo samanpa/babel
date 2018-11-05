@@ -174,7 +174,7 @@ fn infer_let(
     level: u32
 ) -> Result<(Type, xir::Expr)> {
     let bind       = let_exp.bind();
-    let (t1, e1)   = infer(gamma, bind.expr(), level)?;
+    let (t1, e1)   = infer(gamma, bind.expr(), level + 1)?;
     
     let name       = into_xir_symbol(bind.symbol(), &t1);
     // Do value restriction: Don't generalize unless the bind expr is a value

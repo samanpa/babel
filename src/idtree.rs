@@ -14,7 +14,7 @@ pub enum Decl {
     Let(Bind),
 }
 
-#[derive(Clone,Hash,Eq,PartialEq)]
+#[derive(Clone,Eq,PartialEq)]
 pub struct Symbol {
     name: Rc<String>,
     id: u32,

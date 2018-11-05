@@ -5,6 +5,7 @@
 
 use std::rc::Rc;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use ::types::{Type,TyVar};
 
 #[derive(Debug)]
@@ -19,7 +20,7 @@ pub enum Decl {
     Let(Bind),
 }
 
-#[derive(Clone,Hash,Eq,PartialEq)]
+#[derive(Clone,Eq,PartialEq)]
 pub struct Symbol {
     name: Rc<String>,
     id: u32,
@@ -56,6 +57,12 @@ pub enum Expr {
     App(Box<Expr>, Vec<Expr>),
     TyLam(Vec<TyVar>, Box<Expr>),
     TyApp(Box<Expr>, Vec<Type>),
+}
+
+impl Hash for Symbol {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
 
 impl Module {
