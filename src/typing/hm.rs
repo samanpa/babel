@@ -128,8 +128,7 @@ fn infer_args(
     gamma: &mut Env,
     args: &[idtree::Expr],
     level: u32
-) -> Result<(Vec<Type>, Vec<xir::Expr>)>
-{
+) -> Result<(Vec<Type>, Vec<xir::Expr>)> {
     let mut tys   = Vec::with_capacity(args.len());
     let mut exprs = Vec::with_capacity(args.len());
 
@@ -146,8 +145,7 @@ fn infer_app(
     caller: &idtree::Expr,
     args: &[idtree::Expr],
     level: u32
-) -> Result<(Type, xir::Expr)>
-{
+) -> Result<(Type, xir::Expr)> {
     let (t1, caller) = infer(gamma, caller, level)?;
     let retty        = Type::Var(gamma.fresh_tyvar(level));
     let (t2, args)   = infer_args(gamma, args, level)?;
@@ -174,8 +172,7 @@ fn infer_let(
     gamma: &mut Env,
     let_exp: &idtree::Let,
     level: u32
-) -> Result<(Type, xir::Expr)>
-{
+) -> Result<(Type, xir::Expr)> {
     let bind       = let_exp.bind();
     let (t1, e1)   = infer(gamma, bind.expr(), level)?;
     
@@ -199,8 +196,7 @@ fn infer_recbind(
     v: &idtree::Symbol,
     e: &idtree::Expr,
     level: u32
-) -> Result<xir::Bind>
-{
+) -> Result<xir::Bind> {
     //Typing let rec x = e is done by translating it to
     //    let x  = Y (λx.e) where Y is the fixed point combinator.
     // 
@@ -240,8 +236,7 @@ pub (super) fn infer_fn(
     gamma: &mut Env,
     bind: &idtree::Bind,
     level: u32
-) -> Result<xir::Bind>
-{
+) -> Result<xir::Bind> {
     infer_recbind(gamma, bind.symbol(), bind.expr(), level)
 }
 
@@ -249,8 +244,7 @@ fn infer_if(
     gamma: &mut Env,
     if_expr: &idtree::If,
     level: u32
-) -> Result<(Type, xir::Expr)>
-{
+) -> Result<(Type, xir::Expr)> {
     let (t1, cond) = infer(gamma, if_expr.cond(), level)?;
     let (t2, texp) = infer(gamma, if_expr.texpr(), level)?;
     let (t3, fexp) = infer(gamma, if_expr.fexpr(), level)?;
@@ -259,6 +253,7 @@ fn infer_if(
     gamma.unify(&t2, &t3)?;
 
     let ty = gamma.apply(&t2);
-    let if_expr = xir::Expr::If(Box::new(xir::If::new(cond, texp, fexp, ty.clone())));
+    let if_expr = xir::If::new(cond, texp, fexp, ty.clone());
+    let if_expr = xir::Expr::If(Box::new(if_expr));
     Ok((ty, if_expr))
 }
