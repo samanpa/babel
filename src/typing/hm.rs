@@ -1,11 +1,8 @@
 //Standard Hindley Milner augmented with value restriction
 //    "Simple imperative polymorphism" - Wright
 
-use super::Kind;
-use super::types::{TyCon,Type,TyVar,ForAll,fresh_tyvar,generalize};
-use super::subst::Subst;
+use super::{Kind,TyCon,Type,TyVar,ForAll};
 use super::env::Env;
-use super::unify::unify;
 use ::idtree;
 use ::xir;
 use ::Result;
@@ -13,38 +10,41 @@ use std::rc::Rc;
 
 pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
     use self::Type::*;
+    use self::Kind::*;
     let mk_kind = |n| {
-        let mut kind = Kind::Star;
-        for _ in 0..(n+1) {
-            kind = Kind::Fun(Rc::new(Kind::Star), Rc::new(kind));
-        }
-        kind
+        (0..(n+1))
+            .fold( Star, |kind, _| Fun(Rc::new((Star, kind))))
     };
-    if params.len() == 0 {
-        params = vec![Type::Con(TyCon::Unit, Kind::Star)];
-    }
-    let con = Type::Con(TyCon::Func, mk_kind(params.len()));
+    let con = Con(TyCon::Func, mk_kind(params.len()));
     params.push(ret);
     App(Box::new(con), params)
 }
 
-pub (super) fn infer(gamma: &mut Env, expr: &idtree::Expr) -> Result<(Subst, Type, xir::Expr)> {
+pub (super) fn infer(
+    gamma: &mut Env,
+    expr: &idtree::Expr,
+    level: u32
+) -> Result<(Type, xir::Expr)> {
     use self::Kind::*;
     use self::TyCon::*;
     use idtree::Expr::*;
 
-    let subst = Subst::new();
-    let (subst, ty, expr) = match *expr {
-        UnitLit       => (subst, Type::Con(Unit, Star), xir::Expr::UnitLit),
-        I32Lit(n)     => (subst, Type::Con(I32, Star),  xir::Expr::I32Lit(n)),
-        BoolLit(b)    => (subst, Type::Con(Bool, Star), xir::Expr::BoolLit(b)),
-        Var(ref v)    => infer_var(gamma, v)?,
-        If(ref exp)   => infer_if(gamma, exp)?,
-        Let(ref exp)  => infer_let(gamma, exp)?,
-        App(ref callee, ref args) => infer_app(gamma, callee, args)?,
-        Lam(ref proto, ref body)  => infer_lam(gamma.clone(), proto, body)?,
+    let (ty, expr) = match *expr {
+        UnitLit       => (Type::Con(Unit, Star), xir::Expr::UnitLit),
+        I32Lit(n)     => (Type::Con(I32, Star),  xir::Expr::I32Lit(n)),
+        BoolLit(b)    => (Type::Con(Bool, Star), xir::Expr::BoolLit(b)),
+        Var(ref v)    => infer_var(gamma, v, level)?,
+        If(ref exp)   => infer_if(gamma, exp, level)?,
+        Let(ref exp)  => infer_let(gamma, exp, level)?,
+        App(ref callee, ref args) => infer_app(gamma, callee, args, level)?,
+        Lam(ref params, ref body) => {
+            gamma.begin_scope();
+            let (ty, expr) = infer_lam(gamma, params, body, level)?;
+            gamma.end_scope();
+            (ty, expr)
+        }
     };
-    Ok((subst, ty, expr))
+    Ok((ty, expr))
 }
 
 pub fn into_xir_symbol(var: &idtree::Symbol, ty: &Type) -> xir::Symbol {
@@ -60,10 +60,14 @@ pub fn into_xir_symbol(var: &idtree::Symbol, ty: &Type) -> xir::Symbol {
 //   (foo {a1, b1}) inc_i32 1
 //   read as TyApp(Var(foo),
 //                 [a1, b1])
-fn translate_var(sigma: &ForAll, var: &idtree::Symbol, tvs: Vec<TyVar>) -> xir::Expr {
+fn translate_var(
+    sigma: &ForAll,
+    var: &idtree::Symbol,
+    tvs: Vec<TyVar>
+) -> xir::Expr {
     use xir::Expr::*;
     let ty_args = tvs.iter()
-        .map( |tv| Type::Var(*tv) )
+        .map( |tv| Type::Var(tv.clone()) )
         .collect::<Vec<_>>();
     let var = into_xir_symbol(var, sigma.ty());
     let var = xir::Expr::Var(var);
@@ -73,15 +77,22 @@ fn translate_var(sigma: &ForAll, var: &idtree::Symbol, tvs: Vec<TyVar>) -> xir::
     }
 }
 
-fn infer_var(gamma: &mut Env, var: &idtree::Symbol) -> Result<(Subst, Type, xir::Expr)> {
+fn infer_var(
+    gamma: &mut Env,
+    var: &idtree::Symbol,
+    level: u32
+) -> Result<(Type, xir::Expr)> {
     let sigma     = gamma.lookup(var)?;
-    let (tvs, ty) = sigma.instantiate();
+    let (tvs, ty) = sigma.instantiate(gamma, level);
     let expr      = translate_var(&sigma, var, tvs);
-    Ok((Subst::new(), ty, expr))
+    Ok((ty, expr))
 }
 
-fn translate_lam(body: xir::Expr, params: &Vec<idtree::Symbol>, params_ty: &Vec<Type>, retty: Type)
-                 -> xir::Expr {
+fn translate_lam(
+    body: xir::Expr,
+    params: &Vec<idtree::Symbol>,
+    params_ty: &Vec<Type>, retty: Type
+) -> xir::Expr {
     let params  = params
         .iter()
         .zip(params_ty)
@@ -90,57 +101,58 @@ fn translate_lam(body: xir::Expr, params: &Vec<idtree::Symbol>, params_ty: &Vec<
     xir::Expr::Lam(params, Box::new(body), retty)
 }
 
-fn infer_lam(mut gamma: Env, params: &Vec<idtree::Symbol>, body: &idtree::Expr)
-             -> Result<(Subst, Type, xir::Expr)>
-{
+fn infer_lam(
+    gamma: &mut Env,
+    params: &Vec<idtree::Symbol>,
+    body: &idtree::Expr,
+    level: u32
+) -> Result<(Type, xir::Expr)> {
     use self::Type::*;
     let params_ty = params
         .iter()
         .map(| v | {
-            let tv = fresh_tyvar();
-            gamma.extend(v, ForAll::new(vec![], Var(tv)));
+            let tv = gamma.fresh_tyvar(level);
+            gamma.extend(v, ForAll::new(vec![], Var(tv.clone())));
             Var(tv)
         })
         .collect();
-    let (s1, t1, body) = infer(&mut gamma, body)?;
+    let (t1, body) = infer(gamma, body, level + 1)?;
     let expr = translate_lam(body, params, &params_ty, t1.clone());
     let fnty = mk_func(params_ty, t1);
-    let fnty = s1.apply(&fnty);
-    Ok((s1, fnty, expr))
+    let fnty = gamma.apply(&fnty);
+    Ok((fnty, expr))
 }
 
-fn infer_args(mut gamma: Env, args: &[idtree::Expr])
-              -> Result<(Subst, Vec<Type>, Vec<xir::Expr>)>
-{
-    let mut s     = Subst::new();
+fn infer_args(
+    gamma: &mut Env,
+    args: &[idtree::Expr],
+    level: u32
+) -> Result<(Vec<Type>, Vec<xir::Expr>)> {
     let mut tys   = Vec::with_capacity(args.len());
     let mut exprs = Vec::with_capacity(args.len());
-    
+
     for arg in args {
-        let (s1, t1, arg) = infer(&mut gamma, arg)?;
-        gamma = gamma.apply_subst(&s1);
-        s     = s1.compose(&s)?;
+        let (t1, arg) = infer(gamma, arg, level)?;
         tys.push(t1);
         exprs.push(arg);
-        
     }
-    Ok((s, tys, exprs))
+    Ok((tys, exprs))
 }
 
-fn infer_app(gamma: &mut Env, caller: &idtree::Expr, args: &[idtree::Expr])
-             -> Result<(Subst, Type, xir::Expr)>
-{
-    let (s1, t1, caller) = infer(gamma, caller)?;
-    let gamma            = gamma.apply_subst(&s1);
-    let (s2, t2, args)   = infer_args(gamma, args)?;
-    let retty            = Type::Var(fresh_tyvar());
-    let fnty             = mk_func(t2, retty.clone());
-    let s3               = unify(&s2.apply(&t1), &fnty)?;
-    let t                = s3.apply(&retty);
-    let subst            = s3.compose(&s2)?.
-        compose(&s1)?;
-    let app              = xir::Expr::App(Box::new(caller), args);
-    Ok((subst, t, app))
+fn infer_app(
+    gamma: &mut Env,
+    caller: &idtree::Expr,
+    args: &[idtree::Expr],
+    level: u32
+) -> Result<(Type, xir::Expr)> {
+    let (t1, caller) = infer(gamma, caller, level)?;
+    let retty        = Type::Var(gamma.fresh_tyvar(level));
+    let (t2, args)   = infer_args(gamma, args, level)?;
+    let fnty         = mk_func(t2, retty.clone());
+    gamma.unify(&t1, &fnty)?;
+    let t            = gamma.apply(&retty);
+    let app          = xir::Expr::App(Box::new(caller), args);
+    Ok((t, app))
 }
 
 fn is_value(expr: &idtree::Expr) -> bool {
@@ -155,30 +167,35 @@ fn is_value(expr: &idtree::Expr) -> bool {
     }
 }
 
-fn infer_let(gamma: &mut Env, let_exp: &idtree::Let) -> Result<(Subst, Type, xir::Expr)>
-{
-    let bind         = let_exp.bind();
-    let (s1, t1, e1) = infer(gamma, bind.expr())?;
+fn infer_let(
+    gamma: &mut Env,
+    let_exp: &idtree::Let,
+    level: u32
+) -> Result<(Type, xir::Expr)> {
+    let bind       = let_exp.bind();
+    let (t1, e1)   = infer(gamma, bind.expr(), level + 1)?;
     
-    let name         = into_xir_symbol(bind.symbol(), &t1);
-    let mut gamma1   = gamma.apply_subst(&s1);
+    let name       = into_xir_symbol(bind.symbol(), &t1);
     // Do value restriction: Don't generalize unless the bind expr is a value
-    let t2           = match is_value(bind.expr()) {
-        true  => generalize(t1, &gamma1),
+    let t2         = match is_value(bind.expr()) {
+        true  => t1.generalize(level),
         false => ForAll::new(vec![], t1)
     };
-    gamma1.extend(bind.symbol(), t2.clone());
-    let (s2, t, e2)  = infer(&mut gamma1, let_exp.expr())?;
-    let s            = s2.compose(&s1)?;
-    let tylam        = xir::Expr::TyLam(t2.bound_vars().clone(), Box::new(e1));
-    let let_exp      = xir::Let::new(xir::Bind::non_rec(name, tylam), e2);
-    let expr         = xir::Expr::Let(Box::new(let_exp));
-    Ok((s, t, expr))
+    gamma.extend(bind.symbol(), t2.clone());
+    let (t, e2)    = infer(gamma, let_exp.expr(), level)?;
+    let tylam      = xir::Expr::TyLam(t2.bound_vars().clone(), Box::new(e1));
+    let let_exp    = xir::Let::new(xir::Bind::non_rec(name, tylam), e2);
+    let expr       = xir::Expr::Let(Box::new(let_exp));
+
+    Ok((t, expr))
 }
 
-fn infer_recbind(gamma: &mut Env, v: &idtree::Symbol, e: &idtree::Expr) 
-                -> Result<(Subst, xir::Bind)>
-{
+fn infer_recbind(
+    gamma: &mut Env,
+    v: &idtree::Symbol,
+    e: &idtree::Expr,
+    level: u32
+) -> Result<xir::Bind> {
     //Typing let rec x = e is done by translating it to
     //    let x  = Y (λx.e) where Y is the fixed point combinator.
     // 
@@ -192,11 +209,10 @@ fn infer_recbind(gamma: &mut Env, v: &idtree::Symbol, e: &idtree::Expr)
     //                 S2      = unify(β, τ1)
     //             in  (S2 ◦ S1, τ1)
 
-    let beta = Type::Var(fresh_tyvar());
+    let beta = Type::Var(gamma.fresh_tyvar(level));
     gamma.extend(v, ForAll::new(vec![], beta.clone()));
-    let (s1, t1, e) = infer(gamma, e)?;
-    let s2 = unify(&beta, &t1)?;
-    let s  = s2.compose(&s1)?;
+    let (t1, e) = infer(gamma, e, level)?;
+    gamma.unify(&beta, &t1)?;
 
     //Adds type abstraction to introduce/close over the free type variables
     //   in the body of a lambda. This adds polymorphism to the expression tree
@@ -205,37 +221,38 @@ fn infer_recbind(gamma: &mut Env, v: &idtree::Symbol, e: &idtree::Expr)
     //into
     //   let foo = Λ a b. ( λf. λy. f x )
     //
-    let t2 = generalize(t1.clone(), &gamma);
+    let t2 = t1.generalize(level);
     let bv = t2.bound_vars().clone();
     let e  = xir::Expr::TyLam(bv.clone(), Box::new(e));
+    let name = into_xir_symbol(v, &t1);
 
-    gamma.extend(v, ForAll::new(bv, t1.clone()));
+    gamma.extend(v, ForAll::new(bv, t1));
 
-    let name  = into_xir_symbol(v, &t1);
-    Ok((s, xir::Bind::NonRec{symbol: name, expr: e}))
+    Ok(xir::Bind::NonRec{symbol: name, expr: e})
 }
 
-pub (super) fn infer_fn(gamma: &mut Env, bind: &idtree::Bind) ->
-    Result<(Subst, xir::Bind)>
-{
-    infer_recbind(gamma, bind.symbol(), bind.expr())
+pub (super) fn infer_fn(
+    gamma: &mut Env,
+    bind: &idtree::Bind,
+    level: u32
+) -> Result<xir::Bind> {
+    infer_recbind(gamma, bind.symbol(), bind.expr(), level)
 }
 
-fn infer_if(gamma: &mut Env, if_expr: &idtree::If) -> Result<(Subst, Type, xir::Expr)>
-{
-    let (s1, t1, cond) = infer(gamma, if_expr.cond())?;
-    let mut gamma      = gamma.apply_subst(&s1);
-    let (s2, t2, texp) = infer(&mut gamma, if_expr.texpr())?;
-    let (s3, t3, fexp) = infer(&mut gamma, if_expr.fexpr())?;
+fn infer_if(
+    gamma: &mut Env,
+    if_expr: &idtree::If,
+    level: u32
+) -> Result<(Type, xir::Expr)> {
+    let (t1, cond) = infer(gamma, if_expr.cond(), level)?;
+    let (t2, texp) = infer(gamma, if_expr.texpr(), level)?;
+    let (t3, fexp) = infer(gamma, if_expr.fexpr(), level)?;
 
-    let s4 = unify(&t1, &Type::Con(TyCon::Bool, Kind::Star))?;
-    let s5 = unify(&t2, &t3)?;
+    gamma.unify(&t1, &Type::Con(TyCon::Bool, Kind::Star))?;
+    gamma.unify(&t2, &t3)?;
 
-    let ty = s5.apply(&t2);
-    let subst = s5.compose(&s4)?.
-        compose(&s3)?.
-        compose(&s2)?.
-        compose(&s1)?;
-    let if_expr = xir::Expr::If(Box::new(xir::If::new(cond, texp, fexp, ty.clone())));
-    Ok((subst, ty, if_expr))
+    let ty = gamma.apply(&t2);
+    let if_expr = xir::If::new(cond, texp, fexp, ty.clone());
+    let if_expr = xir::Expr::If(Box::new(if_expr));
+    Ok((ty, if_expr))
 }

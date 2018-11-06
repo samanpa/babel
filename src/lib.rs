@@ -13,8 +13,7 @@ pub mod codegen;
 pub mod link;
 pub (crate) mod scoped_map;
 pub mod passes;
-
-pub use typing::types;
+pub mod union_find;
 
 #[derive(Debug)]
 pub struct Error{

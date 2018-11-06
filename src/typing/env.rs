@@ -1,19 +1,23 @@
-use std::collections::{HashMap,HashSet};
 use ::{Result,Error};
 use idtree::Symbol;
-use super::types::{TyVar,ForAll};
-use super::subst::Subst;
+use scoped_map::ScopedMap;
+use super::{TyVar,ForAll, Type};
+use super::unify::UnificationTable;
 
-#[derive(Clone,Debug)]
+#[derive(Debug)]
 pub (super) struct Env {
-    map: HashMap<u32, ForAll>
+    map: ScopedMap<u32, ForAll>,
+    unify_table: UnificationTable,
 }
 
 impl Env {
     pub fn new() -> Self {
-        Self{ map: HashMap::new() }
+        Self {
+            map: ScopedMap::new(),
+            unify_table: UnificationTable::new(),
+        }
     }
-    
+
     pub fn lookup(&self, id: &Symbol) -> Result<ForAll> {
         match self.map.get(&id.id()) {
             Some(ty) => Ok(ty.clone()),
@@ -25,20 +29,25 @@ impl Env {
         self.map.insert(id.id(), ty);
     }
 
-    pub fn apply_subst(&self, sub: &Subst) -> Env {
-        let mut env = self.clone();
-        for val in env.map.values_mut() {
-            val.apply_subst(sub)
-        }
-        env
+    pub fn begin_scope(&mut self) {
+        self.map.begin_scope()
     }
 
-    pub fn free_tyvars(&self) -> HashSet<TyVar>{
-        let mut ftv = HashSet::new();
-        for sigma in self.map.values() {
-            ftv.extend(&sigma.free_tyvars());
-        }
-        ftv
+    pub fn end_scope(&mut self) {
+        self.map.end_scope()
     }
 
+    pub fn apply(&mut self, ty: &Type) -> Type {
+        self.unify_table.apply_subst(ty)
+    }
+
+    pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> ::Result<()> {
+        self.unify_table.unify(lhs, rhs)
+    }
+
+    pub fn fresh_tyvar(&mut self, level: u32) -> TyVar {
+        let tyvar = TyVar::fresh(level);
+        self.unify_table.add(tyvar.clone());
+        tyvar
+    }
 }

@@ -1,26 +1,33 @@
 use std::fmt;
 use std::rc::Rc;
 
-pub mod types;
-pub mod subst;
-mod unify;
+mod types;
+mod subst;
 mod hm;
 mod env;
 mod typecheck;
+mod unify;
+mod scheme;
+mod tvar;
 
 pub use self::typecheck::TypeChecker;
+pub use self::types::*;
+use self::scheme::ForAll;
+pub use self::tvar::TyVar;
+pub use self::subst::Subst;
 
 #[derive(Clone,Hash,PartialEq,Eq)]
 pub enum Kind {
     Star,
-    Fun(Rc<Kind>, Rc<Kind>)
+    Fun(Rc<(Kind, Kind)>)
 }
+
 
 impl fmt::Debug for Kind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Kind::Star              => write!(f, "*"),
-            Kind::Fun(ref l, ref r) => write!(f, "{:?} => {:?}", *l, *r),
+            Kind::Star       => write!(f, "*"),
+            Kind::Fun(ref k) => write!(f, "{:?} => {:?}", k.0, k.1),
         }
     }
 }

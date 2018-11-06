@@ -5,13 +5,15 @@ use std::borrow::Borrow;
 use std::hash::Hash;
 use std::cmp::Eq;
 
-struct Inner<K,V> {
+#[derive(Debug)]
+struct Inner<K: Hash + Eq,V> {
     scope: u32,
     curr_map: HashMap<K,V>,
     prev_scope: Option<Box<Inner<K,V>>>,
 }
 
-pub struct ScopedMap<K,V> where K : Hash + Eq {
+#[derive(Debug)]
+pub struct ScopedMap<K: Eq + Hash,V> {
     inner: Box<Inner<K,V>>,
 }
 

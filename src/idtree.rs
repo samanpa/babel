@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::fmt;
-use ::types::Type;
+use typing::Type;
 
 #[derive(Debug)]
 pub struct Module {
@@ -14,7 +14,7 @@ pub enum Decl {
     Let(Bind),
 }
 
-#[derive(Clone,Hash,Eq,PartialEq)]
+#[derive(Clone,Eq,PartialEq)]
 pub struct Symbol {
     name: Rc<String>,
     id: u32,
@@ -34,8 +34,7 @@ pub struct Bind {
 pub struct If {
     cond:  Expr,
     texpr: Expr,
-    fexpr: Expr,
-    ty: Type
+    fexpr: Expr
 }
 
 #[derive(Debug)]
@@ -97,8 +96,8 @@ impl fmt::Debug for Symbol {
 }
 
 impl If {
-    pub fn new(cond: Expr, texpr: Expr, fexpr: Expr, ty: Type) -> Self {
-        If{cond, texpr, fexpr, ty}
+    pub fn new(cond: Expr, texpr: Expr, fexpr: Expr) -> Self {
+        If{cond, texpr, fexpr}
     }
     pub fn cond(&self) -> &Expr {
         &self.cond
@@ -108,9 +107,6 @@ impl If {
     }
     pub fn fexpr(&self) -> &Expr {
         &self.fexpr
-    }
-    pub fn ty(&self) -> &Type {
-        &self.ty
     }
 }
 
