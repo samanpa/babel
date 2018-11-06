@@ -1,6 +1,6 @@
 use ::idtree;
 use ::xir;
-use super::types::{ForAll};
+use super::{ForAll};
 use super::hm::{infer_fn,into_xir_symbol};
 use super::env::Env;
 use ::{Result,Vector};
@@ -51,7 +51,6 @@ impl TypeChecker {
                 /*
                 println!("{:?}", bind);
                 println!("->\n{:?}", b);
-                println!("->\n{:?}", s);
                 println!("->\n{:?}\n=================\n\n", bind_res);
                 */
                 xir::Decl::Let(bind_res)

@@ -1,7 +1,7 @@
 use ::{Result,Error};
 use idtree::Symbol;
 use scoped_map::ScopedMap;
-use super::types::{TyVar,ForAll, Type};
+use super::{TyVar,ForAll, Type};
 use super::unify::UnificationTable;
 
 #[derive(Debug)]
@@ -50,7 +50,7 @@ impl Env {
     }
 
     pub fn fresh_tyvar(&mut self, level: u32) -> TyVar {
-        let tyvar = super::types::fresh_tyvar(level);
+        let tyvar = TyVar::fresh(level);
         self.unify_table.add(tyvar.clone());
         tyvar
     }

@@ -1,5 +1,5 @@
 use union_find::{DisjointSet, self};
-use super::types::{Type, TyVar};
+use super::{Type, TyVar};
 use std::collections::HashMap;
 use ::Error;
 use std;
@@ -30,7 +30,7 @@ impl UnificationTable {
     }
 
     pub fn apply_subst(&mut self, ty: &Type) -> Type {
-        use types::Type::*;
+        use super::Type::*;
         let res = match ty {
             Con(ref con, ref kind) => Con(con.clone(), kind.clone()),
             App(ref con, ref args)  => {
@@ -55,7 +55,7 @@ impl UnificationTable {
     }
 
     pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> ::Result<()> {
-        use types::Type::*;
+        use super::Type::*;
         match (lhs, rhs) {
             (&Con(ref l, ref lk), &Con(ref r, ref rk)) => {
                 if *l != *r || lk != rk {
@@ -107,7 +107,7 @@ fn cannot_unify( lhs: &Type, rhs: &Type) -> ::Result<()> {
 }
 
 fn occurs(tv1: &TyVar, ty: &Type) -> bool {
-    use types::Type::*;
+    use super::Type::*;
     match *ty {
         Con(_, _) => false,
         Var(ref tv2) => {

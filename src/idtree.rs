@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::fmt;
-use ::types::Type;
+use typing::Type;
 
 #[derive(Debug)]
 pub struct Module {

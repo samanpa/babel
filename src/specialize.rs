@@ -1,6 +1,5 @@
 use ::xir::*;
-use ::types::{Type,TyVar};
-use ::typing::subst::Subst;
+use typing::{Subst,Type,TyVar};
 use ::{Result,Vector,Error};
 use ::fresh_id;
 use scoped_map::ScopedMap;

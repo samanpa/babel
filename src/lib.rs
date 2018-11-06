@@ -15,8 +15,6 @@ pub (crate) mod scoped_map;
 pub mod passes;
 pub mod union_find;
 
-pub use typing::types;
-
 #[derive(Debug)]
 pub struct Error{
     msg: String,

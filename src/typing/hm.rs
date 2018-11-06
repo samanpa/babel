@@ -1,8 +1,7 @@
 //Standard Hindley Milner augmented with value restriction
 //    "Simple imperative polymorphism" - Wright
 
-use super::Kind;
-use super::types::{TyCon,Type,TyVar,ForAll,generalize};
+use super::{Kind,TyCon,Type,TyVar,ForAll};
 use super::env::Env;
 use ::idtree;
 use ::xir;
@@ -179,7 +178,7 @@ fn infer_let(
     let name       = into_xir_symbol(bind.symbol(), &t1);
     // Do value restriction: Don't generalize unless the bind expr is a value
     let t2         = match is_value(bind.expr()) {
-        true  => generalize(t1, level),
+        true  => t1.generalize(level),
         false => ForAll::new(vec![], t1)
     };
     gamma.extend(bind.symbol(), t2.clone());
@@ -222,13 +221,13 @@ fn infer_recbind(
     //into
     //   let foo = Λ a b. ( λf. λy. f x )
     //
-    let t2 = generalize(t1.clone(), level);
+    let t2 = t1.generalize(level);
     let bv = t2.bound_vars().clone();
     let e  = xir::Expr::TyLam(bv.clone(), Box::new(e));
+    let name = into_xir_symbol(v, &t1);
 
-    gamma.extend(v, ForAll::new(bv, t1.clone()));
+    gamma.extend(v, ForAll::new(bv, t1));
 
-    let name  = into_xir_symbol(v, &t1);
     Ok(xir::Bind::NonRec{symbol: name, expr: e})
 }
 

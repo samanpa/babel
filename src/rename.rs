@@ -1,6 +1,6 @@
 use ast;
 use idtree;
-use types::{Type, TyCon, fresh_tyvar};
+use typing::{Type, TyCon, TyVar};
 use {Vector, Result, Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
@@ -108,7 +108,7 @@ impl Rename {
     
     fn new_tyvar(&self) -> Type {
         let level = self.names.scope();
-        Type::Var(fresh_tyvar(level))
+        Type::Var(TyVar::fresh(level))
     }
 
     fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<idtree::Expr> {

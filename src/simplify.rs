@@ -1,6 +1,5 @@
 use xir;
-use typing::types::{TyCon,Type};
-use typing::Kind;
+use typing::{Kind,TyCon,Type};
 use monoir;
 use {Result,Vector,Error};
 
