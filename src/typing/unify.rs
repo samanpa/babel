@@ -12,12 +12,12 @@ pub (super) struct UnificationTable {
 
 impl union_find::Value for Type {}
 
-fn occurs(tv1: &TyVar, ty: &Type) -> bool {
+fn occurs(tv1: &TyVar, ty: &Type, level: u32) -> bool {
     use super::Type::*;
     match *ty {
         Con(_, _) => false,
         Var(ref tv2) => {
-            if tv1.id == tv2.id {
+            if tv1.id == tv2.id && level > 0 {
                 true
             }
             else {
@@ -31,7 +31,8 @@ fn occurs(tv1: &TyVar, ty: &Type) -> bool {
         },
         App(ref con, ref args) => {
             args.iter()
-                .fold(occurs(tv1, con), |acc, arg| acc || occurs(tv1, arg))
+                .fold(occurs(tv1, con, level + 1),
+                      |acc, arg| acc || occurs(tv1, arg, level + 1))
         }
     }
 }
@@ -97,12 +98,7 @@ impl UnificationTable {
             }
             (&Var(ref tyvar), ty) |
             (ty, &Var(ref tyvar)) => {
-                if let Var(tv2) = ty {
-                    if tv2.id == tyvar.id {
-                        return Ok(())
-                    }
-                }
-                if occurs(tyvar, ty) {
+                if occurs(tyvar, ty, 0) {
                     return cannot_unify(&Type::Var(tyvar.clone()), ty);
                 }
                 let old = {
