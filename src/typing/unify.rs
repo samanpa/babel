@@ -12,6 +12,30 @@ pub (super) struct UnificationTable {
 
 impl union_find::Value for Type {}
 
+fn occurs(tv1: &TyVar, ty: &Type) -> bool {
+    use super::Type::*;
+    match *ty {
+        Con(_, _) => false,
+        Var(ref tv2) => {
+            if tv1.id == tv2.id {
+                true
+            }
+            else {
+                let tv1 = tv1.inner.borrow();
+                let mut tv2 = tv2.inner.borrow_mut();
+                //Move tv2 to the min of its level and tv1's level
+                let level = std::cmp::min(tv1.level, tv2.level);
+                tv2.level = level;
+                false
+            }
+        },
+        App(ref con, ref args) => {
+            args.iter()
+                .fold(occurs(tv1, con), |acc, arg| acc || occurs(tv1, arg))
+        }
+    }
+}
+
 impl UnificationTable {
     pub fn new() -> Self {
         let subst = DisjointSet::with_capacity(100);
@@ -24,27 +48,22 @@ impl UnificationTable {
         self.indices.insert(tyvar.id, key);
     }
 
-    pub fn reset(&mut self) {
-        self.subst.reset();
-        self.indices.clear();
-    }
-
     pub fn apply_subst(&mut self, ty: &Type) -> Type {
         use super::Type::*;
         let res = match ty {
             Con(ref con, ref kind) => Con(con.clone(), kind.clone()),
             App(ref con, ref args)  => {
-                let con = self.apply_subst(con);
+                let con  = self.apply_subst(con);
                 let args = args.iter()
-                    .map( |arg| self.apply_subst(arg))
+                    .map( |arg| self.apply_subst(arg) )
                     .collect();
                 App(Box::new(con), args)
             }
             Var(TyVar{id, ..}) => {
                 let key = *self.indices.get(id).unwrap();
-                let ty = self.subst.find(key).clone();
+                let ty  = self.subst.find(key).clone();
                 match ty {
-                    Var(ty) => Var(ty),
+                    Var(ty) => Var(ty.clone()),
                     ty      => self.apply_subst(&ty)
                 }
             }
@@ -106,32 +125,3 @@ fn cannot_unify( lhs: &Type, rhs: &Type) -> ::Result<()> {
     return Err(Error::new(msg));
 }
 
-fn occurs(tv1: &TyVar, ty: &Type) -> bool {
-    use super::Type::*;
-    match *ty {
-        Con(_, _) => false,
-        Var(ref tv2) => {
-            if tv1.id == tv2.id {
-                true
-            }
-            else {
-                let tv1 = tv1.inner.borrow();
-                let mut tv2 = tv2.inner.borrow_mut();
-                //Move tv2 to the min of its level and tv1's level
-                let level = match tv1.level < tv2.level {
-                    true  => tv1.level,
-                    false => tv2.level
-                };
-                tv2.level = level;
-                false
-            }
-        },
-        App(ref con, ref args) => {
-            args.iter()
-                .fold(
-                    occurs(tv1, con),
-                    |acc, arg| { acc || occurs(tv1, arg) }
-                )
-        }
-    }
-}

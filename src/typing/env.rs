@@ -18,10 +18,6 @@ impl Env {
         }
     }
 
-    pub fn reset(&mut self) {
-        self.unify_table.reset();
-    }
-
     pub fn lookup(&self, id: &Symbol) -> Result<ForAll> {
         match self.map.get(&id.id()) {
             Some(ty) => Ok(ty.clone()),

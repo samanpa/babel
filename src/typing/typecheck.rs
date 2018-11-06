@@ -40,26 +40,24 @@ impl TypeChecker {
     fn tc_decl(&mut self, decl: &idtree::Decl) -> Result<xir::Decl> {
         let res = match *decl {
             idtree::Decl::Extern(ref v) => {
-                self.gamma.reset();
                 self.gamma.extend(v, ForAll::new(vec![], v.ty().clone()));
                 let v = into_xir_symbol(v, v.ty());
                 xir::Decl::Extern(v)
             }
             idtree::Decl::Let(ref bind) => {
                 let b = infer_fn(&mut self.gamma, bind, 1)?;
-                let bind_res = bind_subst(&b, &mut self.gamma);
+                let r = bind_subst(&b, &mut self.gamma);
                 /*
                 println!("{:?}", bind);
                 println!("->\n{:?}", b);
-                println!("->\n{:?}\n=================\n\n", bind_res);
+                println!("->\n{:?}\n=================\n\n", r);
                 */
-                xir::Decl::Let(bind_res)
+                xir::Decl::Let(r)
             }
         };
         Ok(res)
     }
 }
-
 
 fn mk_symbol(tv: &xir::Symbol, sub: &mut Env) -> xir::Symbol {
     tv.with_ty(sub.apply(tv.ty()))
@@ -76,8 +74,7 @@ fn bind_subst(bind: &xir::Bind, sub: &mut Env) -> xir::Bind {
     }
 }
 
-fn subst(expr: &xir::Expr, sub: &mut Env) -> xir::Expr
-{
+fn subst(expr: &xir::Expr, sub: &mut Env) -> xir::Expr {
     use ::xir::*;
     use xir::Expr::*;
     match *expr {
@@ -93,15 +90,18 @@ fn subst(expr: &xir::Expr, sub: &mut Env) -> xir::Expr
             Lam(proto, Box::new(body), sub.apply(retty))
         }
         If(ref e) => {
-            let if_expr = xir::If::new(subst(e.cond(),  sub),
-                                       subst(e.texpr(), sub),
-                                       subst(e.fexpr(), sub),
-                                       e.ty().clone());
+            let if_expr = xir::If::new(
+                subst(e.cond(),  sub),
+                subst(e.texpr(), sub),
+                subst(e.fexpr(), sub),
+                e.ty().clone()
+            );
             Expr::If(Box::new(if_expr))
         }
         App(ref callee, ref args) => {
             let callee = subst(callee, sub);
-            let args   = args.iter().map(| arg| subst(arg, sub) )
+            let args   = args.iter()
+                .map(| arg| subst(arg, sub) )
                 .collect::<Vec<_>>();
             xir::Expr::App(Box::new(callee), args)
         }
