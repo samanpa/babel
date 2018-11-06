@@ -13,8 +13,9 @@ runtime system.
  - [x] type inference
  - [x] value restriction
  - [x] monomorphization
- - [ ] C based ABI
- - [ ] C interoperability
+ - [x] C based ABI
+ - [x] C interoperability
+ - [ ] Records
  - [ ] constrained parametric polymorphism (type classes)
  - [ ] affine types
  - [ ] references
