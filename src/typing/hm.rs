@@ -1,5 +1,6 @@
-//Standard Hindley Milner augmented with value restriction
+//Hindley Milner augmented with value restriction and efficient generalization
 //    "Simple imperative polymorphism" - Wright
+//    "Efficient and Insightful Generalization" - Oleg Kiselyov
 
 use super::{Kind,TyCon,Type,TyVar,ForAll};
 use super::env::Env;
