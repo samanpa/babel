@@ -1,4 +1,4 @@
-use union_find::{DisjointSet, self};
+use utils::{DisjointSet, DisjointSetValue};
 use super::{Type, TyVar};
 use std::collections::HashMap;
 use ::Error;
@@ -10,7 +10,7 @@ pub (super) struct UnificationTable {
     indices: HashMap<u32, u32>
 }
 
-impl union_find::Value for Type {}
+impl DisjointSetValue for Type {}
 
 fn occurs(tv1: &TyVar, ty: &Type, top_level: bool) -> bool {
     use super::Type::*;

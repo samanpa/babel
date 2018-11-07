@@ -13,7 +13,7 @@ pub mod codegen;
 pub mod link;
 pub (crate) mod scoped_map;
 pub mod passes;
-pub mod union_find;
+pub mod utils;
 
 #[derive(Debug)]
 pub struct Error{

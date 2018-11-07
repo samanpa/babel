@@ -1,16 +1,16 @@
 use std::marker::PhantomData;
 
-pub trait Key {
+pub trait DisjointSetKey {
     fn make(index: u32) -> Self;
     fn index(&self) -> u32;
 }
 
-impl Key for u32 {
+impl DisjointSetKey for u32 {
     fn make(index: u32) -> Self { index }
     fn index(&self) -> u32 { *self }
 }
 
-pub trait Value : Sized {
+pub trait DisjointSetValue : Sized {
     fn unify(_val1: &Self, _val2: &Self) -> Option<Self> {
         None
     }
@@ -29,7 +29,7 @@ pub struct DisjointSet<K, V> {
     phantom: PhantomData<K>
 }
 
-impl <K: Key, V: Value> DisjointSet<K, V> {
+impl <K: DisjointSetKey, V: DisjointSetValue> DisjointSet<K, V> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self{
             nodes: Vec::with_capacity(capacity),
@@ -46,7 +46,7 @@ impl <K: Key, V: Value> DisjointSet<K, V> {
         let rank   = 0;
         let node   = Node { parent, rank, value };
         self.nodes.push( node );
-        Key::make( parent )
+        DisjointSetKey::make( parent )
     }
 
     fn find_repr_node(&self, key: K) -> usize {
@@ -103,7 +103,7 @@ mod tests {
     
     #[test]
     fn insert1() {
-        impl super::Value for char {
+        impl super::DisjointSetValue for char {
             fn unify(val1: &Self, val2: &Self) -> Option<Self> {
                 Some(min(*val1, *val2))
             }
