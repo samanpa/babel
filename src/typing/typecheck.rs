@@ -46,7 +46,9 @@ impl TypeChecker {
             }
             idtree::Decl::Let(ref bind) => {
                 let b = infer_fn(&mut self.gamma, bind, 1)?;
-                let r = bind_subst(&b, &mut self.gamma);
+                let r = b.iter()
+                    .map(|b| bind_subst(&b, &mut self.gamma))
+                    .collect();
                 /*
                 println!("{:?}", bind);
                 println!("->\n{:?}", b);
@@ -64,14 +66,9 @@ fn mk_symbol(tv: &xir::Symbol, sub: &mut Env) -> xir::Symbol {
 }
 
 fn bind_subst(bind: &xir::Bind, sub: &mut Env) -> xir::Bind {
-    use xir::Bind::*;
-    match *bind {
-        NonRec{ref symbol, ref expr } => {
-            let symbol = mk_symbol(symbol, sub);
-            let expr = subst(expr, sub);
-            NonRec{symbol, expr}
-        }
-    }
+    let symbol = mk_symbol(bind.symbol(), sub);
+    let expr   = subst(bind.expr(), sub);
+    xir::Bind::new(symbol, expr)
 }
 
 fn subst(expr: &xir::Expr, sub: &mut Env) -> xir::Expr {

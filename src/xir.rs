@@ -17,7 +17,7 @@ pub struct Module {
 #[derive(Debug)]
 pub enum Decl {
     Extern(Symbol),
-    Let(Bind),
+    Let(Vec<Bind>),
 }
 
 #[derive(Clone,Eq,PartialEq)]
@@ -27,9 +27,9 @@ pub struct Symbol {
     ty: Type
 }
 
-pub enum Bind {
-    NonRec{symbol: Symbol, expr: Expr},
-    //Rec(Vec<(String,Expr)>)
+pub struct Bind {
+    symbol: Symbol,
+    expr: Expr,
 }
 
 pub struct Let {
@@ -142,19 +142,22 @@ impl Let {
 }
 
 impl Bind {
-    pub fn non_rec(symbol: Symbol, expr: Expr) -> Self {
-        Bind::NonRec{symbol, expr}
+    pub fn new(symbol: Symbol, expr: Expr) -> Self {
+        Bind{symbol, expr}
+    }
+
+    pub fn symbol(&self) -> &Symbol {
+        &self.symbol
+    }
+
+    pub fn expr(&self) -> &Expr {
+        &self.expr
     }
 }
 
 impl fmt::Debug for Bind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Bind::*;
-        match *self {
-            NonRec{ref symbol, ref expr} => {
-                write!(f, "{:?} = {:?}", symbol, expr)
-            }
-        }
+        write!(f, "{:?} = {:#?}", self.symbol, self.expr)
     }
 }
 

@@ -145,4 +145,3 @@ impl fmt::Debug for Bind {
         write!(f, "{:?} = {:?}", self.symbol, self.expr)
     }
 }
-

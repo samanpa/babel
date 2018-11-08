@@ -45,11 +45,13 @@ impl Specialize {
         
         for decl in module.take_decls() {
             match decl {
-                e @ Decl::Extern( _) => decls.push(e),
-                Decl::Let(b @ Bind::NonRec{..})  => {
-                    match spec.add_if_poly(&b) {
-                        false => mono_exps.push(b),
-                        true  => poly_exps.push(b),
+                e @ Decl::Extern(_) => decls.push(e),
+                Decl::Let(bindings) => {
+                    for b in bindings {
+                        match spec.add_if_poly(&b) {
+                            false => mono_exps.push(b),
+                            true  => poly_exps.push(b),
+                        }
                     }
                 }
             }
@@ -58,13 +60,13 @@ impl Specialize {
         for bind in mono_exps.into_iter().rev() {
             let mut sub = Subst::new();
             let bind    = spec.process(&bind, &mut sub, vec![])?;
-            decls.push(Decl::Let(bind));
+            decls.push(Decl::Let(vec![bind]));
         }
 
         for bind in poly_exps.into_iter().rev() {
             let mut sub = Subst::new();
             for bind in spec.process_all(&bind, &mut sub)? {
-                decls.push(Decl::Let(bind));
+                decls.push(Decl::Let(vec![bind]));
             }
         }
 
@@ -120,19 +122,14 @@ impl Specializer
     }
 
     fn add_if_poly(&mut self, b: &Bind) -> bool {
-        use self::Bind::*;
         use self::Expr::TyLam;
-        match *b {
-            NonRec{ref symbol, ref expr} => {
-                match *expr {
-                    TyLam(ref tys, _) if tys.len() > 0 => {
-                        self.entries.entry(symbol.clone())
-                            .or_insert_with( || Instances::new(tys.clone()) );
-                        true
-                    },
-                    _ => false,
-                }
-            }
+        match *b.expr() {
+            TyLam(ref tys, _) if tys.len() > 0 => {
+                self.entries.entry(b.symbol().clone())
+                    .or_insert_with( || Instances::new(tys.clone()) );
+                true
+            },
+            _ => false,
         }
     }
     
@@ -164,20 +161,18 @@ impl Specializer
     
     fn process_all(&mut self, bind: &Bind, sub: &mut Subst) -> Result<Vec<Bind>>
     {
+        let symbol     = bind.symbol();
+        let expr       = bind.expr();
         let mut result = Vec::new();
-        match *bind {
-            Bind::NonRec{ref symbol, ref expr} => {
-                let instances  = match self.get(&symbol) {
-                    None => HashMap::new(),
-                    Some(ref instances) => instances.inner.clone()
-                };
-                for (tys, symbol) in instances {
-                    let tys  = tys.iter().map( |ty| sub.apply(ty) ).collect();
-                    let spec   = self.spec(&symbol, expr, sub, tys)?;
-                    let bind   = Bind::non_rec(symbol, spec);
-                    result.push(bind);
-                }
-            }
+        let instances  = match self.get(symbol) {
+            None => HashMap::new(),
+            Some(ref instances) => instances.inner.clone()
+        };
+        for (tys, symbol) in instances {
+            let tys  = tys.iter().map( |ty| sub.apply(ty) ).collect();
+            let spec = self.spec(&symbol, expr, sub, tys)?;
+            let bind = Bind::new(symbol, spec);
+            result.push(bind);
         }
         Ok(result)
     }
@@ -188,14 +183,12 @@ impl Specializer
         sub: &mut Subst,
         args: Vec<Type>
     ) -> Result<Bind> {
-        let bind = match *bind {
-            Bind::NonRec{ref symbol, ref expr} => {
-                let spec = self.spec(symbol, expr, sub, args)?;
-                // handle let symbol: 'a = ... Where 'a is monomorphic
-                let symbol = symbol.with_ty(sub.apply(symbol.ty()));
-                Bind::non_rec(symbol, spec)
-            }
-        };
+        let symbol = bind.symbol();
+        let expr   = bind.expr();
+        let spec   = self.spec(&symbol, expr, sub, args)?;
+        // handle let symbol: 'a = ... Where 'a is monomorphic
+        let symbol = symbol.with_ty(sub.apply(symbol.ty()));
+        let bind   = Bind::new(symbol, spec);
         Ok(bind)
     }
 

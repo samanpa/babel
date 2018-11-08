@@ -24,6 +24,12 @@ runtime system.
  - [ ] metaprgramming
 
 
+### Unsupported
+ - Mutually recursive functions that are not at the top level. 
+   In theory we can do dependency analysis o detect mutual recursion and then 
+   group the mutually recursive functions. Creating the groups can reorder
+   side effects and so is not safe to do in an impure language.
+
 ### Where I diverge from literature
  - Type constructors and expr applications have arity this is to allow
    uncurrying to work.

@@ -126,21 +126,26 @@ impl Rename {
         Ok(idtree::Expr::Lam(params, Box::new(body)))
     }
 
-    fn conv_bind(&mut self, bind: &ast::Bind) -> Result<idtree::Bind> {
-        match *bind {
-            ast::Bind::NonRec(ref name, ref expr) => {
-                let lam  = self.conv(expr)?;
-                let fnty = self.new_tyvar();
-                let fnid = self.add_var(name, fnty)?;
-                Ok(idtree::Bind::new(fnid, lam))
-            },
-            ast::Bind::Rec(ref name, ref expr) => {
-                let fnty = self.new_tyvar();
-                let fnid = self.add_var(name, fnty)?;
-                let lam  = self.conv(expr)?;
-                Ok(idtree::Bind::new(fnid, lam))
+    fn conv_bind(
+        &mut self,
+        bind: &ast::Bind,
+        toplevel: bool
+    ) -> Result<idtree::Bind> {
+        let ast::Bind(ref name, ref expr) = *bind;
+        let ty = self.new_tyvar();
+        let (sym, expr) = match toplevel {
+            false => {
+                let expr = self.conv(expr)?;
+                let sym  = self.add_var(name, ty)?;
+                (sym, expr)
             }
-        }
+            true  => {
+                let sym  = self.add_var(name, ty)?;
+                let expr = self.conv(expr)?;
+                (sym, expr)
+            }
+        };
+        Ok(idtree::Bind::new(sym, expr))
     }
     
     fn conv_decl(&mut self, decl: &ast::Decl) -> Result<idtree::Decl> {
@@ -149,7 +154,7 @@ impl Rename {
             Extern(ref name, ref ty) =>
                 self.conv_extern(name, ty)?,
             Func(ref bind)           => {
-                let bind = self.conv_bind(bind)?;
+                let bind = self.conv_bind(bind, true)?;
                 idtree::Decl::Let(bind)
             }
         };
@@ -184,7 +189,7 @@ impl Rename {
                 }
             }
             Let(ref bind, ref expr) => {
-                let bind  = self.conv_bind(bind)?;
+                let bind  = self.conv_bind(bind, false)?;
                 let expr  = self.conv(expr)?;
                 let let_  = idtree::Let::new(bind, expr);
                 idtree::Expr::Let(Box::new(let_))

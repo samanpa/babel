@@ -37,7 +37,9 @@ impl LambdaLift {
             let decl = match *decl {
                 Decl::Extern(ref symbol) => Decl::Extern(symbol.clone()),
                 Decl::Let(ref bind)  => {
-                    let bind = self.lift_bind(bind, &mut decls);
+                    let bind = bind.iter().map( |bind| {
+                        self.lift_bind(bind, &mut decls)
+                    }).collect();
                     Decl::Let(bind)
                 },
             };
@@ -53,34 +55,33 @@ impl LambdaLift {
         Ok(Module::new(module.name().clone(), decls))
     }
     
-    fn lift_bind(&mut self, bind: &Bind, acc: &mut Vec<Decl>) -> Bind
-    {
+    fn lift_bind(&mut self, bind: &Bind, acc: &mut Vec<Decl>) -> Bind {
         self.map.begin_scope();
-        let bind = match *bind {
-            Bind::NonRec{ref symbol, ref expr} => {
-                let expr = self.lift(expr, acc, true);
-                match expr {
-                    Expr::Lam(_, _, _) if self.map.scope() > 1 => {
-                        let fnid = fresh_id();
-                        let fnnm = Rc::new(format!("@__fnanon_{}", fnid));
-                        let fnty = symbol.ty().clone();
-                        let sym  = Symbol::new(fnnm, fnty, fnid);
-                        let bind = Bind::non_rec(symbol.clone(), expr);
-                        self.map.insert(symbol.id(), sym.clone());
-                        acc.push(Decl::Let(bind));
-                        Bind::non_rec(sym, Expr::Var(symbol.clone()))
-                    }
-                    _ =>  Bind::non_rec(symbol.clone(), expr)
-                }                    
+        let symbol = bind.symbol();
+        let expr   = self.lift(bind.expr(), acc, true);
+        let bind   = match expr {
+            Expr::Lam(_, _, _) if self.map.scope() > 1 => {
+                let fnid = fresh_id();
+                let fnnm = Rc::new(format!("@__fnanon_{}", fnid));
+                let fnty = symbol.ty().clone();
+                let sym  = Symbol::new(fnnm, fnty, fnid);
+                let bind = Bind::new(symbol.clone(), expr);
+                self.map.insert(symbol.id(), sym.clone());
+                acc.push(Decl::Let(vec![bind]));
+                Bind::new(sym, Expr::Var(symbol.clone()))
             }
+            _ => Bind::new(symbol.clone(), expr)
         };
         self.map.end_scope();
         bind
     }
 
-    fn lift(&mut self, expr: &Expr, acc: &mut Vec<Decl>, let_bound: bool)
-            -> Expr
-    {
+    fn lift(
+        &mut self,
+        expr: &Expr,
+        acc: &mut Vec<Decl>,
+        let_bound: bool
+    ) -> Expr {
         use ::xir;
         use self::Expr::*;
         match *expr {
@@ -132,8 +133,8 @@ impl LambdaLift {
                         let fnty = retty.clone();
                         let fnnm = Rc::new(format!("@__anon_{}", fresh_id()));
                         let sym  = Symbol::new(fnnm, fnty, fresh_id());
-                        let bind = Bind::non_rec(sym.clone(), lam);
-                        acc.push(Decl::Let(bind));
+                        let bind = Bind::new(sym.clone(), lam);
+                        acc.push(Decl::Let(vec![bind]));
                         Var(sym)
                     }
                 }

@@ -185,7 +185,7 @@ fn infer_let(
     gamma.extend(bind.symbol(), t2.clone());
     let (t, e2)    = infer(gamma, let_exp.expr(), level)?;
     let tylam      = xir::Expr::TyLam(t2.bound_vars().clone(), Box::new(e1));
-    let let_exp    = xir::Let::new(xir::Bind::non_rec(name, tylam), e2);
+    let let_exp    = xir::Let::new(xir::Bind::new(name, tylam), e2);
     let expr       = xir::Expr::Let(Box::new(let_exp));
 
     Ok((t, expr))
@@ -229,15 +229,16 @@ fn infer_recbind(
 
     gamma.extend(v, ForAll::new(bv, t1));
 
-    Ok(xir::Bind::NonRec{symbol: name, expr: e})
+    Ok(xir::Bind::new(name, e))
 }
 
 pub (super) fn infer_fn(
     gamma: &mut Env,
     bind: &idtree::Bind,
     level: u32
-) -> Result<xir::Bind> {
-    infer_recbind(gamma, bind.symbol(), bind.expr(), level)
+) -> Result<Vec<xir::Bind>> {
+    let bind = infer_recbind(gamma, bind.symbol(), bind.expr(), level)?;
+    Ok(vec![bind])
 }
 
 fn infer_if(

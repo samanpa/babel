@@ -40,10 +40,10 @@ pub LamTyVars: Vec<String> = {
 
 pub Func: Bind = {
     "let" <name:Ident> "(" <p:List<Ident>> ")" "{" <body: Expr> "}" => {
-        Bind::Rec(name, Expr::Lam(Box::new(Lam::new(p, body))))
+        Bind(name, Expr::Lam(Box::new(Lam::new(p, body))))
     },
     "let" <name:Ident> "()" "{" <body: Expr> "}" => {
-        Bind::Rec(name, Expr::Lam(Box::new(Lam::new(vec![], body))))
+        Bind(name, Expr::Lam(Box::new(Lam::new(vec![], body))))
     }
 };
 
@@ -79,7 +79,7 @@ pub Expr: Expr = {
     <caller:Caller> "()" 
         => Expr::App(Box::new(caller), vec![]),
     "let" <id:Ident> "=" <e1:Expr> ";" <e2:Expr>
-        => { let bind = Bind::NonRec(id, e1 );
+        => { let bind = Bind(id, e1 );
              Expr::Let(Box::new(bind), Box::new(e2)) },
 };
 

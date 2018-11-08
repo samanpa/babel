@@ -26,19 +26,7 @@ impl Simplify {
         Simplify{}
     }
 
-    fn func(&self, f: &xir::Bind) -> Result<monoir::Bind>
-    {
-        match *f {
-            xir::Bind::NonRec{ref symbol, ref expr} => {
-                let sym      = process_symbol(symbol)?;
-                let expr     = process(expr)?;
-                Ok(monoir::Bind::new(sym, expr))
-            }
-        }
-    }
-    
-    fn process(&self, module: &xir::Module) -> Result<monoir::Module>
-    {
+    fn process(&self, module: &xir::Module) -> Result<monoir::Module> {
         let modname  = module.name().clone();
         let mut modl = monoir::Module::new(modname);
 
@@ -47,11 +35,13 @@ impl Simplify {
                 xir::Decl::Extern(ref name) => {
                     modl.add_extern(process_symbol(name)?);
                 },
-                xir::Decl::Let(ref bind) => {
-                    //println!("{:?} ===========\n  \n", bind);
-                    let res = self.func(bind)?;
-                    //println!("{:?}\n====================\n", res);
-                    modl.add_func(res);
+                xir::Decl::Let(ref bindings) => {
+                    for bind in bindings {
+                        //println!("{:?} ===========\n  \n", bind);
+                        let res = process_bind(bind)?;
+                        //println!("{:?}\n====================\n", res);
+                        modl.add_func(res);
+                    }
                 }
             }
         }
@@ -68,13 +58,9 @@ fn process_symbol(sym: &xir::Symbol) -> Result<monoir::Symbol> {
 
 
 fn process_bind(bind: &xir::Bind) -> Result<monoir::Bind> {
-    let bind = match *bind {
-        xir::Bind::NonRec{ref symbol, ref expr} => {
-            let sym  = process_symbol(symbol)?;
-            let expr = process(expr)?;
-            monoir::Bind::new(sym, expr)
-        }
-    };
+    let sym  = process_symbol(bind.symbol())?;
+    let expr = process(bind.expr())?;
+    let bind = monoir::Bind::new(sym, expr);
     Ok(bind)
 }
 

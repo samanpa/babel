@@ -34,10 +34,7 @@ pub struct If {
 }
 
 #[derive(Debug)]
-pub enum Bind {
-    NonRec(String, Expr),
-    Rec(String, Expr)
-}
+pub struct Bind(pub String, pub Expr);
 
 #[derive(Debug)]
 pub enum Expr {

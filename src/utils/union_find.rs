@@ -1,3 +1,4 @@
+//A simple disjoint set datastructure without path compression.
 use std::marker::PhantomData;
 
 pub trait DisjointSetKey {
