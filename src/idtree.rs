@@ -11,14 +11,14 @@ pub struct Module {
 #[derive(Debug)]
 pub enum Decl {
     Extern(Symbol),
-    Let(Bind),
+    Let(Vec<Bind>),
 }
 
 #[derive(Clone,Eq,PartialEq)]
 pub struct Symbol {
     name: Rc<String>,
     id: u32,
-    ty: Type
+    ty: Type,
 }
 
 pub struct Let {

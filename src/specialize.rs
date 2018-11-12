@@ -43,34 +43,35 @@ impl Specialize {
         let mut mono_exps = Vec::new();
         let modname       = module.name().clone();
         
-        for decl in module.take_decls() {
+        for (i, decl) in module.take_decls().into_iter().enumerate() {
             match decl {
-                e @ Decl::Extern(_) => decls.push(e),
+                e @ Decl::Extern(_) => decls.push((i,e)),
                 Decl::Let(bindings) => {
                     for b in bindings {
                         match spec.add_if_poly(&b) {
-                            false => mono_exps.push(b),
-                            true  => poly_exps.push(b),
+                            false => mono_exps.push((i,b)),
+                            true  => poly_exps.push((i,b)),
                         }
                     }
                 }
             }
         }
 
-        for bind in mono_exps.into_iter().rev() {
+        for (i,bind) in mono_exps.into_iter().rev() {
             let mut sub = Subst::new();
             let bind    = spec.process(&bind, &mut sub, vec![])?;
-            decls.push(Decl::Let(vec![bind]));
+            decls.push((i, Decl::Let(vec![bind])));
         }
 
-        for bind in poly_exps.into_iter().rev() {
+        for (i, bind) in poly_exps.into_iter().rev() {
             let mut sub = Subst::new();
             for bind in spec.process_all(&bind, &mut sub)? {
-                decls.push(Decl::Let(vec![bind]));
+                decls.push((i, Decl::Let(vec![bind])));
             }
         }
 
-        let decls = decls.into_iter().rev().collect();
+        decls.sort_unstable_by( |(i1,_), (i2, _)| i1.cmp(i2));
+        let decls = decls.into_iter().map(|(_, b)| b).collect();
         Ok(Module::new(modname, decls))
     }
 }

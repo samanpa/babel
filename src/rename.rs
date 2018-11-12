@@ -6,12 +6,17 @@ use scoped_map::ScopedMap;
 use std::rc::Rc;
 use std::collections::HashMap;
 use fresh_id;
+use utils::{Graph, SCC};
+
+struct TopLevelFunc(u32);
 
 pub struct Rename {
     names: ScopedMap<String, idtree::Symbol>,
     //Store uniq names across all scopes to reduce memory.
     // FIXME: Is this even worth it?
     uniq_names: HashMap<String, Rc<String>>, 
+    call_ref_graph: Graph<u32, idtree::Symbol>,
+    top_level_funcs:  HashMap<u32, TopLevelFunc>
 }
 
 impl ::Pass for Rename {
@@ -19,8 +24,9 @@ impl ::Pass for Rename {
     type Output = Vec<idtree::Module>;
 
     fn run(mut self, mod_vec: Self::Input) -> Result<Self::Output> {
-        let result = Vector::map(&mod_vec, |module|
-                                  self.conv_module(module));
+        let result = Vector::map(&mod_vec, |module| self.conv_module(module));
+        let sorted = SCC::run(&self.call_ref_graph);
+        println!("{:#?}", sorted);
         Ok(result?)
     }
 }
@@ -33,8 +39,11 @@ impl Default for Rename {
 
 impl Rename {
     pub fn new() -> Self {
-        Rename{names: ScopedMap::new(),
-               uniq_names: HashMap::new(),
+        Rename{
+            names: ScopedMap::new(),
+            uniq_names: HashMap::new(),
+            call_ref_graph: Graph::new(),
+            top_level_funcs: HashMap::new(),
         }
     }
     
@@ -72,20 +81,22 @@ impl Rename {
         self.add_uniq_name(nm)
     }
 
-    fn insert_var(&mut self, nm: &String, v: &idtree::Symbol) -> Result<()> {
-        let at_top_level = self.names.scope() == 0;
-        match self.names.insert(nm.clone(), v.clone()) {
-            None => Ok(()),
-            Some(..) if !at_top_level => Ok(()),
-            Some(..) => Err(Error::new(format!("Name {} already declared", nm)))
-        }
+    fn add_top_level(&mut self, sym: &idtree::Symbol) -> TopLevelFunc {
+        let vertex_key = self.call_ref_graph.add_vertex(sym.clone());
+        TopLevelFunc(vertex_key)
     }
-
-    fn add_var(&mut self, nm: &String, ty: Type) -> Result<idtree::Symbol> {
+    
+    fn add_sym(&mut self, nm: &String, ty: Type) -> Result<idtree::Symbol> {
         let var_name = self.add_uniq_name(nm);
-        let var = idtree::Symbol::new(var_name, ty, fresh_id());
-        self.insert_var(nm, &var)?;
-        Ok(var)
+        let sym      = idtree::Symbol::new(var_name, ty, fresh_id());
+        if let Some(_) = self.names.insert(nm.clone(), sym.clone()) {
+            //Allow duplicates at everywhere except the top level
+            if self.names.scope() == 0 {
+                let msg = Error::new(format!("Name {} already declared", nm));
+                return Err(msg)
+            }
+        }
+        Ok(sym)
     }
     
     fn conv_module(&mut self, module: &ast::Module) -> Result<idtree::Module> {
@@ -95,102 +106,90 @@ impl Rename {
         Ok(idtree::Module::new(module.name().clone(), decls?))
     }
 
-    fn conv_extern(
-        &mut self,
-        name: &String,
-        ty: &ast::Type
-    ) -> Result<idtree::Decl> {
-        let ty     = self.conv_ty(ty)?;
-        let funcid = self.add_var(name, ty)?;
-        
-        Ok(idtree::Decl::Extern(funcid))
-    }
-    
     fn new_tyvar(&self) -> Type {
         let level = self.names.scope();
         Type::Var(TyVar::fresh(level))
     }
 
-    fn conv_lam(&mut self, lam: &ast::Lam) ->  Result<idtree::Expr> {
-        self.names.begin_scope();
-        let params = Vector::map(
-            lam.params(),
-            |p| {
-                let tv = self.new_tyvar();
-                self.add_var(p, tv)
-            }
-        )?;
-        let body   = self.conv(lam.body())?;
-        self.names.end_scope();
-     
-        Ok(idtree::Expr::Lam(params, Box::new(body)))
-    }
-
-    fn conv_bind(
-        &mut self,
-        bind: &ast::Bind,
-        toplevel: bool
-    ) -> Result<idtree::Bind> {
-        let ast::Bind(ref name, ref expr) = *bind;
-        let ty = self.new_tyvar();
-        let (sym, expr) = match toplevel {
-            false => {
-                let expr = self.conv(expr)?;
-                let sym  = self.add_var(name, ty)?;
-                (sym, expr)
-            }
-            true  => {
-                let sym  = self.add_var(name, ty)?;
-                let expr = self.conv(expr)?;
-                (sym, expr)
-            }
-        };
-        Ok(idtree::Bind::new(sym, expr))
-    }
-    
     fn conv_decl(&mut self, decl: &ast::Decl) -> Result<idtree::Decl> {
         use ast::Decl::*;
         let res = match *decl {
-            Extern(ref name, ref ty) =>
-                self.conv_extern(name, ty)?,
+            Extern(ref name, ref ty) => {
+                let ty     = self.conv_ty(ty)?;
+                let funcid = self.add_sym(name, ty)?;
+                self.add_top_level(&funcid);
+                idtree::Decl::Extern(funcid)
+            }
             Func(ref bind)           => {
-                let bind = self.conv_bind(bind, true)?;
-                idtree::Decl::Let(bind)
+                let ast::Bind(ref name, ref expr) = *bind;
+                let ty   = self.new_tyvar();
+                let sym  = self.add_sym(name, ty)?;
+                self.add_top_level(&sym);
+                let expr = self.conv(expr, &sym)?;
+                let bind = idtree::Bind::new(sym, expr);
+                idtree::Decl::Let(vec![bind])
             }
         };
         Ok(res)
     }
 
-    fn conv(&mut self, expr: &ast::Expr) -> Result<idtree::Expr> {
+    fn conv(
+        &mut self,
+        expr: &ast::Expr,
+        func: &idtree::Symbol
+    ) -> Result<idtree::Expr> {
         use ast::Expr::*;
         let res = match *expr {
             UnitLit      => idtree::Expr::UnitLit,
             I32Lit(n)    => idtree::Expr::I32Lit(n),
             BoolLit(b)   => idtree::Expr::BoolLit(b),
-            Lam(ref lam) => self.conv_lam(lam)?,
+            Lam(ref lam) => {
+                self.names.begin_scope();
+                let params = Vector::map(lam.params(), |p| {
+                    let tv = self.new_tyvar();
+                    self.add_sym(p, tv)
+                })?;
+                let body   = self.conv(lam.body(), func)?;
+                self.names.end_scope();
+                idtree::Expr::Lam(params, Box::new(body))
+            }
             If(ref e)    => {
-                let if_expr = idtree::If::new(self.conv(e.cond())?,
-                                              self.conv(e.texpr())?,
-                                              self.conv(e.fexpr())?);
+                let if_expr = idtree::If::new(
+                    self.conv(e.cond(), func)?,
+                    self.conv(e.texpr(), func)?,
+                    self.conv(e.fexpr(), func)?
+                );
                 idtree::Expr::If(Box::new(if_expr))
             }
             App(ref callee, ref args) => {
-                let callee = Box::new(self.conv(callee)?);
-                let args   = Vector::map(args, |arg| self.conv(arg))?;
+                let callee = Box::new(self.conv(callee, func)?);
+                let args   = Vector::map(args, |arg| self.conv(arg, func))?;
                 idtree::Expr::App(callee, args)
             }
             Var(ref nm) => {
-                match self.names.get(nm) {
-                    Some(v) => idtree::Expr::Var(v.clone()),
+                let sym = match self.names.get(nm) {
+                    Some(v) => v,
                     None => {
                         let msg = format!("Could not find variable {}", nm);
                         return Err(Error::new(msg))
                     }
+                };
+                let v1 = self.top_level_funcs.get(&func.id());
+                let v2 = self.top_level_funcs.get(&sym.id());
+                if let (Some(v1), Some(v2)) = (v1, v2) {
+                    self.call_ref_graph.add_edge(v2.0, v1.0);
                 }
+                idtree::Expr::Var(sym.clone())
             }
-            Let(ref bind, ref expr) => {
-                let bind  = self.conv_bind(bind, false)?;
-                let expr  = self.conv(expr)?;
+            Let(ref bind, ref let_expr) => {
+                let ast::Bind(ref name, ref bind_expr) = **bind;
+                let ty    = self.new_tyvar();
+                //Convert the bound expression before adding the bound symbol
+                let bexpr = self.conv(bind_expr, &func)?;
+                let sym   = self.add_sym(name, ty)?;
+                let bind  = idtree::Bind::new(sym, bexpr);
+
+                let expr  = self.conv(let_expr, func)?;
                 let let_  = idtree::Let::new(bind, expr);
                 idtree::Expr::Let(Box::new(let_))
             }

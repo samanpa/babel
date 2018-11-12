@@ -191,12 +191,11 @@ fn infer_let(
     Ok((t, expr))
 }
 
-fn infer_recbind(
+pub (super) fn infer_fn(
     gamma: &mut Env,
-    v: &idtree::Symbol,
-    e: &idtree::Expr,
+    bindings: &Vec<idtree::Bind>,
     level: u32
-) -> Result<xir::Bind> {
+) -> Result<Vec<xir::Bind>> {
     //Typing let rec x = e is done by translating it to
     //    let x  = Y (λx.e) where Y is the fixed point combinator.
     // 
@@ -210,35 +209,36 @@ fn infer_recbind(
     //                 S2      = unify(β, τ1)
     //             in  (S2 ◦ S1, τ1)
 
-    let beta = Type::Var(gamma.fresh_tyvar(level));
-    gamma.extend(v, ForAll::new(vec![], beta.clone()));
-    let (t1, e) = infer(gamma, e, level)?;
-    gamma.unify(&beta, &t1)?;
+    let mut betas = Vec::with_capacity(bindings.len());
+    for bind in bindings {
+        let beta = Type::Var(gamma.fresh_tyvar(level));
+        gamma.extend(bind.symbol(), ForAll::new(vec![], beta.clone()));
+        betas.push(beta);
+    }
 
-    //Adds type abstraction to introduce/close over the free type variables
-    //   in the body of a lambda. This adds polymorphism to the expression tree
-    //e.g. the following gets translated as 
-    //   let foo f x = fx;; aka let foo = λf. λy. f x
-    //into
-    //   let foo = Λ a b. ( λf. λy. f x )
-    //
-    let t2 = t1.generalize(level);
-    let bv = t2.bound_vars().clone();
-    let e  = xir::Expr::TyLam(bv.clone(), Box::new(e));
-    let name = into_xir_symbol(v, &t1);
-
-    gamma.extend(v, ForAll::new(bv, t1));
-
-    Ok(xir::Bind::new(name, e))
-}
-
-pub (super) fn infer_fn(
-    gamma: &mut Env,
-    bind: &idtree::Bind,
-    level: u32
-) -> Result<Vec<xir::Bind>> {
-    let bind = infer_recbind(gamma, bind.symbol(), bind.expr(), level)?;
-    Ok(vec![bind])
+    let mut new_binds = Vec::with_capacity(bindings.len());
+    for (bind, beta) in bindings.iter().zip(betas) {
+        let (t1, e) = infer(gamma, bind.expr(), level)?;
+        gamma.unify(&beta, &t1)?;
+        
+        //Add type abstraction to close over the free type variables
+        //   in the body of a lambda. This adds polymorphism to expressions
+        //e.g. the following gets translated as 
+        //   let foo f x = fx;; aka let foo = λf. λy. f x
+        //into
+        //   let foo = Λ a b. ( λf. λy. f x )
+        //
+        let t2 = t1.generalize(level);
+        let bv = t2.bound_vars().clone();
+        let e  = xir::Expr::TyLam(bv.clone(), Box::new(e));
+        let name = into_xir_symbol(bind.symbol(), &t1);
+        
+        gamma.extend(bind.symbol(), ForAll::new(bv, t1));
+        
+        let bind = xir::Bind::new(name, e);
+        new_binds.push(bind);
+    }
+    Ok(new_binds)
 }
 
 fn infer_if(
