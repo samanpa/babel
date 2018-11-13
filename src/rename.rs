@@ -25,8 +25,8 @@ impl ::Pass for Rename {
 
     fn run(mut self, mod_vec: Self::Input) -> Result<Self::Output> {
         let result = Vector::map(&mod_vec, |module| self.conv_module(module));
-        let sorted = SCC::run(&self.call_ref_graph);
-        println!("{:#?}", sorted);
+        let _sorted = SCC::run(&self.call_ref_graph);
+        //println!("{:#?}", sorted);
         Ok(result?)
     }
 }
