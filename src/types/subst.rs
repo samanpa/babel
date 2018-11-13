@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use super::{Type,TyVar};
+use types::{Type,TyVar};
 
 #[derive(Debug)]
 pub struct Subst {
@@ -22,7 +22,7 @@ impl Subst {
     }
 
     pub fn apply(&self, ty: &Type) -> Type {
-        use typing::Type::*;
+        use self::Type::*;
         match *ty {
             Con(ref con, ref kind) => Con(con.clone(), kind.clone()),
             App(ref con, ref args)  => {

@@ -1,5 +1,5 @@
 pub use rename::Rename;
-pub use typing::TypeChecker;
+pub use typecheck::TypeChecker;
 pub use specialize::Specialize;
 pub use simplify::Simplify;
 pub use codegen::CodeGen;

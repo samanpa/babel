@@ -1,7 +1,7 @@
 use ::{Result,Error};
 use idtree::Symbol;
 use scoped_map::ScopedMap;
-use super::{TyVar,ForAll, Type};
+use types::{ForAll, Subst, Type, TyVar};
 use super::unify::UnificationTable;
 
 #[derive(Debug)]
@@ -50,4 +50,21 @@ impl Env {
         self.unify_table.add(tyvar.clone());
         tyvar
     }
+
+    pub (super) fn instantiate(
+        &mut self,
+        scheme: &ForAll, 
+        level: u32
+    ) -> (Vec<TyVar>, Type) {
+        //FIXME: does this even make sense
+        let mut subst = Subst::new();
+        let mut tvs   = Vec::new();
+        for bv in scheme.bound_vars() {
+            let tv = self.fresh_tyvar(level);
+            tvs.push(tv.clone());
+            subst.bind(bv, Type::Var(tv));
+        }
+        (tvs, subst.apply(scheme.ty()))
+    }
+
 }

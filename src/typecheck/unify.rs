@@ -1,5 +1,5 @@
 use utils::{DisjointSet, DisjointSetValue};
-use super::{Type, TyVar};
+use types::{Type, TyVar};
 use std::collections::HashMap;
 use ::Error;
 use std;
@@ -13,7 +13,7 @@ pub (super) struct UnificationTable {
 impl DisjointSetValue for Type {}
 
 fn occurs(tv1: &TyVar, ty: &Type, top_level: bool) -> bool {
-    use super::Type::*;
+    use self::Type::*;
     match *ty {
         Con(_, _) => false,
         Var(ref tv2) => {
@@ -49,7 +49,7 @@ impl UnificationTable {
     }
 
     pub fn apply_subst(&mut self, ty: &Type) -> Type {
-        use super::Type::*;
+        use self::Type::*;
         let res = match ty {
             Con(ref con, ref kind) => Con(con.clone(), kind.clone()),
             App(ref con, ref args)  => {
@@ -74,7 +74,7 @@ impl UnificationTable {
     }
 
     pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> ::Result<()> {
-        use super::Type::*;
+        use self::Type::*;
         match (lhs, rhs) {
             (&Con(ref l, ref lk), &Con(ref r, ref rk)) => {
                 if *l != *r || lk != rk {

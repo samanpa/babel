@@ -1,10 +1,11 @@
 pub mod ast;
 pub mod prelude;
 pub mod parser;
+pub mod types;
 pub mod idtree;
 pub mod xir;
 pub mod rename;
-pub mod typing;
+pub mod typecheck;
 pub mod specialize;
 pub mod lambda_lift;
 pub mod monoir;

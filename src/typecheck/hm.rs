@@ -2,10 +2,10 @@
 //    "Simple imperative polymorphism" - Wright
 //    "Efficient and Insightful Generalization" - Oleg Kiselyov
 
-use super::{Kind,TyCon,Type,TyVar,ForAll};
+use types::{Kind,TyCon,Type,TyVar,ForAll};
 use super::env::Env;
-use ::idtree;
-use ::xir;
+use idtree;
+use xir;
 use ::Result;
 use std::rc::Rc;
 
@@ -84,7 +84,7 @@ fn infer_var(
     level: u32
 ) -> Result<(Type, xir::Expr)> {
     let sigma     = gamma.lookup(var)?;
-    let (tvs, ty) = sigma.instantiate(gamma, level);
+    let (tvs, ty) = gamma.instantiate(&sigma, level);
     let expr      = translate_var(&sigma, var, tvs);
     Ok((ty, expr))
 }

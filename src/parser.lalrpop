@@ -1,6 +1,6 @@
 use ast::*;
 use std::str::FromStr;
-use ::typing::Kind;
+use types::Kind;
 
 grammar;
 

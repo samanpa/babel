@@ -1,6 +1,7 @@
 use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::fmt;
 
 #[derive(Clone,PartialEq,Eq)]
 pub struct InnerTyVar {
@@ -26,6 +27,12 @@ impl TyVar {
             id: ::fresh_id(),
             inner: Rc::new(RefCell::new(inner))
         }
+    }
+}
+
+impl fmt::Debug for TyVar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "'a{}", self.id)
     }
 }
 

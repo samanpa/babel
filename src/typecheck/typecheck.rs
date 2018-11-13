@@ -1,6 +1,6 @@
-use ::idtree;
-use ::xir;
-use super::{ForAll};
+use idtree;
+use xir;
+use types::{ForAll};
 use super::hm::{infer_fn,into_xir_symbol};
 use super::env::Env;
 use ::{Result,Vector};

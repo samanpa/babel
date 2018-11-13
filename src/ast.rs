@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use super::typing::Kind;
+use super::types::Kind;
 
 #[derive(Debug)]
 pub enum Type {

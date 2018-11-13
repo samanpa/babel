@@ -1,6 +1,6 @@
 use ast;
 use idtree;
-use typing::{Type, TyCon, TyVar};
+use types::{Type, TyCon, TyVar};
 use {Vector, Result, Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
