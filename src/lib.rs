@@ -1,6 +1,8 @@
+#[macro_use] extern crate lalrpop_util;
+
 pub mod ast;
 pub mod prelude;
-pub mod parser;
+lalrpop_mod!(pub parser);
 pub mod idtree;
 pub mod xir;
 pub mod rename;
