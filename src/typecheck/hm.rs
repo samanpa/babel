@@ -2,7 +2,8 @@
 //    "Simple imperative polymorphism" - Wright
 //    "Efficient and Insightful Generalization" - Oleg Kiselyov
 
-use types::{Kind,TyCon,Type,TyVar,ForAll};
+use types::{Kind,TyCon,TyVar};
+use super::{Type,ForAll};
 use super::env::Env;
 use idtree;
 use xir;
@@ -10,7 +11,7 @@ use ::Result;
 use std::rc::Rc;
 
 pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
-    use self::Type::*;
+    use types::Type::*;
     use self::Kind::*;
     let mk_kind = |n| {
         (0..(n+1))
@@ -28,6 +29,7 @@ pub (super) fn infer(
 ) -> Result<(Type, xir::Expr)> {
     use self::Kind::*;
     use self::TyCon::*;
+    use types::Type;
     use idtree::Expr::*;
 
     let (ty, expr) = match *expr {
@@ -67,6 +69,7 @@ fn translate_var(
     tvs: Vec<TyVar>
 ) -> xir::Expr {
     use xir::Expr::*;
+    use ::types::Type;
     let ty_args = tvs.iter()
         .map( |tv| Type::Var(tv.clone()) )
         .collect::<Vec<_>>();
@@ -108,7 +111,7 @@ fn infer_lam(
     body: &idtree::Expr,
     level: u32
 ) -> Result<(Type, xir::Expr)> {
-    use self::Type::*;
+    use types::Type::*;
     let params_ty = params
         .iter()
         .map(| v | {
@@ -146,6 +149,8 @@ fn infer_app(
     args: &[idtree::Expr],
     level: u32
 ) -> Result<(Type, xir::Expr)> {
+    use ::types::Type;
+
     let (t1, caller) = infer(gamma, caller, level)?;
     let retty        = Type::Var(gamma.fresh_tyvar(level));
     let (t2, args)   = infer_args(gamma, args, level)?;
@@ -211,7 +216,7 @@ pub (super) fn infer_fn(
 
     let mut betas = Vec::with_capacity(bindings.len());
     for bind in bindings {
-        let beta = Type::Var(gamma.fresh_tyvar(level));
+        let beta = ::types::Type::Var(gamma.fresh_tyvar(level));
         gamma.extend(bind.symbol(), ForAll::new(vec![], beta.clone()));
         betas.push(beta);
     }
@@ -250,7 +255,7 @@ fn infer_if(
     let (t2, texp) = infer(gamma, if_expr.texpr(), level)?;
     let (t3, fexp) = infer(gamma, if_expr.fexpr(), level)?;
 
-    gamma.unify(&t1, &Type::Con(TyCon::Bool, Kind::Star))?;
+    gamma.unify(&t1, &::types::Type::Con(TyCon::Bool, Kind::Star))?;
     gamma.unify(&t2, &t3)?;
 
     let ty = gamma.apply(&t2);

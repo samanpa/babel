@@ -1,7 +1,9 @@
 use xir;
-use types::{Kind,TyCon,Type};
+use types::{Kind, TyCon};
 use monoir;
 use {Result,Vector,Error};
+
+type Type = ::types::Type<::types::TyVar>;
 
 pub struct Simplify {}
 
@@ -105,7 +107,7 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
 }
 
 fn get_appty(ty: &Type, args: &Vec<Type>) -> Result<monoir::Type> {
-    use self::Type::*;
+    use types::Type::*;
 
     let mut args = Vector::map(args, get_type)?;
     match *ty {
@@ -132,7 +134,7 @@ fn get_appty(ty: &Type, args: &Vec<Type>) -> Result<monoir::Type> {
 }
 
 fn get_type(ty: &Type) -> Result<monoir::Type> {
-    use self::Type::*;
+    use types::Type::*;
     use self::TyCon::*;
     use self::Kind::*;
     let ty = match *ty {

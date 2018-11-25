@@ -2,41 +2,41 @@ use std::fmt;
 use std::rc::Rc;
 
 use super::{
-    TyVar,
-    Type
+    Type,
+    TVar
 };
 
 #[derive(Clone,Hash,PartialEq,Eq)]
-pub enum TyCon {
+pub enum TyCon<T: TVar> {
     NewType(Rc<String>),
     I32,
     Bool,
     Unit,
     Func,
-    Record(Rc<Record>),
+    Record(Rc<Record<T>>),
 }
 
 #[derive(Clone,Hash,PartialEq,Eq)]
-pub struct NewType {
+pub struct NewType<T: TVar> {
     name: Rc<String>,
-    args: Vec<TyVar>,
-    body: Type,
+    args: Vec<T>,
+    body: Type<T>,
 }
 
 #[derive(Clone,Hash,PartialEq,Eq)]
-pub struct Field {
+pub struct Field<T: TVar> {
     name: Rc<String>,
-    ty: Type
+    ty: Type<T>
 }
 
 #[derive(Clone,Hash,PartialEq,Eq)]
-pub struct Record {
+pub struct Record<T: TVar> {
     name:   Rc<String>,
-    fields: Vec<Field>,
+    fields: Vec<Field<T>>,
 }
 
 
-impl fmt::Debug for TyCon {
+impl <T: TVar> fmt::Debug for TyCon<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::TyCon::*;
         let res;
@@ -55,13 +55,13 @@ impl fmt::Debug for TyCon {
     }
 }
 
-impl fmt::Debug for Field {
+impl <T: TVar> fmt::Debug for Field<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:}: {:?}", self.name, self.ty)
     }
 }
 
-impl fmt::Debug for Record {
+impl <T: TVar> fmt::Debug for Record<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:}", self.name)?;
         for field in &self.fields {

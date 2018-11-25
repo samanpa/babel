@@ -1,7 +1,8 @@
 use ::{Result,Error};
 use idtree::Symbol;
 use scoped_map::ScopedMap;
-use types::{ForAll, Subst, Type, TyVar};
+use types::{Subst, TyVar};
+use super::{ForAll, Type};
 use super::unify::UnificationTable;
 
 #[derive(Debug)]
@@ -62,7 +63,7 @@ impl Env {
         for bv in scheme.bound_vars() {
             let tv = self.fresh_tyvar(level);
             tvs.push(tv.clone());
-            subst.bind(bv, Type::Var(tv));
+            subst.bind(bv, ::types::Type::Var(tv));
         }
         (tvs, subst.apply(scheme.ty()))
     }

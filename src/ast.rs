@@ -1,12 +1,4 @@
-use std::rc::Rc;
-use super::types::Kind;
-
-#[derive(Debug)]
-pub enum Type {
-    App(Box<Type>, Vec<Type>),
-    Con(String, Kind),
-    Var(String)
-}
+pub type Type = ::types::Type<String>;
 
 #[derive(Debug)]
 pub struct Module {
@@ -65,20 +57,16 @@ impl Module {
     }
 }
 
-fn con(nm: &str, kind: Kind) -> Type {
-    Type::Con(nm.to_string(), kind)
-}
-
-pub fn func(mut params: Vec<Type>, ret: Type) -> Type {
-    use self::Type::*;
-    use self::Kind::*;
-    let mk_kind = |n| {  
-        (0..(n+1))
-            .fold( Star, |k, _| Fun(Rc::new((Star, k))))
+pub fn con(nm: &str, kind: ::types::Kind) -> Type {
+    use ::types::TyCon::*;
+    let tycon = match nm {
+        "i32"  => I32,
+        "bool" => Bool,
+        "()"   => Unit,
+        "->"   => Func,
+        _      => NewType(std::rc::Rc::new(nm.to_string()))
     };
-    let ty = con("->", mk_kind(params.len()));
-    params.push(ret);
-    App(Box::new(ty), params)
+    ::types::Type::Con(tycon, kind)
 }
 
 impl Decl {
@@ -87,7 +75,7 @@ impl Decl {
         let params_ty : Vec<Type> = params.into_iter()
             .map(|(_,ty)| ty)
             .collect();
-        let ty = func(params_ty, retty);
+        let ty = ::types::Type::func(params_ty, retty);
         Decl::Extern(name, ty)
     }
 }

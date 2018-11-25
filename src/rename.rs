@@ -1,12 +1,14 @@
 use ast;
 use idtree;
-use types::{Type, TyCon, TyVar};
+use types::TyVar;
 use {Vector, Result, Error};
 use scoped_map::ScopedMap;
 use std::rc::Rc;
 use std::collections::HashMap;
 use fresh_id;
 use utils::{Graph, SCC};
+
+type Type = ::types::Type<::types::TyVar>;
 
 struct TopLevelFunc(u32);
 
@@ -48,23 +50,25 @@ impl Rename {
     }
     
     fn conv_ty(&mut self, ty: &ast::Type) -> Result<Type> {
-        use ast::Type::*;
+        use ::types::Type::*;
         let ty = match *ty {
             Var(ref _v)           => self.new_tyvar(),
-            Con(ref nm, ref kind) => {
-                let tycon = match nm.as_str() {
-                    "i32"  => TyCon::I32,
-                    "bool" => TyCon::Bool,
-                    "()"   => TyCon::Unit,
-                    "->"   => TyCon::Func,
-                    _      => TyCon::NewType(self.mk_tycon(nm))
+            Con(ref tycon, ref kind) => {
+                use ::types::TyCon::*;
+                let tycon = match tycon {
+                    I32         => I32,
+                    Bool        => Bool,
+                    Unit        => Unit,
+                    Func        => Func,
+                    NewType(nm) => NewType(self.mk_tycon(nm)),
+                    _     => unimplemented!(),
                 };
-                Type::Con(tycon, kind.clone())
+                ::types::Type::Con(tycon, kind.clone())
             }
             App(ref con, ref args) => {
                 let con = self.conv_ty(con)?;
                 let args = Vector::map( args, |arg| self.conv_ty(arg))?;
-                Type::App(Box::new(con), args)
+                ::types::Type::App(Box::new(con), args)
             }
         };
         Ok(ty)
@@ -108,7 +112,7 @@ impl Rename {
 
     fn new_tyvar(&self) -> Type {
         let level = self.names.scope();
-        Type::Var(TyVar::fresh(level))
+        ::types::Type::Var(TyVar::fresh(level))
     }
 
     fn conv_decl(&mut self, decl: &ast::Decl) -> Result<idtree::Decl> {

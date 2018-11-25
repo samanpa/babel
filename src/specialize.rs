@@ -1,10 +1,12 @@
 use ::xir::*;
-use types::{Subst,Type,TyVar};
-use ::{Result,Vector,Error};
+use types::{self, Subst, TyVar};
+use ::{Result, Vector, Error};
 use ::fresh_id;
 use scoped_map::ScopedMap;
 use std::collections::HashMap;
 use std::rc::Rc;
+
+type Type = types::Type<TyVar>;
 
 pub struct Specialize {}
 
@@ -91,7 +93,7 @@ impl Instances {
             sub.bind(tyvar, ty)
         }
         let args = self.tyvars.iter()
-            .map( |ty| sub.apply(&Type::Var(ty.clone())) )
+            .map( |ty| sub.apply(&::types::Type::Var(ty.clone())) )
             .collect::<Vec<_>>();
         let var = self.inner.entry(args.clone())
             .or_insert_with( || {

@@ -2,6 +2,7 @@ use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fmt;
+use super::TVar;
 
 #[derive(Clone,PartialEq,Eq)]
 pub struct InnerTyVar {
@@ -13,6 +14,8 @@ pub struct TyVar {
     pub id: u32,
     pub inner: Rc<RefCell<InnerTyVar>>
 }
+
+impl TVar for TyVar{}
 
 impl Hash for TyVar {
     fn hash<H: Hasher>(&self, state: &mut H) {

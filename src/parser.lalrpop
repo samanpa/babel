@@ -84,8 +84,8 @@ pub Expr: Expr = {
 };
 
 BaseType: Type = {
-    "()"   => Type::Con("unit".to_string(), Kind::Star),
-    Ident  => Type::Con(<>, Kind::Star)
+    "()"   => con(<>, Kind::Star),
+    Ident  => con(&<>, Kind::Star)
 };
 
 Type: Type = {
@@ -93,7 +93,7 @@ Type: Type = {
     ArrowType => {
         let mut params = <>;
         let retty  = params.pop().unwrap();
-        func(params, retty)
+        ::types::Type::func(params, retty)
     }
 };
 

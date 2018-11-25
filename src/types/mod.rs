@@ -16,6 +16,23 @@ pub enum Kind {
     Fun(Rc<(Kind, Kind)>)
 }
 
+pub trait TVar : fmt::Debug {}
+
+impl TVar for String {}
+
+#[derive(Clone,Hash,PartialEq,Eq)]
+pub enum Type<T: TVar> {
+    App(Box<Type<T>>, Vec<Type<T>>),
+    Con(TyCon<T>, Kind),
+    Var(T)
+}
+
+#[derive(Debug,Clone,Hash,Eq,PartialEq)]
+pub struct ForAll<T: TVar> {
+    bound_vars: Vec<T>,
+    ty: Type<T>
+}
+
 
 impl fmt::Debug for Kind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -26,15 +43,26 @@ impl fmt::Debug for Kind {
     }
 }
 
+impl <T: TVar> Type<T> {
+    pub fn func(mut params: Vec<Type<T>>, ret: Type<T>) -> Type<T> {
+        use self::Type::*;
+        use self::Kind::*;
+        let mk_kind = |n| {
+            (0..(n+1))
+                .fold( Star, |kind, _| Fun(Rc::new((Star, kind))))
+        };
+        let con = Con(TyCon::Func, mk_kind(params.len()));
+        params.push(ret);
+        App(Box::new(con), params)
+    }
 
-#[derive(Clone,Hash,PartialEq,Eq)]
-pub enum Type {
-    Con(TyCon, Kind),
-    App(Box<Type>, Vec<Type>),
-    Var(TyVar)
+    pub fn unit() -> Type<T> {
+        Type::Con(TyCon::Unit, Kind::Star)
+    }
 }
 
-impl Type {
+
+impl Type<TyVar> {
     fn free_tyvars(&self, curr_level: u32, res: &mut HashSet<TyVar>) {
         use self::Type::*;
         match *self {
@@ -53,7 +81,7 @@ impl Type {
         }
     }
 
-    pub (super) fn generalize(&self, level: u32) -> ForAll {
+    pub (super) fn generalize(&self, level: u32) -> ForAll<TyVar> {
         let mut tyvars = HashSet::new();
         self.free_tyvars(level, &mut tyvars);
         let ftv = tyvars.into_iter().collect();
@@ -61,7 +89,7 @@ impl Type {
     }
 }
 
-impl fmt::Debug for Type {
+impl <T: TVar> fmt::Debug for Type<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Type::*;
         match *self {
@@ -72,22 +100,16 @@ impl fmt::Debug for Type {
     }
 }
 
-#[derive(Debug,Clone,Hash,Eq,PartialEq)]
-pub struct ForAll {
-    bound_vars: Vec<TyVar>,
-    ty: Type
-}
-
-impl ForAll {
-    pub fn new(bound_vars: Vec<TyVar>, ty: Type) -> Self {
+impl <T: TVar> ForAll<T> {
+    pub fn new(bound_vars: Vec<T>, ty: Type<T>) -> Self {
         ForAll{ bound_vars, ty }
     }
 
-    pub fn bound_vars(&self) -> &Vec<TyVar> {
+    pub fn bound_vars(&self) -> &Vec<T> {
         &self.bound_vars
     }
 
-    pub fn ty(&self) -> &Type {
+    pub fn ty(&self) -> &Type<T> {
         &self.ty
     }
 }

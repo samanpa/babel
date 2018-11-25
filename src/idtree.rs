@@ -1,6 +1,9 @@
 use std::rc::Rc;
 use std::fmt;
-use types::Type;
+
+//FIXME: for now use the same representation of type variables as is used in
+//       typechecking
+type Type = ::types::Type<::types::TyVar>;
 
 #[derive(Debug)]
 pub struct Module {

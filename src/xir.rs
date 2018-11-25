@@ -6,7 +6,9 @@
 use std::rc::Rc;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use types::{Type,TyVar};
+use types::{self, TyVar};
+
+type Type = types::Type<TyVar>;
 
 #[derive(Debug)]
 pub struct Module {

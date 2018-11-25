@@ -1,5 +1,6 @@
 use utils::{DisjointSet, DisjointSetValue};
-use types::{Type, TyVar};
+use super::{Type};
+use types::{TyVar};
 use std::collections::HashMap;
 use ::Error;
 use std;
@@ -13,7 +14,7 @@ pub (super) struct UnificationTable {
 impl DisjointSetValue for Type {}
 
 fn occurs(tv1: &TyVar, ty: &Type, top_level: bool) -> bool {
-    use self::Type::*;
+    use types::Type::*;
     match *ty {
         Con(_, _) => false,
         Var(ref tv2) => {
@@ -44,12 +45,12 @@ impl UnificationTable {
     }
 
     pub fn add(&mut self, tyvar: TyVar) {
-        let key   = self.subst.add(Type::Var(tyvar.clone()));
+        let key   = self.subst.add(::types::Type::Var(tyvar.clone()));
         self.indices.insert(tyvar.id, key);
     }
 
     pub fn apply_subst(&mut self, ty: &Type) -> Type {
-        use self::Type::*;
+        use types::Type::*;
         let res = match ty {
             Con(ref con, ref kind) => Con(con.clone(), kind.clone()),
             App(ref con, ref args)  => {
@@ -74,7 +75,7 @@ impl UnificationTable {
     }
 
     pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> ::Result<()> {
-        use self::Type::*;
+        use types::Type::*;
         match (lhs, rhs) {
             (&Con(ref l, ref lk), &Con(ref r, ref rk)) => {
                 if *l != *r || lk != rk {
@@ -98,7 +99,7 @@ impl UnificationTable {
             (&Var(ref tyvar), ty) |
             (ty, &Var(ref tyvar)) => {
                 if occurs(tyvar, ty, true) {
-                    return cannot_unify(&Type::Var(tyvar.clone()), ty);
+                    return cannot_unify(&Var(tyvar.clone()), ty);
                 }
                 let old = {
                     let key = *self.indices.get(&tyvar.id).unwrap();
