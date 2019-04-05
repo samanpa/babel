@@ -1,25 +1,26 @@
-#[macro_use] extern crate lalrpop_util;
+#[macro_use]
+extern crate lalrpop_util;
 
 pub mod ast;
 pub mod prelude;
 lalrpop_mod!(pub parser);
-pub mod types;
-pub mod idtree;
-pub mod xir;
-pub mod rename;
-pub mod typecheck;
-pub mod specialize;
-pub mod lambda_lift;
-pub mod monoir;
-pub mod simplify;
 pub mod codegen;
+pub mod idtree;
+pub mod lambda_lift;
 pub mod link;
-pub (crate) mod scoped_map;
+pub mod monoir;
 pub mod passes;
+pub mod rename;
+pub(crate) mod scoped_map;
+pub mod simplify;
+pub mod specialize;
+pub mod typecheck;
+pub mod types;
 pub mod utils;
+pub mod xir;
 
 #[derive(Debug)]
-pub struct Error{
+pub struct Error {
     msg: String,
 }
 
@@ -41,8 +42,11 @@ impl std::error::Error for Error {
 }
 
 impl Error {
-    pub fn new<T>(msg: T) -> Self where T: Into<String>{
-        Error{ msg: msg.into() }
+    pub fn new<T>(msg: T) -> Self
+    where
+        T: Into<String>,
+    {
+        Error { msg: msg.into() }
     }
 }
 
@@ -58,8 +62,10 @@ pub trait Pass {
 pub struct Vector {}
 
 impl Vector {
-    pub fn map<I,O,F>(v: &[I], mut f: F) -> Result<Vec<O>> 
-        where F: FnMut(&I) -> Result<O>{
+    pub fn map<I, O, F>(v: &[I], mut f: F) -> Result<Vec<O>>
+    where
+        F: FnMut(&I) -> Result<O>,
+    {
         let mut res = Vec::with_capacity(v.len());
         for val in v {
             let val = f(val)?;
@@ -67,8 +73,10 @@ impl Vector {
         }
         Ok(res)
     }
-    pub fn mapt<I,O,F>(v: Vec<I>, mut f: F) -> Result<Vec<O>> 
-        where F: FnMut(I) -> Result<O>{
+    pub fn mapt<I, O, F>(v: Vec<I>, mut f: F) -> Result<Vec<O>>
+    where
+        F: FnMut(I) -> Result<O>,
+    {
         let mut res = Vec::with_capacity(v.len());
         for val in v {
             let val = f(val)?;
@@ -81,8 +89,7 @@ impl Vector {
 static mut COUNT: u32 = 0;
 pub fn fresh_id() -> u32 {
     unsafe {
-        COUNT += 1 ; 
+        COUNT += 1;
         COUNT
     }
 }
-

@@ -1,36 +1,35 @@
 extern crate llvm_sys;
 
-use std;
-use ::Result;
-use self::llvm_sys::prelude::*;
 use self::llvm_sys::core::*;
+use self::llvm_sys::prelude::*;
 use self::llvm_sys::transforms::*;
+use std;
+use Result;
 
-pub struct PassRunner {
-}
+pub struct PassRunner {}
 
 impl PassRunner {
     pub fn new() -> Self {
         PassRunner {}
     }
 
-    pub fn run(&self, module: LLVMModuleRef ) -> Result<()>{
+    pub fn run(&self, module: LLVMModuleRef) -> Result<()> {
         unsafe {
             use self::llvm_sys::transforms::pass_manager_builder::*;
 
-            let pb  = LLVMPassManagerBuilderCreate();
+            let pb = LLVMPassManagerBuilderCreate();
             let fpm = LLVMCreateFunctionPassManagerForModule(module);
             let pm = LLVMCreatePassManager();
-            
+
             //promote allocas to register
-/*
-            scalar::LLVMAddPromoteMemoryToRegisterPass(fpm);
-            scalar::LLVMAddInstructionCombiningPass(fpm);
-            scalar::LLVMAddNewGVNPass(fpm);
-            scalar::LLVMAddReassociatePass(fpm);
-            scalar::LLVMAddCFGSimplificationPass(fpm);
-            scalar::LLVMAddConstantPropagationPass(fpm);
-*/
+            /*
+                        scalar::LLVMAddPromoteMemoryToRegisterPass(fpm);
+                        scalar::LLVMAddInstructionCombiningPass(fpm);
+                        scalar::LLVMAddNewGVNPass(fpm);
+                        scalar::LLVMAddReassociatePass(fpm);
+                        scalar::LLVMAddCFGSimplificationPass(fpm);
+                        scalar::LLVMAddConstantPropagationPass(fpm);
+            */
 
             ipo::LLVMAddFunctionInliningPass(pm);
             ipo::LLVMAddGlobalDCEPass(pm);

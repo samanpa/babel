@@ -3,16 +3,16 @@
 //   "On The Type Structure of Standard ML" Robert Harper.
 //System F like.
 
-use std::rc::Rc;
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 use types::{self, TyVar};
 
 type Type = types::Type<TyVar>;
 
 #[derive(Debug)]
 pub struct Module {
-    name:  String,
+    name: String,
     decls: Vec<Decl>,
 }
 
@@ -22,11 +22,11 @@ pub enum Decl {
     Let(Vec<Bind>),
 }
 
-#[derive(Clone,Eq,PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Symbol {
     name: Rc<String>,
     id: u32,
-    ty: Type
+    ty: Type,
 }
 
 pub struct Bind {
@@ -41,10 +41,10 @@ pub struct Let {
 
 #[derive(Debug)]
 pub struct If {
-    cond:  Expr,
+    cond: Expr,
     texpr: Expr,
     fexpr: Expr,
-    ty: Type
+    ty: Type,
 }
 
 #[derive(Debug)]
@@ -69,7 +69,7 @@ impl Hash for Symbol {
 
 impl Module {
     pub fn new(name: String, decls: Vec<Decl>) -> Self {
-        Self{name, decls}
+        Self { name, decls }
     }
 
     pub fn name(&self) -> &String {
@@ -91,7 +91,7 @@ impl Module {
 
 impl Symbol {
     pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
-        Self{name, ty, id}
+        Self { name, ty, id }
     }
     pub fn with_ty(&self, ty: Type) -> Self {
         Self::new(self.name.clone(), ty, self.id)
@@ -115,7 +115,12 @@ impl fmt::Debug for Symbol {
 
 impl If {
     pub fn new(cond: Expr, texpr: Expr, fexpr: Expr, ty: Type) -> Self {
-        If{cond, texpr, fexpr, ty}
+        If {
+            cond,
+            texpr,
+            fexpr,
+            ty,
+        }
     }
     pub fn cond(&self) -> &Expr {
         &self.cond
@@ -133,7 +138,7 @@ impl If {
 
 impl Let {
     pub fn new(bind: Bind, expr: Expr) -> Self {
-        Let{bind, expr}
+        Let { bind, expr }
     }
     pub fn bind(&self) -> &Bind {
         &self.bind
@@ -145,7 +150,7 @@ impl Let {
 
 impl Bind {
     pub fn new(symbol: Symbol, expr: Expr) -> Self {
-        Bind{symbol, expr}
+        Bind { symbol, expr }
     }
 
     pub fn symbol(&self) -> &Symbol {
@@ -168,4 +173,3 @@ impl fmt::Debug for Let {
         write!(f, "let {:?}\n{:#?}", self.bind, self.expr)
     }
 }
-

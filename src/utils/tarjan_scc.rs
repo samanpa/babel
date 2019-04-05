@@ -1,10 +1,7 @@
 use std::cmp::min;
 use std::usize;
 
-use super::{
-    Graph,
-    VertexKey
-};
+use super::{Graph, VertexKey};
 
 pub struct SCC<'a, K: 'a, Data: 'a> {
     graph: &'a Graph<K, Data>,
@@ -12,24 +9,24 @@ pub struct SCC<'a, K: 'a, Data: 'a> {
     indices: Vec<usize>,
     lowlink: Vec<usize>,
     onstack: Vec<bool>,
-    result:  Vec<Vec<Data>>,
+    result: Vec<Vec<Data>>,
     curr_index: usize,
 }
 
-impl <'a, K: VertexKey, Data: Clone> SCC<'a, K, Data> {
-    pub fn run(graph: &Graph<K,Data>) -> Vec<Vec<Data>>{
+impl<'a, K: VertexKey, Data: Clone> SCC<'a, K, Data> {
+    pub fn run(graph: &Graph<K, Data>) -> Vec<Vec<Data>> {
         let len = graph.vertices.len();
         let mut indices = Vec::with_capacity(len);
         let mut lowlink = Vec::with_capacity(len);
         let mut onstack = Vec::with_capacity(len);
-        let stack   = Vec::with_capacity(len);
-        let result  = Vec::with_capacity(len);
+        let stack = Vec::with_capacity(len);
+        let result = Vec::with_capacity(len);
 
         for _ in 0..len {
             indices.push(usize::MAX);
             lowlink.push(usize::MAX);
             onstack.push(true);
-        };
+        }
         let curr_index = 0;
         let mut scc = SCC {
             graph,
@@ -38,7 +35,7 @@ impl <'a, K: VertexKey, Data: Clone> SCC<'a, K, Data> {
             lowlink,
             onstack,
             result,
-            curr_index
+            curr_index,
         };
         for v in 0..len {
             if !scc.visited(v) {
@@ -66,8 +63,7 @@ impl <'a, K: VertexKey, Data: Clone> SCC<'a, K, Data> {
             if !self.visited(w as usize) {
                 self.scc(w);
                 self.lowlink[v] = min(self.lowlink[v], self.lowlink[w]);
-            }
-            else if self.onstack[w] {
+            } else if self.onstack[w] {
                 // Successor w is in stack S and hence in the current SCC
                 // If w is not on stack, then (v, w) is a cross-edge in the
                 //    DFS tree and must be ignored
@@ -80,13 +76,14 @@ impl <'a, K: VertexKey, Data: Clone> SCC<'a, K, Data> {
             let mut scc = Vec::new();
             while let Some(w) = self.stack.pop() {
                 scc.push(self.graph.vertices[w].data.clone());
-                if w == v { break }
+                if w == v {
+                    break;
+                }
             }
             self.result.push(scc)
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -94,7 +91,7 @@ mod tests {
 
     #[test]
     fn sort() {
-        let mut graph = Graph::<u32,u32>::new();
+        let mut graph = Graph::<u32, u32>::new();
 
         let v1 = graph.add_vertex(1);
         let v2 = graph.add_vertex(2);
@@ -122,6 +119,5 @@ mod tests {
         let res = SCC::run(&graph);
 
         println!("{:#?}", res);
-
     }
 }

@@ -7,11 +7,15 @@ pub trait DisjointSetKey {
 }
 
 impl DisjointSetKey for u32 {
-    fn make(index: u32) -> Self { index }
-    fn index(&self) -> u32 { *self }
+    fn make(index: u32) -> Self {
+        index
+    }
+    fn index(&self) -> u32 {
+        *self
+    }
 }
 
-pub trait DisjointSetValue : Sized {
+pub trait DisjointSetValue: Sized {
     fn unify(_val1: &Self, _val2: &Self) -> Option<Self> {
         None
     }
@@ -27,14 +31,14 @@ struct Node<V> {
 #[derive(Debug)]
 pub struct DisjointSet<K, V> {
     nodes: Vec<Node<V>>,
-    phantom: PhantomData<K>
+    phantom: PhantomData<K>,
 }
 
-impl <K: DisjointSetKey, V: DisjointSetValue> DisjointSet<K, V> {
+impl<K: DisjointSetKey, V: DisjointSetValue> DisjointSet<K, V> {
     pub fn with_capacity(capacity: usize) -> Self {
-        Self{
+        Self {
             nodes: Vec::with_capacity(capacity),
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -44,10 +48,14 @@ impl <K: DisjointSetKey, V: DisjointSetValue> DisjointSet<K, V> {
 
     pub fn add(&mut self, value: V) -> K {
         let parent = self.nodes.len() as u32;
-        let rank   = 0;
-        let node   = Node { parent, rank, value };
-        self.nodes.push( node );
-        DisjointSetKey::make( parent )
+        let rank = 0;
+        let node = Node {
+            parent,
+            rank,
+            value,
+        };
+        self.nodes.push(node);
+        DisjointSetKey::make(parent)
     }
 
     fn find_repr_node(&self, key: K) -> usize {
@@ -55,7 +63,7 @@ impl <K: DisjointSetKey, V: DisjointSetValue> DisjointSet<K, V> {
         loop {
             let parent = self.nodes[node].parent as usize;
             match node == parent {
-                true  => return node,
+                true => return node,
                 false => node = parent,
             }
         }
@@ -67,20 +75,20 @@ impl <K: DisjointSetKey, V: DisjointSetValue> DisjointSet<K, V> {
 
         if rep1 != rep2 {
             let (lo, hi, rank) = {
-                let n1  = unsafe { self.nodes.get_unchecked(rep1) };
-                let n2  = unsafe { self.nodes.get_unchecked(rep2) };
-                let inc = if n1.rank == n2.rank {1} else {0};
+                let n1 = unsafe { self.nodes.get_unchecked(rep1) };
+                let n2 = unsafe { self.nodes.get_unchecked(rep2) };
+                let inc = if n1.rank == n2.rank { 1 } else { 0 };
                 match n1.rank <= n2.rank {
-                    true  => (rep2, rep1, n1.rank + inc),
+                    true => (rep2, rep1, n1.rank + inc),
                     false => (rep1, rep2, n2.rank + inc),
                 }
             };
 
             unsafe {
-                let lo : *mut _ = self.nodes.get_unchecked_mut(lo);
+                let lo: *mut _ = self.nodes.get_unchecked_mut(lo);
                 (*lo).parent = hi as u32;
-                let hi : *mut _ = self.nodes.get_unchecked_mut(hi);
-                (*hi).rank   = rank as u32;
+                let hi: *mut _ = self.nodes.get_unchecked_mut(hi);
+                (*hi).rank = rank as u32;
                 if let Some(value) = V::unify(&(*lo).value, &(*hi).value) {
                     (*hi).value = value;
                 }
@@ -101,7 +109,7 @@ impl <K: DisjointSetKey, V: DisjointSetValue> DisjointSet<K, V> {
 mod tests {
     use super::DisjointSet;
     use std::cmp::min;
-    
+
     #[test]
     fn insert1() {
         impl super::DisjointSetValue for char {
@@ -109,8 +117,8 @@ mod tests {
                 Some(min(*val1, *val2))
             }
         }
-        
-        let mut set = DisjointSet::<u32,char>::with_capacity(10);
+
+        let mut set = DisjointSet::<u32, char>::with_capacity(10);
         let node1 = set.add('1');
         let node2 = set.add('2');
         let node3 = set.add('3');
@@ -124,7 +132,7 @@ mod tests {
         assert_eq!(*set.find(node4), '4');
         assert_eq!(*set.find(node5), '5');
         assert_eq!(*set.find(node6), '6');
-        
+
         set.merge(node2, node4);
         assert_eq!(*set.find(node2), '2');
         assert_eq!(*set.find(node4), '2');

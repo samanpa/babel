@@ -1,7 +1,7 @@
-use ::xir::*;
-use ::{Result,Vector};
-use ::fresh_id;
-use ::scoped_map::ScopedMap;
+use fresh_id;
+use scoped_map::ScopedMap;
+use xir::*;
+use {Result, Vector};
 
 use std::rc::Rc;
 
@@ -16,7 +16,7 @@ impl Default for LambdaLift {
 }
 
 impl ::Pass for LambdaLift {
-    type Input  = Vec<Module>;
+    type Input = Vec<Module>;
     type Output = Vec<Module>;
 
     fn run(mut self, module_vec: Self::Input) -> Result<Self::Output> {
@@ -27,21 +27,24 @@ impl ::Pass for LambdaLift {
 
 impl LambdaLift {
     pub fn new() -> Self {
-        LambdaLift{map: ScopedMap::new()}
+        LambdaLift {
+            map: ScopedMap::new(),
+        }
     }
 
     fn lift_module(&mut self, module: &Module) -> Result<Module> {
-        let mut decls     = Vec::new();
-        
+        let mut decls = Vec::new();
+
         for decl in module.decls() {
             let decl = match *decl {
                 Decl::Extern(ref symbol) => Decl::Extern(symbol.clone()),
-                Decl::Let(ref bind)  => {
-                    let bind = bind.iter().map( |bind| {
-                        self.lift_bind(bind, &mut decls)
-                    }).collect();
+                Decl::Let(ref bind) => {
+                    let bind = bind
+                        .iter()
+                        .map(|bind| self.lift_bind(bind, &mut decls))
+                        .collect();
                     Decl::Let(bind)
-                },
+                }
             };
             decls.push(decl)
         }
@@ -51,47 +54,42 @@ impl LambdaLift {
             //println!("{:?}\n", decl);
         }
         */
-        
+
         Ok(Module::new(module.name().clone(), decls))
     }
-    
+
     fn lift_bind(&mut self, bind: &Bind, acc: &mut Vec<Decl>) -> Bind {
         self.map.begin_scope();
         let symbol = bind.symbol();
-        let expr   = self.lift(bind.expr(), acc, true);
-        let bind   = match expr {
+        let expr = self.lift(bind.expr(), acc, true);
+        let bind = match expr {
             Expr::Lam(_, _, _) if self.map.scope() > 1 => {
                 let fnid = fresh_id();
                 let fnnm = Rc::new(format!("@__fnanon_{}", fnid));
                 let fnty = symbol.ty().clone();
-                let sym  = Symbol::new(fnnm, fnty, fnid);
+                let sym = Symbol::new(fnnm, fnty, fnid);
                 let bind = Bind::new(symbol.clone(), expr);
                 self.map.insert(symbol.id(), sym.clone());
                 acc.push(Decl::Let(vec![bind]));
                 Bind::new(sym, Expr::Var(symbol.clone()))
             }
-            _ => Bind::new(symbol.clone(), expr)
+            _ => Bind::new(symbol.clone(), expr),
         };
         self.map.end_scope();
         bind
     }
 
-    fn lift(
-        &mut self,
-        expr: &Expr,
-        acc: &mut Vec<Decl>,
-        let_bound: bool
-    ) -> Expr {
-        use ::xir;
+    fn lift(&mut self, expr: &Expr, acc: &mut Vec<Decl>, let_bound: bool) -> Expr {
         use self::Expr::*;
+        use xir;
         match *expr {
-            UnitLit     => UnitLit,
-            I32Lit(n)   => I32Lit(n),
-            BoolLit(b)  => BoolLit(b),
+            UnitLit => UnitLit,
+            I32Lit(n) => I32Lit(n),
+            BoolLit(b) => BoolLit(b),
             Var(ref id) => {
                 let sym = match self.map.get(&id.id()) {
                     Some(sym) => sym.clone(),
-                    None      => id.clone()
+                    None => id.clone(),
                 };
                 Var(sym)
             }
@@ -104,16 +102,19 @@ impl LambdaLift {
                 TyApp(Box::new(e), t.clone())
             }
             If(ref e) => {
-                let if_expr = xir::If::new(self.lift(e.cond(),  acc, false),
-                                           self.lift(e.texpr(), acc, false),
-                                           self.lift(e.fexpr(), acc, false),
-                                           e.ty().clone());
+                let if_expr = xir::If::new(
+                    self.lift(e.cond(), acc, false),
+                    self.lift(e.texpr(), acc, false),
+                    self.lift(e.fexpr(), acc, false),
+                    e.ty().clone(),
+                );
                 Expr::If(Box::new(if_expr))
             }
             App(ref callee, ref args) => {
                 let callee = self.lift(callee, acc, false);
-                let args   = args.iter()
-                    .map( | arg | self.lift(arg, acc, false) )
+                let args = args
+                    .iter()
+                    .map(|arg| self.lift(arg, acc, false))
                     .collect::<Vec<_>>();
                 App(Box::new(callee), args)
             }
@@ -124,15 +125,16 @@ impl LambdaLift {
                 Let(Box::new(lexp))
             }
             Lam(ref proto, ref body, ref retty) => {
-                let body  = self.lift(body, acc, false);
+                let body = self.lift(body, acc, false);
                 let proto = proto.clone();
-                let lam   = Lam(proto, Box::new(body), retty.clone());
+                let lam = Lam(proto, Box::new(body), retty.clone());
                 match let_bound {
-                    true  => lam,
-                    false => { //anonymous function
+                    true => lam,
+                    false => {
+                        //anonymous function
                         let fnty = retty.clone();
                         let fnnm = Rc::new(format!("@__anon_{}", fresh_id()));
-                        let sym  = Symbol::new(fnnm, fnty, fresh_id());
+                        let sym = Symbol::new(fnnm, fnty, fresh_id());
                         let bind = Bind::new(sym.clone(), lam);
                         acc.push(Decl::Let(vec![bind]));
                         Var(sym)
@@ -142,4 +144,3 @@ impl LambdaLift {
         }
     }
 }
-    

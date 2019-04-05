@@ -1,16 +1,19 @@
 use std::rc::Rc;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum Type {
     Unit,
     Bool,
     I32,
-    Function{ params_ty: Vec<Type>, return_ty: Box<Type> },
+    Function {
+        params_ty: Vec<Type>,
+        return_ty: Box<Type>,
+    },
 }
 
 #[derive(Debug)]
 pub struct Module {
-    name:  String,
+    name: String,
     types: Vec<Type>,
     funcs: Vec<Bind>,
     ext_funcs: Vec<Symbol>,
@@ -19,8 +22,8 @@ pub struct Module {
 #[derive(Debug)]
 pub struct Symbol {
     name: Rc<String>,
-    ty:   Type,
-    id:   u32,
+    ty: Type,
+    id: u32,
 }
 
 #[derive(Debug)]
@@ -51,24 +54,29 @@ pub enum Expr {
     App(Box<Expr>, Vec<Expr>),
     Var(Symbol),
     //FIXME: introduce an If struct to reduce number or allocations
-    If(Box<Expr>, Box<Expr>, Box<Expr>, Type ),
+    If(Box<Expr>, Box<Expr>, Box<Expr>, Type),
     //FIXME: introduce an Let struct to reduce number or allocations
     Let(Box<Bind>, Box<Expr>),
 }
 
 impl Module {
     pub fn new(name: String) -> Self {
-        Self{name, types: vec![], funcs: vec![], ext_funcs: vec![]}
+        Self {
+            name,
+            types: vec![],
+            funcs: vec![],
+            ext_funcs: vec![],
+        }
     }
 
     pub fn name(&self) -> &String {
         &self.name
     }
-    
+
     pub fn types(&self) -> &Vec<Type> {
         &self.types
     }
-    
+
     pub fn funcs(&self) -> &Vec<Bind> {
         &self.funcs
     }
@@ -92,7 +100,7 @@ impl Module {
 
 impl Bind {
     pub fn new(sym: Symbol, expr: Expr) -> Self {
-        Bind{sym, expr}
+        Bind { sym, expr }
     }
     pub fn symbol(&self) -> &Symbol {
         &self.sym
@@ -104,7 +112,7 @@ impl Bind {
 
 impl Lam {
     pub fn new(params: Vec<Symbol>, body: Expr) -> Self {
-        Lam{params, body}
+        Lam { params, body }
     }
     pub fn params(&self) -> &Vec<Symbol> {
         &self.params
@@ -116,7 +124,7 @@ impl Lam {
 
 impl Symbol {
     pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
-        Self{name, ty, id}
+        Self { name, ty, id }
     }
     pub fn id(&self) -> u32 {
         self.id
@@ -132,6 +140,5 @@ impl Symbol {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn it_works() {
-    }
+    fn it_works() {}
 }

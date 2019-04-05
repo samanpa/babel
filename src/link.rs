@@ -1,5 +1,5 @@
-use Result;
 use std::process::Command;
+use Result;
 
 pub struct Link {
     name: String,
@@ -7,23 +7,21 @@ pub struct Link {
 
 impl Link {
     pub fn new(name: String) -> Self {
-        Self{name}
+        Self { name }
     }
 }
 
 impl ::Pass for Link {
-    type Input  = Vec<String>;
+    type Input = Vec<String>;
     type Output = ();
 
     fn run(self, object_files: Self::Input) -> Result<Self::Output> {
         let mut command = Command::new("gcc");
-        let command = command
-            .arg("-o")
-            .arg(self.name);
-        let _ = object_files.iter()
-            .fold( command, |cmd, arg| cmd.arg(arg))
+        let command = command.arg("-o").arg(self.name);
+        let _ = object_files
+            .iter()
+            .fold(command, |cmd, arg| cmd.arg(arg))
             .output();
         Ok(())
     }
 }
-

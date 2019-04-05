@@ -1,12 +1,12 @@
-use ::{Result,Error};
+use super::unify::UnificationTable;
+use super::{ForAll, Type};
 use idtree::Symbol;
 use scoped_map::ScopedMap;
 use types::{Subst, TyVar};
-use super::{ForAll, Type};
-use super::unify::UnificationTable;
+use {Error, Result};
 
 #[derive(Debug)]
-pub (super) struct Env {
+pub(super) struct Env {
     map: ScopedMap<u32, ForAll>,
     unify_table: UnificationTable,
 }
@@ -22,7 +22,7 @@ impl Env {
     pub fn lookup(&self, id: &Symbol) -> Result<ForAll> {
         match self.map.get(&id.id()) {
             Some(ty) => Ok(ty.clone()),
-            None     => Err(Error::new(format!("Could not find {:?}", id)))
+            None => Err(Error::new(format!("Could not find {:?}", id))),
         }
     }
 
@@ -52,14 +52,10 @@ impl Env {
         tyvar
     }
 
-    pub (super) fn instantiate(
-        &mut self,
-        scheme: &ForAll, 
-        level: u32
-    ) -> (Vec<TyVar>, Type) {
+    pub(super) fn instantiate(&mut self, scheme: &ForAll, level: u32) -> (Vec<TyVar>, Type) {
         //FIXME: does this even make sense
         let mut subst = Subst::new();
-        let mut tvs   = Vec::new();
+        let mut tvs = Vec::new();
         for bv in scheme.bound_vars() {
             let tv = self.fresh_tyvar(level);
             tvs.push(tv.clone());
@@ -67,5 +63,4 @@ impl Env {
         }
         (tvs, subst.apply(scheme.ty()))
     }
-
 }

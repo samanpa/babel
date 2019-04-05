@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use types::{Type,TyVar};
+use types::{TyVar, Type};
 
 #[derive(Debug)]
 pub struct Subst {
-    map: HashMap<u32,Type<TyVar>>,
+    map: HashMap<u32, Type<TyVar>>,
 }
 
 impl Default for Subst {
@@ -14,7 +14,9 @@ impl Default for Subst {
 
 impl Subst {
     pub fn new() -> Self {
-        Subst{ map: HashMap::new() }
+        Subst {
+            map: HashMap::new(),
+        }
     }
 
     pub fn bind(&mut self, tyvar: &TyVar, ty: Type<TyVar>) {
@@ -25,19 +27,15 @@ impl Subst {
         use self::Type::*;
         match *ty {
             Con(ref con, ref kind) => Con(con.clone(), kind.clone()),
-            App(ref con, ref args)  => {
+            App(ref con, ref args) => {
                 let con = self.apply(con);
-                let args = args.iter()
-                    .map( |arg| self.apply(arg))
-                    .collect();
+                let args = args.iter().map(|arg| self.apply(arg)).collect();
                 App(Box::new(con), args)
             }
-            Var(ref tv) => {
-                match self.map.get(&tv.id) {
-                    Some(ty) => ty.clone(),
-                    None     => Var(tv.clone()),
-                }
-            }
+            Var(ref tv) => match self.map.get(&tv.id) {
+                Some(ty) => ty.clone(),
+                None => Var(tv.clone()),
+            },
         }
     }
 }

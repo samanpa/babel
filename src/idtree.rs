@@ -1,5 +1,5 @@
-use std::rc::Rc;
 use std::fmt;
+use std::rc::Rc;
 
 //FIXME: for now use the same representation of type variables as is used in
 //       typechecking
@@ -7,7 +7,7 @@ type Type = ::types::Type<::types::TyVar>;
 
 #[derive(Debug)]
 pub struct Module {
-    name:  String,
+    name: String,
     decls: Vec<Decl>,
 }
 
@@ -17,7 +17,7 @@ pub enum Decl {
     Let(Vec<Bind>),
 }
 
-#[derive(Clone,Eq,PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Symbol {
     name: Rc<String>,
     id: u32,
@@ -30,14 +30,15 @@ pub struct Let {
 }
 
 pub struct Bind {
-    symbol: Symbol, expr: Expr,
+    symbol: Symbol,
+    expr: Expr,
 }
 
 #[derive(Debug)]
 pub struct If {
-    cond:  Expr,
+    cond: Expr,
     texpr: Expr,
-    fexpr: Expr
+    fexpr: Expr,
 }
 
 #[derive(Debug)]
@@ -54,7 +55,7 @@ pub enum Expr {
 
 impl Module {
     pub fn new(name: String, decls: Vec<Decl>) -> Self {
-        Self{name, decls}
+        Self { name, decls }
     }
 
     pub fn name(&self) -> &String {
@@ -76,7 +77,7 @@ impl Module {
 
 impl Symbol {
     pub fn new(name: Rc<String>, ty: Type, id: u32) -> Self {
-        Symbol{name, ty, id}
+        Symbol { name, ty, id }
     }
     pub fn with_ty(&self, ty: Type) -> Symbol {
         Symbol::new(self.name.clone(), ty, self.id)
@@ -100,7 +101,7 @@ impl fmt::Debug for Symbol {
 
 impl If {
     pub fn new(cond: Expr, texpr: Expr, fexpr: Expr) -> Self {
-        If{cond, texpr, fexpr}
+        If { cond, texpr, fexpr }
     }
     pub fn cond(&self) -> &Expr {
         &self.cond
@@ -115,7 +116,7 @@ impl If {
 
 impl Let {
     pub fn new(bind: Bind, expr: Expr) -> Self {
-        Let{bind, expr}
+        Let { bind, expr }
     }
     pub fn bind(&self) -> &Bind {
         &self.bind
@@ -133,7 +134,7 @@ impl fmt::Debug for Let {
 
 impl Bind {
     pub fn new(symbol: Symbol, expr: Expr) -> Self {
-        Self{symbol, expr}
+        Self { symbol, expr }
     }
     pub fn symbol(&self) -> &Symbol {
         &self.symbol

@@ -1,23 +1,23 @@
 extern crate llvm_sys;
 
-mod transform;
+mod emit;
 mod llvm_pass;
 mod prelude;
-mod emit;
+mod transform;
 
-use ::monoir;
-use ::{Result,Vector};
-use self::llvm_sys::target;
-use self::llvm_sys::prelude::*;
-use self::llvm_sys::core::*;
-use self::transform::LowerToLlvm;
 use self::llvm_pass::PassRunner;
+use self::llvm_sys::core::*;
+use self::llvm_sys::prelude::*;
+use self::llvm_sys::target;
+use self::transform::LowerToLlvm;
+use monoir;
+use {Result, Vector};
 
 pub struct Module {
     module: LLVMModuleRef,
 }
 
-impl <'a> Drop for Module {
+impl<'a> Drop for Module {
     fn drop(&mut self) {
         unsafe {
             LLVMDisposeModule(self.module);
@@ -25,19 +25,17 @@ impl <'a> Drop for Module {
     }
 }
 
-
 pub struct CodeGen {
     context: LLVMContextRef,
     output_file: String,
 }
 
 impl ::Pass for CodeGen {
-    type Input  = Vec<monoir::Module>; 
+    type Input = Vec<monoir::Module>;
     type Output = Vec<String>;
 
     fn run(mut self, modules: Self::Input) -> Result<Self::Output> {
-        Vector::map( &modules,
-                      |module| self.codegen_module(&module) )
+        Vector::map(&modules, |module| self.codegen_module(&module))
     }
 }
 
@@ -45,7 +43,10 @@ impl CodeGen {
     pub fn new(output_file: String) -> Self {
         unsafe {
             target::LLVM_InitializeNativeTarget();
-            CodeGen{context: LLVMContextCreate(), output_file}
+            CodeGen {
+                context: LLVMContextCreate(),
+                output_file,
+            }
         }
     }
 
@@ -57,15 +58,14 @@ impl CodeGen {
             codegen.gen_extern(ex)?;
         }
         for func in module.funcs() {
-           codegen.gen_func(func)?;
+            codegen.gen_func(func)?;
         }
-        
+
         let module = codegen.module();
         pass_runner.run(module)?;
-      
+
         //unsafe{ LLVMDumpModule(module)};
         let object_file = emit::emit(module, &self.output_file)?;
         Ok(object_file)
     }
 }
-

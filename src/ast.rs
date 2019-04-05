@@ -15,12 +15,12 @@ pub enum Decl {
 #[derive(Debug)]
 pub struct Lam {
     params: Vec<String>,
-    body:  Expr
+    body: Expr,
 }
 
 #[derive(Debug)]
 pub struct If {
-    cond:  Expr,
+    cond: Expr,
     texpr: Expr,
     fexpr: Expr,
 }
@@ -37,12 +37,15 @@ pub enum Expr {
     BoolLit(bool),
     Var(String),
     If(Box<If>),
-    Let(Box<Bind>, Box<Expr>)
+    Let(Box<Bind>, Box<Expr>),
 }
 
 impl Module {
     pub fn new(decls: Vec<Decl>) -> Self {
-        Self{name: "".to_string(), decls}
+        Self {
+            name: "".to_string(),
+            decls,
+        }
     }
 
     pub fn set_name(&mut self, name: String) {
@@ -58,23 +61,20 @@ impl Module {
 }
 
 pub fn con(nm: &str, kind: ::types::Kind) -> Type {
-    use ::types::TyCon::*;
+    use types::TyCon::*;
     let tycon = match nm {
-        "i32"  => I32,
+        "i32" => I32,
         "bool" => Bool,
-        "()"   => Unit,
-        "->"   => Func,
-        _      => NewType(std::rc::Rc::new(nm.to_string()))
+        "()" => Unit,
+        "->" => Func,
+        _ => NewType(std::rc::Rc::new(nm.to_string())),
     };
     ::types::Type::Con(tycon, kind)
 }
 
 impl Decl {
-    pub fn external(name: String, params: Vec<(String, Type)>,
-                    retty: Type) -> Self {
-        let params_ty : Vec<Type> = params.into_iter()
-            .map(|(_,ty)| ty)
-            .collect();
+    pub fn external(name: String, params: Vec<(String, Type)>, retty: Type) -> Self {
+        let params_ty: Vec<Type> = params.into_iter().map(|(_, ty)| ty).collect();
         let ty = ::types::Type::func(params_ty, retty);
         Decl::Extern(name, ty)
     }
@@ -82,7 +82,7 @@ impl Decl {
 
 impl Lam {
     pub fn new(params: Vec<String>, body: Expr) -> Self {
-        Lam{params, body}
+        Lam { params, body }
     }
     pub fn body(&self) -> &Expr {
         &self.body
@@ -94,7 +94,7 @@ impl Lam {
 
 impl If {
     pub fn new(cond: Expr, texpr: Expr, fexpr: Expr) -> Self {
-        If{cond, texpr, fexpr}
+        If { cond, texpr, fexpr }
     }
     pub fn cond(&self) -> &Expr {
         &self.cond

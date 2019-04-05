@@ -11,8 +11,12 @@ pub trait VertexKey {
 }
 
 impl VertexKey for u32 {
-    fn make(index: u32) -> Self { index }
-    fn index(&self) -> u32 { *self }
+    fn make(index: u32) -> Self {
+        index
+    }
+    fn index(&self) -> u32 {
+        *self
+    }
 }
 
 pub struct Graph<K, Data> {
@@ -20,18 +24,21 @@ pub struct Graph<K, Data> {
     pub(super) vertices: Vec<Vertex<Data>>,
 }
 
-impl <K, Data> Graph<K, Data> where K: VertexKey {
+impl<K, Data> Graph<K, Data>
+where
+    K: VertexKey,
+{
     pub fn new() -> Self {
         Graph {
             vertices: vec![],
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
     pub fn add_vertex(&mut self, data: Data) -> K {
-        let index  = self.vertices.len() as u32;
-        let edges  = Vec::new();
-        let vertex = Vertex{ data, edges };
+        let index = self.vertices.len() as u32;
+        let edges = Vec::new();
+        let vertex = Vertex { data, edges };
         self.vertices.push(vertex);
         K::make(index)
     }
@@ -42,4 +49,3 @@ impl <K, Data> Graph<K, Data> where K: VertexKey {
         self.vertices[v1].edges.push(v2);
     }
 }
-
