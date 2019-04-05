@@ -10,8 +10,8 @@ use self::llvm_sys::core::*;
 use self::llvm_sys::prelude::*;
 use self::llvm_sys::target;
 use self::transform::LowerToLlvm;
-use monoir;
-use {Result, Vector};
+use crate::monoir;
+use crate::{Result, Vector};
 
 pub struct Module {
     module: LLVMModuleRef,
@@ -30,7 +30,7 @@ pub struct CodeGen {
     output_file: String,
 }
 
-impl ::Pass for CodeGen {
+impl crate::Pass for CodeGen {
     type Input = Vec<monoir::Module>;
     type Output = Vec<String>;
 

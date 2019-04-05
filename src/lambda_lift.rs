@@ -1,7 +1,7 @@
-use fresh_id;
-use scoped_map::ScopedMap;
-use xir::*;
-use {Result, Vector};
+use crate::fresh_id;
+use crate::scoped_map::ScopedMap;
+use crate::xir::*;
+use crate::{Result, Vector};
 
 use std::rc::Rc;
 
@@ -15,7 +15,7 @@ impl Default for LambdaLift {
     }
 }
 
-impl ::Pass for LambdaLift {
+impl crate::Pass for LambdaLift {
     type Input = Vec<Module>;
     type Output = Vec<Module>;
 
@@ -81,7 +81,7 @@ impl LambdaLift {
 
     fn lift(&mut self, expr: &Expr, acc: &mut Vec<Decl>, let_bound: bool) -> Expr {
         use self::Expr::*;
-        use xir;
+        use crate::xir;
         match *expr {
             UnitLit => UnitLit,
             I32Lit(n) => I32Lit(n),

@@ -4,9 +4,9 @@ extern crate llvm_sys;
 use self::llvm_sys::core::*;
 use self::llvm_sys::prelude::*;
 use self::llvm_sys::*;
-use monoir;
+use crate::monoir;
 use std::ffi::CString;
-use Result;
+use crate::Result;
 
 pub struct Prelude {}
 

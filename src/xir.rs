@@ -6,7 +6,7 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use types::{self, TyVar};
+use crate::types::{self, TyVar};
 
 type Type = types::Type<TyVar>;
 

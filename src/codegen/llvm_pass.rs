@@ -4,7 +4,7 @@ use self::llvm_sys::core::*;
 use self::llvm_sys::prelude::*;
 use self::llvm_sys::transforms::*;
 use std;
-use Result;
+use crate::Result;
 
 pub struct PassRunner {}
 

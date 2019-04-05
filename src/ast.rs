@@ -1,4 +1,4 @@
-pub type Type = ::types::Type<String>;
+pub type Type = crate::types::Type<String>;
 
 #[derive(Debug)]
 pub struct Module {
@@ -60,8 +60,8 @@ impl Module {
     }
 }
 
-pub fn con(nm: &str, kind: ::types::Kind) -> Type {
-    use types::TyCon::*;
+pub fn con(nm: &str, kind: crate::types::Kind) -> Type {
+    use crate::types::TyCon::*;
     let tycon = match nm {
         "i32" => I32,
         "bool" => Bool,
@@ -69,13 +69,13 @@ pub fn con(nm: &str, kind: ::types::Kind) -> Type {
         "->" => Func,
         _ => NewType(std::rc::Rc::new(nm.to_string())),
     };
-    ::types::Type::Con(tycon, kind)
+    crate::types::Type::Con(tycon, kind)
 }
 
 impl Decl {
     pub fn external(name: String, params: Vec<(String, Type)>, retty: Type) -> Self {
         let params_ty: Vec<Type> = params.into_iter().map(|(_, ty)| ty).collect();
-        let ty = ::types::Type::func(params_ty, retty);
+        let ty = crate::types::Type::func(params_ty, retty);
         Decl::Extern(name, ty)
     }
 }

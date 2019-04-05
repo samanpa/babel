@@ -1,5 +1,5 @@
 use std::process::Command;
-use Result;
+use crate::Result;
 
 pub struct Link {
     name: String,
@@ -11,7 +11,7 @@ impl Link {
     }
 }
 
-impl ::Pass for Link {
+impl crate::Pass for Link {
     type Input = Vec<String>;
     type Output = ();
 

@@ -1,6 +1,6 @@
-use ast::*;
+use crate::ast::*;
 use std::str::FromStr;
-use types::Kind;
+use crate::types::Kind;
 
 grammar;
 
@@ -93,7 +93,7 @@ Type: Type = {
     ArrowType => {
         let mut params = <>;
         let retty  = params.pop().unwrap();
-        ::types::Type::func(params, retty)
+        crate::types::Type::func(params, retty)
     }
 };
 

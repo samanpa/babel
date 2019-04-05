@@ -4,15 +4,15 @@
 
 use super::env::Env;
 use super::{ForAll, Type};
-use idtree;
+use crate::idtree;
 use std::rc::Rc;
-use types::{Kind, TyCon, TyVar};
-use xir;
-use Result;
+use crate::types::{Kind, TyCon, TyVar};
+use crate::xir;
+use crate::Result;
 
 pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
     use self::Kind::*;
-    use types::Type::*;
+    use crate::types::Type::*;
     let mk_kind = |n| (0..(n + 1)).fold(Star, |kind, _| Fun(Rc::new((Star, kind))));
     let con = Con(TyCon::Func, mk_kind(params.len()));
     params.push(ret);
@@ -22,8 +22,8 @@ pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
 pub(super) fn infer(gamma: &mut Env, expr: &idtree::Expr, level: u32) -> Result<(Type, xir::Expr)> {
     use self::Kind::*;
     use self::TyCon::*;
-    use idtree::Expr::*;
-    use types::Type;
+    use crate::idtree::Expr::*;
+    use crate::types::Type;
 
     let (ty, expr) = match *expr {
         UnitLit => (Type::Con(Unit, Star), xir::Expr::UnitLit),
@@ -57,8 +57,8 @@ pub fn into_xir_symbol(var: &idtree::Symbol, ty: &Type) -> xir::Symbol {
 //   read as TyApp(Var(foo),
 //                 [a1, b1])
 fn translate_var(sigma: &ForAll, var: &idtree::Symbol, tvs: Vec<TyVar>) -> xir::Expr {
-    use types::Type;
-    use xir::Expr::*;
+    use crate::types::Type;
+    use crate::xir::Expr::*;
     let ty_args = tvs
         .iter()
         .map(|tv| Type::Var(tv.clone()))
@@ -98,7 +98,7 @@ fn infer_lam(
     body: &idtree::Expr,
     level: u32,
 ) -> Result<(Type, xir::Expr)> {
-    use types::Type::*;
+    use crate::types::Type::*;
     let params_ty = params
         .iter()
         .map(|v| {
@@ -136,7 +136,7 @@ fn infer_app(
     args: &[idtree::Expr],
     level: u32,
 ) -> Result<(Type, xir::Expr)> {
-    use types::Type;
+    use crate::types::Type;
 
     let (t1, caller) = infer(gamma, caller, level)?;
     let retty = Type::Var(gamma.fresh_tyvar(level));
@@ -149,7 +149,7 @@ fn infer_app(
 }
 
 fn is_value(expr: &idtree::Expr) -> bool {
-    use idtree::Expr::*;
+    use crate::idtree::Expr::*;
     match *expr {
         UnitLit | BoolLit(_) | I32Lit(_) | Lam(_, _) | Var(_) => true,
         _ => false,
@@ -195,7 +195,7 @@ pub(super) fn infer_fn(
 
     let mut betas = Vec::with_capacity(bindings.len());
     for bind in bindings {
-        let beta = ::types::Type::Var(gamma.fresh_tyvar(level));
+        let beta = crate::types::Type::Var(gamma.fresh_tyvar(level));
         gamma.extend(bind.symbol(), ForAll::new(vec![], beta.clone()));
         betas.push(beta);
     }
@@ -230,7 +230,7 @@ fn infer_if(gamma: &mut Env, if_expr: &idtree::If, level: u32) -> Result<(Type, 
     let (t2, texp) = infer(gamma, if_expr.texpr(), level)?;
     let (t3, fexp) = infer(gamma, if_expr.fexpr(), level)?;
 
-    gamma.unify(&t1, &::types::Type::Con(TyCon::Bool, Kind::Star))?;
+    gamma.unify(&t1, &crate::types::Type::Con(TyCon::Bool, Kind::Star))?;
     gamma.unify(&t2, &t3)?;
 
     let ty = gamma.apply(&t2);

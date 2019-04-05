@@ -56,7 +56,7 @@ pub trait Pass {
     type Input;
     type Output;
 
-    fn run(self, source: Self::Input) -> ::Result<Self::Output>;
+    fn run(self, source: Self::Input) -> crate::Result<Self::Output>;
 }
 
 pub struct Vector {}

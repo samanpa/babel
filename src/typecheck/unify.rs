@@ -1,9 +1,9 @@
 use super::Type;
 use std;
 use std::collections::HashMap;
-use types::TyVar;
-use utils::{DisjointSet, DisjointSetValue};
-use Error;
+use crate::types::TyVar;
+use crate::utils::{DisjointSet, DisjointSetValue};
+use crate::Error;
 
 #[derive(Debug)]
 pub(super) struct UnificationTable {
@@ -14,7 +14,7 @@ pub(super) struct UnificationTable {
 impl DisjointSetValue for Type {}
 
 fn occurs(tv1: &TyVar, ty: &Type, top_level: bool) -> bool {
-    use types::Type::*;
+    use crate::types::Type::*;
     match *ty {
         Con(_, _) => false,
         Var(ref tv2) => {
@@ -43,12 +43,12 @@ impl UnificationTable {
     }
 
     pub fn add(&mut self, tyvar: TyVar) {
-        let key = self.subst.add(::types::Type::Var(tyvar.clone()));
+        let key = self.subst.add(crate::types::Type::Var(tyvar.clone()));
         self.indices.insert(tyvar.id, key);
     }
 
     pub fn apply_subst(&mut self, ty: &Type) -> Type {
-        use types::Type::*;
+        use crate::types::Type::*;
         let res = match ty {
             Con(ref con, ref kind) => Con(con.clone(), kind.clone()),
             App(ref con, ref args) => {
@@ -70,8 +70,8 @@ impl UnificationTable {
         res
     }
 
-    pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> ::Result<()> {
-        use types::Type::*;
+    pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> crate::Result<()> {
+        use crate::types::Type::*;
         match (lhs, rhs) {
             (&Con(ref l, ref lk), &Con(ref r, ref rk)) => {
                 if *l != *r || lk != rk {
@@ -111,7 +111,7 @@ impl UnificationTable {
     }
 }
 
-fn cannot_unify(lhs: &Type, rhs: &Type) -> ::Result<()> {
+fn cannot_unify(lhs: &Type, rhs: &Type) -> crate::Result<()> {
     let msg = format!("Can not unify {:?} with {:?}", lhs, rhs);
     return Err(Error::new(msg));
 }

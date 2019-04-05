@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 //FIXME: for now use the same representation of type variables as is used in
 //       typechecking
-type Type = ::types::Type<::types::TyVar>;
+type Type = crate::types::Type<crate::types::TyVar>;
 
 #[derive(Debug)]
 pub struct Module {

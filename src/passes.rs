@@ -1,10 +1,10 @@
-pub use codegen::CodeGen;
-pub use lambda_lift::LambdaLift;
-pub use link::Link;
-pub use rename::Rename;
-pub use simplify::Simplify;
-pub use specialize::Specialize;
-pub use typecheck::TypeChecker;
+pub use crate::codegen::CodeGen;
+pub use crate::lambda_lift::LambdaLift;
+pub use crate::link::Link;
+pub use crate::rename::Rename;
+pub use crate::simplify::Simplify;
+pub use crate::specialize::Specialize;
+pub use crate::typecheck::TypeChecker;
 
 #[macro_export]
 macro_rules! passes {

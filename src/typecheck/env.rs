@@ -1,9 +1,9 @@
 use super::unify::UnificationTable;
 use super::{ForAll, Type};
-use idtree::Symbol;
-use scoped_map::ScopedMap;
-use types::{Subst, TyVar};
-use {Error, Result};
+use crate::idtree::Symbol;
+use crate::scoped_map::ScopedMap;
+use crate::types::{Subst, TyVar};
+use crate::{Error, Result};
 
 #[derive(Debug)]
 pub(super) struct Env {
@@ -42,7 +42,7 @@ impl Env {
         self.unify_table.apply_subst(ty)
     }
 
-    pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> ::Result<()> {
+    pub fn unify<'a>(&mut self, lhs: &'a Type, rhs: &'a Type) -> crate::Result<()> {
         self.unify_table.unify(lhs, rhs)
     }
 
@@ -59,7 +59,7 @@ impl Env {
         for bv in scheme.bound_vars() {
             let tv = self.fresh_tyvar(level);
             tvs.push(tv.clone());
-            subst.bind(bv, ::types::Type::Var(tv));
+            subst.bind(bv, crate::types::Type::Var(tv));
         }
         (tvs, subst.apply(scheme.ty()))
     }

@@ -1,10 +1,10 @@
-use fresh_id;
-use scoped_map::ScopedMap;
+use crate::fresh_id;
+use crate::scoped_map::ScopedMap;
 use std::collections::HashMap;
 use std::rc::Rc;
-use types::{self, Subst, TyVar};
-use xir::*;
-use {Error, Result, Vector};
+use crate::types::{self, Subst, TyVar};
+use crate::xir::*;
+use crate::{Error, Result, Vector};
 
 type Type = types::Type<TyVar>;
 
@@ -16,7 +16,7 @@ impl Default for Specialize {
     }
 }
 
-impl ::Pass for Specialize {
+impl crate::Pass for Specialize {
     type Input = Vec<Module>;
     type Output = Vec<Module>;
 
@@ -98,7 +98,7 @@ impl Instances {
         let args = self
             .tyvars
             .iter()
-            .map(|ty| sub.apply(&::types::Type::Var(ty.clone())))
+            .map(|ty| sub.apply(&crate::types::Type::Var(ty.clone())))
             .collect::<Vec<_>>();
         let var = self.inner.entry(args.clone()).or_insert_with(|| {
             let name = format!("{}<{:?}>", var.name(), args);
@@ -208,7 +208,7 @@ impl Specializer {
 
     fn run(&mut self, expr: &Expr, sub: &mut Subst, args: Vec<Type>) -> Result<Expr> {
         use self::Expr::*;
-        use xir;
+        use crate::xir;
         let expr = match *expr {
             UnitLit => UnitLit,
             I32Lit(n) => I32Lit(n),

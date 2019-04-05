@@ -4,10 +4,10 @@ extern crate llvm_sys;
 use self::llvm_sys::core::*;
 use self::llvm_sys::prelude::*;
 use super::prelude::Prelude;
-use monoir;
-use scoped_map::ScopedMap;
+use crate::monoir;
+use crate::scoped_map::ScopedMap;
 use std::ffi::CString;
-use Result;
+use crate::Result;
 
 fn label<T: Into<Vec<u8>>>(str: T) -> CString {
     unsafe { CString::from_vec_unchecked(str.into().to_vec()) }
@@ -41,7 +41,7 @@ impl<'a> LowerToLlvm<'a> {
     }
 
     unsafe fn get_type(&mut self, ty: &monoir::Type, param: bool) -> LLVMTypeRef {
-        use monoir::Type::*;
+        use crate::monoir::Type::*;
 
         match *ty {
             Unit => LLVMVoidTypeInContext(*self.context),
@@ -109,8 +109,8 @@ impl<'a> LowerToLlvm<'a> {
         bb: LLVMBasicBlockRef,
         func: LLVMValueRef,
     ) -> Result<LLVMValueRef> {
-        use monoir::Expr::*;
-        use monoir::Type::*;
+        use crate::monoir::Expr::*;
+        use crate::monoir::Type::*;
         let val = unsafe {
             match *expr {
                 I32Lit(n) => {
@@ -142,7 +142,7 @@ impl<'a> LowerToLlvm<'a> {
                     match llvar {
                         None => {
                             let msg = format!("Var not found {:?} {}", var, var.id());
-                            return Err(::Error::new(msg));
+                            return Err(crate::Error::new(msg));
                         }
                         Some(v) => *v,
                     }

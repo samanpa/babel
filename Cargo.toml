@@ -2,7 +2,8 @@
 name = "babel"
 version = "0.1.0"
 authors = ["Kojo Adams <samanpa@gmail.com>"]
-build     = "build.rs"
+build   = "build.rs"
+edition = "2018"
 
 [lib]
 name = "babel"

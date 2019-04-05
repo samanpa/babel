@@ -5,7 +5,7 @@ use self::llvm_sys::prelude::*;
 
 use std::ffi::{CStr, CString};
 use std::ptr;
-use Result;
+use crate::Result;
 
 extern "C" fn fatal_error(reason: *const self::libc::c_char) {
     println!("LLVM Fatal error {:?}", reason);

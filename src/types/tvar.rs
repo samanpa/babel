@@ -27,7 +27,7 @@ impl TyVar {
     pub fn fresh(level: u32) -> TyVar {
         let inner = InnerTyVar { level };
         TyVar {
-            id: ::fresh_id(),
+            id: crate::fresh_id(),
             inner: Rc::new(RefCell::new(inner)),
         }
     }

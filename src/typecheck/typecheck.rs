@@ -1,9 +1,9 @@
 use super::env::Env;
 use super::hm::{infer_fn, into_xir_symbol};
-use idtree;
-use types::ForAll;
-use xir;
-use {Result, Vector};
+use crate::idtree;
+use crate::types::ForAll;
+use crate::xir;
+use crate::{Result, Vector};
 
 pub struct TypeChecker {
     gamma: Env,
@@ -15,7 +15,7 @@ impl Default for TypeChecker {
     }
 }
 
-impl ::Pass for TypeChecker {
+impl crate::Pass for TypeChecker {
     type Input = Vec<idtree::Module>;
     type Output = Vec<xir::Module>;
 
@@ -68,8 +68,8 @@ fn bind_subst(bind: &xir::Bind, sub: &mut Env) -> xir::Bind {
 }
 
 fn subst(expr: &xir::Expr, sub: &mut Env) -> xir::Expr {
-    use xir::Expr::*;
-    use xir::*;
+    use crate::xir::Expr::*;
+    use crate::xir::*;
     match *expr {
         UnitLit => UnitLit,
         I32Lit(n) => I32Lit(n),

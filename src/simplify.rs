@@ -1,9 +1,9 @@
-use monoir;
-use types::{Kind, TyCon};
-use xir;
-use {Error, Result, Vector};
+use crate::monoir;
+use crate::types::{Kind, TyCon};
+use crate::xir;
+use crate::{Error, Result, Vector};
 
-type Type = ::types::Type<::types::TyVar>;
+type Type = crate::types::Type<crate::types::TyVar>;
 
 pub struct Simplify {}
 
@@ -13,7 +13,7 @@ impl Default for Simplify {
     }
 }
 
-impl ::Pass for Simplify {
+impl crate::Pass for Simplify {
     type Input = Vec<xir::Module>;
     type Output = Vec<monoir::Module>;
 
@@ -66,7 +66,7 @@ fn process_bind(bind: &xir::Bind) -> Result<monoir::Bind> {
 }
 
 fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
-    use xir::Expr::*;
+    use crate::xir::Expr::*;
 
     let expr = match *expr {
         UnitLit => monoir::Expr::UnitLit,
@@ -104,7 +104,7 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
 }
 
 fn get_appty(ty: &Type, args: &Vec<Type>) -> Result<monoir::Type> {
-    use types::Type::*;
+    use crate::types::Type::*;
 
     let mut args = Vector::map(args, get_type)?;
     match *ty {
@@ -132,7 +132,7 @@ fn get_appty(ty: &Type, args: &Vec<Type>) -> Result<monoir::Type> {
 fn get_type(ty: &Type) -> Result<monoir::Type> {
     use self::Kind::*;
     use self::TyCon::*;
-    use types::Type::*;
+    use crate::types::Type::*;
     let ty = match *ty {
         App(ref ty, ref args) => get_appty(ty, args)?,
         Con(ref tycon, ref k) => match (tycon, k) {
