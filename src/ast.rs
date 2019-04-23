@@ -69,7 +69,7 @@ pub fn con(nm: &str, kind: crate::types::Kind) -> Type {
         "->" => Func,
         _ => NewType(std::rc::Rc::new(nm.to_string())),
     };
-    crate::types::Type::Con(tycon, kind)
+    types::Type::Con(tycon, kind)
 }
 
 impl Decl {

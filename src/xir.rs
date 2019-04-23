@@ -3,10 +3,10 @@
 //   "On The Type Structure of Standard ML" Robert Harper.
 //System F like.
 
+use crate::types::{self, TyVar};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use crate::types::{self, TyVar};
 
 type Type = types::Type<TyVar>;
 

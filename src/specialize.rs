@@ -1,10 +1,10 @@
 use crate::fresh_id;
 use crate::scoped_map::ScopedMap;
-use std::collections::HashMap;
-use std::rc::Rc;
 use crate::types::{self, Subst, TyVar};
 use crate::xir::*;
 use crate::{Error, Result, Vector};
+use std::collections::HashMap;
+use std::rc::Rc;
 
 type Type = types::Type<TyVar>;
 

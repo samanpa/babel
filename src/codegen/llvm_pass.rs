@@ -3,8 +3,8 @@ extern crate llvm_sys;
 use self::llvm_sys::core::*;
 use self::llvm_sys::prelude::*;
 use self::llvm_sys::transforms::*;
-use std;
 use crate::Result;
+use std;
 
 pub struct PassRunner {}
 

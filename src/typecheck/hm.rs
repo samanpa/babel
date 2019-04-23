@@ -5,10 +5,10 @@
 use super::env::Env;
 use super::{ForAll, Type};
 use crate::idtree;
-use std::rc::Rc;
 use crate::types::{Kind, TyCon, TyVar};
 use crate::xir;
 use crate::Result;
+use std::rc::Rc;
 
 pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
     use self::Kind::*;

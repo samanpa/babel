@@ -6,8 +6,8 @@ use self::llvm_sys::prelude::*;
 use super::prelude::Prelude;
 use crate::monoir;
 use crate::scoped_map::ScopedMap;
-use std::ffi::CString;
 use crate::Result;
+use std::ffi::CString;
 
 fn label<T: Into<Vec<u8>>>(str: T) -> CString {
     unsafe { CString::from_vec_unchecked(str.into().to_vec()) }

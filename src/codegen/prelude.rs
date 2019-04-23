@@ -5,8 +5,8 @@ use self::llvm_sys::core::*;
 use self::llvm_sys::prelude::*;
 use self::llvm_sys::*;
 use crate::monoir;
-use std::ffi::CString;
 use crate::Result;
+use std::ffi::CString;
 
 pub struct Prelude {}
 

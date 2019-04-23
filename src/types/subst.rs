@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::types::{TyVar, Type};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Subst {

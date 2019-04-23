@@ -2,11 +2,11 @@ use crate::ast;
 use crate::fresh_id;
 use crate::idtree;
 use crate::scoped_map::ScopedMap;
-use std::collections::HashMap;
-use std::rc::Rc;
 use crate::types::TyVar;
 use crate::utils::{Graph, SCC};
 use crate::{Error, Result, Vector};
+use std::collections::HashMap;
+use std::rc::Rc;
 
 type Type = crate::types::Type<crate::types::TyVar>;
 

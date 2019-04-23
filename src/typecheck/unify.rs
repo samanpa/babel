@@ -1,9 +1,9 @@
 use super::Type;
-use std;
-use std::collections::HashMap;
 use crate::types::TyVar;
 use crate::utils::{DisjointSet, DisjointSetValue};
 use crate::Error;
+use std;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub(super) struct UnificationTable {

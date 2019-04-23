@@ -1,5 +1,5 @@
-use std::process::Command;
 use crate::Result;
+use std::process::Command;
 
 pub struct Link {
     name: String,
