@@ -43,7 +43,7 @@ impl UnificationTable {
     }
 
     pub fn add(&mut self, tyvar: TyVar) {
-        let key = self.subst.add(crate::types::Type::Var(tyvar.clone()));
+        let key = self.subst.add(Type::Var(tyvar.clone()));
         self.indices.insert(tyvar.id, key);
     }
 

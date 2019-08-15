@@ -69,13 +69,13 @@ pub fn con(nm: &str, kind: crate::types::Kind) -> Type {
         "->" => Func,
         _ => NewType(std::rc::Rc::new(nm.to_string())),
     };
-    crate::types::Type::Con(tycon, kind)
+    Type::Con(tycon, kind)
 }
 
 impl Decl {
     pub fn external(name: String, params: Vec<(String, Type)>, retty: Type) -> Self {
         let params_ty: Vec<Type> = params.into_iter().map(|(_, ty)| ty).collect();
-        let ty = crate::types::Type::func(params_ty, retty);
+        let ty = Type::func(params_ty, retty);
         Decl::Extern(name, ty)
     }
 }

@@ -59,7 +59,7 @@ impl Env {
         for bv in scheme.bound_vars() {
             let tv = self.fresh_tyvar(level);
             tvs.push(tv.clone());
-            subst.bind(bv, crate::types::Type::Var(tv));
+            subst.bind(bv, Type::Var(tv));
         }
         (tvs, subst.apply(scheme.ty()))
     }

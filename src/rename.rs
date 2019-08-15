@@ -63,12 +63,12 @@ impl Rename {
                     NewType(nm) => NewType(self.mk_tycon(nm)),
                     _ => unimplemented!(),
                 };
-                crate::types::Type::Con(tycon, kind.clone())
+                Type::Con(tycon, kind.clone())
             }
             App(ref con, ref args) => {
                 let con = self.conv_ty(con)?;
                 let args = Vector::map(args, |arg| self.conv_ty(arg))?;
-                crate::types::Type::App(Box::new(con), args)
+                Type::App(Box::new(con), args)
             }
         };
         Ok(ty)
@@ -110,7 +110,7 @@ impl Rename {
 
     fn new_tyvar(&self) -> Type {
         let level = self.names.scope();
-        crate::types::Type::Var(TyVar::fresh(level))
+        Type::Var(TyVar::fresh(level))
     }
 
     fn conv_decl(&mut self, decl: &ast::Decl) -> Result<idtree::Decl> {
