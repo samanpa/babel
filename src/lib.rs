@@ -25,17 +25,13 @@ pub struct Error {
 }
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, _fmt: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
-        //fmt.print()?;
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+	write!(fmt, "{}", self.msg)?;
         Ok(())
     }
 }
 
 impl std::error::Error for Error {
-    fn description(&self) -> &str {
-        &self.msg
-    }
-
     fn cause(&self) -> Option<&dyn std::error::Error> {
         None
     }

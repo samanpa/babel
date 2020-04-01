@@ -55,11 +55,10 @@ fn main() {
     let file_name = Path::new(&file_name);
     let file = File::open(file_name).unwrap();
 
-    use std::error::Error;
     match compile(file, file_name) {
         Ok(()) => (),
         Err(e) => {
-            println!("ERROR: {}", e.description());
+            println!("ERROR: {}", e);
             std::process::exit(1);
         }
     }

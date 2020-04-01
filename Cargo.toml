@@ -21,7 +21,8 @@ version = "1.0"
 
 # Add a dependency on the LALRPOP runtime library:
 [dependencies.lalrpop-util]
-version = "0.16"
+version = "0.18"
 
 [build-dependencies.lalrpop]
-version = "0.16"
+version = "0.18"
+features = [ "lexer" ]

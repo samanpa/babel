@@ -133,9 +133,9 @@ fn get_type(ty: &Type) -> Result<monoir::Type> {
     use self::Kind::*;
     use self::TyCon::*;
     use crate::types::Type::*;
-    let ty = match *ty {
-        App(ref ty, ref args) => get_appty(ty, args)?,
-        Con(ref tycon, ref k) => match (tycon, k) {
+    let ty = match ty {
+        App(ty, args) => get_appty(ty, args)?,
+        Con(tycon, k) => match (tycon, k) {
             (&I32, &Star) => monoir::Type::I32,
             (&Bool, &Star) => monoir::Type::Bool,
             (&Unit, &Star) => monoir::Type::Unit,
