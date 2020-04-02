@@ -4,7 +4,7 @@
 
 use super::env::Env;
 use super::{ForAll, Type};
-use crate::idtree;
+use crate::{Vector, idtree};
 use crate::types::{Kind, TyCon, TyVar};
 use crate::xir;
 use crate::Result;
@@ -57,10 +57,7 @@ pub fn into_xir_symbol(var: &idtree::Symbol, ty: &Type) -> xir::Symbol {
 //                 [a1, b1])
 fn translate_var(sigma: &ForAll, var: &idtree::Symbol, tvs: Vec<TyVar>) -> xir::Expr {
     use crate::xir::Expr::*;
-    let ty_args = tvs
-        .iter()
-        .map(|tv| Type::Var(tv.clone()))
-        .collect::<Vec<_>>();
+    let ty_args = Vector::fmap(tvs.into_iter(), Type::Var);
     let var = into_xir_symbol(var, sigma.ty());
     let var = xir::Expr::Var(var);
     match ty_args.len() {
@@ -97,14 +94,12 @@ fn infer_lam(
     level: u32,
 ) -> Result<(Type, xir::Expr)> {
     use crate::types::Type::*;
-    let params_ty = params
-        .iter()
-        .map(|v| {
-            let tv = gamma.fresh_tyvar(level);
-            gamma.extend(v, ForAll::new(vec![], Var(tv.clone())));
-            Var(tv)
-        })
-        .collect();
+    let f = |v| {
+        let tv = gamma.fresh_tyvar(level);
+        gamma.extend(v, ForAll::new(vec![], Var(tv.clone())));
+        Var(tv)
+    };
+    let params_ty = Vector::fmap(params.iter(), f);
     let (t1, body) = infer(gamma, body, level + 1)?;
     let expr = translate_lam(body, params, &params_ty, t1.clone());
     let fnty = mk_func(params_ty, t1);
