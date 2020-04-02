@@ -58,6 +58,15 @@ pub trait Pass {
 pub struct Vector {}
 
 impl Vector {
+    pub fn fmap<I, O>(v: impl Iterator<Item=I>, mut f: impl FnMut(I) -> O) -> Vec<O>
+    {
+        let mut res = Vec::with_capacity(v.size_hint().0);
+        for val in v {
+            res.push(f(val));
+        }
+        res
+    }
+
     pub fn map<I, O, F>(v: &[I], mut f: F) -> Result<Vec<O>>
     where
         F: FnMut(&I) -> Result<O>,
