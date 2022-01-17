@@ -1,32 +1,11 @@
-extern crate llvm_sys;
+use std::borrow::Borrow;
 
-mod emit;
-mod llvm_pass;
-mod prelude;
-mod transform;
-
-use self::llvm_pass::PassRunner;
-use self::llvm_sys::core::*;
-use self::llvm_sys::prelude::*;
-use self::llvm_sys::target;
-use self::transform::LowerToLlvm;
 use crate::monoir;
-use crate::{Result, Vector};
-
-pub struct Module {
-    module: LLVMModuleRef,
-}
-
-impl<'a> Drop for Module {
-    fn drop(&mut self) {
-        unsafe {
-            LLVMDisposeModule(self.module);
-        }
-    }
-}
+use crate::{Error, Result, Vector};
+use cranelift_object::{ObjectBuilder, ObjectModule};
 
 pub struct CodeGen {
-    context: LLVMContextRef,
+    module: ObjectModule,
     output_file: String,
 }
 
@@ -40,32 +19,28 @@ impl crate::Pass for CodeGen {
 }
 
 impl CodeGen {
-    pub fn new(output_file: String) -> Self {
-        unsafe {
-            target::LLVM_InitializeNativeTarget();
-            CodeGen {
-                context: LLVMContextCreate(),
-                output_file,
-            }
-        }
+    pub fn new(output_file: String) -> Result<Self> {
+        use cranelift::codegen::{self, settings};
+        let triple = target_lexicon::Triple::host();
+        let flags = settings::Flags::new(settings::builder());
+        let target_isa = codegen::isa::lookup(triple.clone())
+            .map_err(|e| Error::new(format!("Unsupported triple {e:?}")))?
+            .finish(flags);
+        let builder = ObjectBuilder::new(
+            target_isa,
+            output_file.to_string(),
+            cranelift_module::default_libcall_names(),
+        )
+            .map_err(|e| Error::new(format!("Cannot create cranelift module")))?;
+	let module = ObjectModule::new(builder);
+
+        Ok(Self {
+            output_file,
+            module,
+        })
     }
 
     fn codegen_module(&mut self, module: &monoir::Module) -> Result<String> {
-        let mut codegen = LowerToLlvm::new(module.name(), &mut self.context);
-        let pass_runner = PassRunner::new();
-
-        for ex in module.externs() {
-            codegen.gen_extern(ex)?;
-        }
-        for func in module.funcs() {
-            codegen.gen_func(func)?;
-        }
-
-        let module = codegen.module();
-        pass_runner.run(module)?;
-
-        //unsafe{ LLVMDumpModule(module)};
-        let object_file = emit::emit(module, &self.output_file)?;
-        Ok(object_file)
+        Ok(String::new())
     }
 }

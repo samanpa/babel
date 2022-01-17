@@ -1,7 +1,7 @@
-#[macro_use]
-extern crate lalrpop_util;
+use lalrpop_util::lalrpop_mod;
 
 pub mod ast;
+mod error;
 pub mod prelude;
 lalrpop_mod!(pub parser);
 pub mod codegen;
@@ -19,33 +19,7 @@ pub mod types;
 pub mod utils;
 pub mod xir;
 
-#[derive(Debug)]
-pub struct Error {
-    msg: String,
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
-	write!(fmt, "{}", self.msg)?;
-        Ok(())
-    }
-}
-
-impl std::error::Error for Error {
-    fn cause(&self) -> Option<&dyn std::error::Error> {
-        None
-    }
-}
-
-impl Error {
-    pub fn new<T>(msg: T) -> Self
-    where
-        T: Into<String>,
-    {
-        Error { msg: msg.into() }
-    }
-}
-
+pub use error::Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait Pass {
@@ -58,8 +32,7 @@ pub trait Pass {
 pub struct Vector {}
 
 impl Vector {
-    pub fn fmap<I, O>(v: impl Iterator<Item=I>, mut f: impl FnMut(I) -> O) -> Vec<O>
-    {
+    pub fn fmap<I, O>(v: impl Iterator<Item = I>, mut f: impl FnMut(I) -> O) -> Vec<O> {
         let mut res = Vec::with_capacity(v.size_hint().0);
         for val in v {
             res.push(f(val));

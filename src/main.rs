@@ -21,7 +21,7 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     let lambda_lift = LambdaLift::new();
     let simplify = Simplify::new();
     let codegen = CodeGen::new(mod_name.clone());
-    let link = Link::new(mod_name.clone());
+    //let link = Link::new(mod_name.clone());
 
     let parser = babel::parser::ModuleParser::new();
     let mut module = parser
@@ -38,8 +38,8 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         => specialize
         => lambda_lift
         => simplify
-        => codegen
-        => link
+        //=> codegen
+        //=> link
     ];
 
     Ok(())

@@ -13,16 +13,15 @@ name = "babel"
 path = "src/main.rs"
 
 [dependencies]
-llvm-sys = "50"
-libc = "0.2"
-
-[dependencies.regex]
-version = "1.0"
-
+cranelift = "0.80.0"
+cranelift-module = "0.80.0"
+cranelift-object = "0.80.0"
 # Add a dependency on the LALRPOP runtime library:
-[dependencies.lalrpop-util]
-version = "0.18"
+lalrpop-util = "0.19"
+libc = "0.2"
+regex = "1.0"
+target-lexicon = "0.12.2"
 
 [build-dependencies.lalrpop]
-version = "0.18"
+version = "0.19"
 features = [ "lexer" ]
