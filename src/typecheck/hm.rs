@@ -4,10 +4,10 @@
 
 use super::env::Env;
 use super::{ForAll, Type};
-use crate::{Vector, idtree};
 use crate::types::{Kind, TyCon, TyVar};
 use crate::xir;
 use crate::Result;
+use crate::{idtree, Vector};
 use std::rc::Rc;
 
 pub fn mk_func(mut params: Vec<Type>, ret: Type) -> Type {
