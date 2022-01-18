@@ -1,46 +1,31 @@
-use std::borrow::Borrow;
-
 use crate::monoir;
 use crate::{Error, Result, Vector};
-use cranelift_object::{ObjectBuilder, ObjectModule};
 
-pub struct CodeGen {
-    module: ObjectModule,
-    output_file: String,
-}
+mod prelude;
+mod translate;
+
+pub struct CodeGen {}
 
 impl crate::Pass for CodeGen {
     type Input = Vec<monoir::Module>;
     type Output = Vec<String>;
 
     fn run(mut self, modules: Self::Input) -> Result<Self::Output> {
-        Vector::map(&modules, |module| self.codegen_module(&module))
+        Vector::mapt(modules, |v| Self::codegen_module(&mut self, v))
     }
 }
 
 impl CodeGen {
-    pub fn new(output_file: String) -> Result<Self> {
-        use cranelift::codegen::{self, settings};
-        let triple = target_lexicon::Triple::host();
-        let flags = settings::Flags::new(settings::builder());
-        let target_isa = codegen::isa::lookup(triple.clone())
-            .map_err(|e| Error::new(format!("Unsupported triple {e:?}")))?
-            .finish(flags);
-        let builder = ObjectBuilder::new(
-            target_isa,
-            output_file.to_string(),
-            cranelift_module::default_libcall_names(),
-        )
-            .map_err(|e| Error::new(format!("Cannot create cranelift module")))?;
-	let module = ObjectModule::new(builder);
-
-        Ok(Self {
-            output_file,
-            module,
-        })
+    pub fn new() -> Self {
+        Self {}
     }
 
-    fn codegen_module(&mut self, module: &monoir::Module) -> Result<String> {
-        Ok(String::new())
+    fn codegen_module(&mut self, module: monoir::Module) -> Result<String> {
+        let name = module.name.to_string();
+        let cranelift_module = translate::Translator::new(&name)?;
+        let module = cranelift_module.translate(module)?;
+        let bytes = module.finish().emit().unwrap();
+        std::fs::write(format!("{name}.o"), bytes).unwrap();
+        Err(Error::new("Cranelift codegen not complete".to_string()))
     }
 }

@@ -1,99 +1,122 @@
 //FIXME: rename this module
-extern crate llvm_sys;
 
-use self::llvm_sys::core::*;
-use self::llvm_sys::prelude::*;
-use self::llvm_sys::*;
 use crate::monoir;
 use crate::Result;
-use std::ffi::CString;
+use cranelift::codegen::ir::{self, Function, InstBuilder};
+use cranelift::frontend::{FunctionBuilder, Variable};
+use cranelift::prelude::{Block, Signature};
 
 pub struct Prelude {}
 
-fn label<T: Into<Vec<u8>>>(str: T) -> CString {
-    unsafe { CString::from_vec_unchecked(str.into().to_vec()) }
-}
-
 impl Prelude {
-    unsafe fn prepare(context: LLVMContextRef, func: LLVMValueRef, builder: LLVMBuilderRef) {
-        let nm = label("intrinsic_entry").as_ptr();
-        let bb = LLVMAppendBasicBlockInContext(context, func, nm);
-        LLVMPositionBuilderAtEnd(builder, bb);
+    fn setup_params(
+        module: &super::translate::ModuleTranslator,
+        builder: &mut FunctionBuilder<'_>,
+        symbol: &monoir::Symbol,
+        block: Block,
+    ) -> Result<Vec<Variable>> {
+        let symbols = match &symbol.ty {
+            monoir::Type::Function { params_ty, .. } => params_ty
+                .iter()
+                .enumerate()
+                .map(|(id, ty)| monoir::Symbol {
+                    name: std::rc::Rc::new(format!("param{id}")),
+                    ty: ty.clone(),
+                    id: id as u32,
+                })
+                .collect::<Vec<_>>(),
+            _ => todo!(),
+        };
+        Ok(module.setup_params(&symbols, builder, block))
     }
 
-    pub unsafe fn emit(
+    pub(super) fn emit(
+        &self,
+        trans: &super::translate::Translator,
         sym: &monoir::Symbol,
-        func: LLVMValueRef,
-        module: LLVMModuleRef,
-        builder: LLVMBuilderRef,
-    ) -> Result<Option<LLVMValueRef>> {
+        sig: &Signature,
+    ) -> Result<Option<Function>> {
+        use cranelift::codegen::ir::condcodes::IntCC;
+
+        let mut function = cranelift::frontend::FunctionBuilderContext::new();
+        let mut func = ir::Function::with_name_signature(
+            cranelift::prelude::ExternalName::user(sym.id, 0),
+            sig.clone(),
+        );
+
+        let mut builder = FunctionBuilder::new(&mut func, &mut function);
         let res = match sym.name().as_str() {
             "i32_add" => {
-                Self::prepare(LLVMGetModuleContext(module), func, builder);
-                let p0 = LLVMGetParam(func, 0);
-                let p1 = LLVMGetParam(func, 1);
-                let add = LLVMBuildAdd(builder, p0, p1, label("add").as_ptr());
-                let res = LLVMBuildRet(builder, add);
-                Some(res)
+                let block = trans.module.create_entry_block(&mut builder);
+                let vars = Self::setup_params(&trans.module, &mut builder, sym, block)?;
+                let p0 = builder.use_var(vars[0]);
+                let p1 = builder.use_var(vars[1]);
+                let res = builder.ins().iadd(p0, p1);
+                builder.ins().return_(&[res]);
+                Some(func)
             }
             "i32_sub" => {
-                Self::prepare(LLVMGetModuleContext(module), func, builder);
-                let p0 = LLVMGetParam(func, 0);
-                let p1 = LLVMGetParam(func, 1);
-                let add = LLVMBuildSub(builder, p0, p1, label("sub").as_ptr());
-                let res = LLVMBuildRet(builder, add);
-                Some(res)
+                let block = trans.module.create_entry_block(&mut builder);
+                let vars = Self::setup_params(&trans.module, &mut builder, sym, block)?;
+                let p0 = builder.use_var(vars[0]);
+                let p1 = builder.use_var(vars[1]);
+                let res = builder.ins().isub(p0, p1);
+                builder.ins().return_(&[res]);
+                Some(func)
             }
             "i32_mul" => {
-                Self::prepare(LLVMGetModuleContext(module), func, builder);
-                let p0 = LLVMGetParam(func, 0);
-                let p1 = LLVMGetParam(func, 1);
-                let mul = LLVMBuildMul(builder, p0, p1, label("mul").as_ptr());
-                let res = LLVMBuildRet(builder, mul);
-                Some(res)
+                let block = trans.module.create_entry_block(&mut builder);
+                let vars = Self::setup_params(&trans.module, &mut builder, sym, block)?;
+                let p0 = builder.use_var(vars[0]);
+                let p1 = builder.use_var(vars[1]);
+                let res = builder.ins().imul(p0, p1);
+                builder.ins().return_(&[res]);
+                Some(func)
             }
             "i32_div" => {
-                Self::prepare(LLVMGetModuleContext(module), func, builder);
-                let p0 = LLVMGetParam(func, 0);
-                let p1 = LLVMGetParam(func, 1);
-                let div = LLVMBuildSDiv(builder, p0, p1, label("div").as_ptr());
-                let res = LLVMBuildRet(builder, div);
-                Some(res)
+                let block = trans.module.create_entry_block(&mut builder);
+                let vars = Self::setup_params(&trans.module, &mut builder, sym, block)?;
+                let p0 = builder.use_var(vars[0]);
+                let p1 = builder.use_var(vars[1]);
+                let res = builder.ins().sdiv(p0, p1);
+                builder.ins().return_(&[res]);
+                Some(func)
             }
             "i32_mod" => {
-                Self::prepare(LLVMGetModuleContext(module), func, builder);
-                let p0 = LLVMGetParam(func, 0);
-                let p1 = LLVMGetParam(func, 1);
-                let rem = LLVMBuildSRem(builder, p0, p1, label("rem").as_ptr());
-                let res = LLVMBuildRet(builder, rem);
-                Some(res)
+                let block = trans.module.create_entry_block(&mut builder);
+                let vars = Self::setup_params(&trans.module, &mut builder, sym, block)?;
+                let p0 = builder.use_var(vars[0]);
+                let p1 = builder.use_var(vars[1]);
+                let res = builder.ins().srem(p0, p1);
+                builder.ins().return_(&[res]);
+                Some(func)
             }
             "i32_lt" => {
-                Self::prepare(LLVMGetModuleContext(module), func, builder);
-                let p0 = LLVMGetParam(func, 0);
-                let p1 = LLVMGetParam(func, 1);
-                let op = LLVMIntPredicate::LLVMIntSLT;
-                let add = LLVMBuildICmp(builder, op, p0, p1, label("lt").as_ptr());
-                let res = LLVMBuildRet(builder, add);
-                Some(res)
+                let block = trans.module.create_entry_block(&mut builder);
+                let vars = Self::setup_params(&trans.module, &mut builder, sym, block)?;
+                let p0 = builder.use_var(vars[0]);
+                let p1 = builder.use_var(vars[1]);
+                let res = builder.ins().icmp(IntCC::SignedLessThan, p0, p1);
+                builder.ins().return_(&[res]);
+                Some(func)
             }
             "i32_gt" => {
-                Self::prepare(LLVMGetModuleContext(module), func, builder);
-                let p0 = LLVMGetParam(func, 0);
-                let p1 = LLVMGetParam(func, 1);
-                let op = LLVMIntPredicate::LLVMIntSGT;
-                let add = LLVMBuildICmp(builder, op, p0, p1, label("gt").as_ptr());
-                let res = LLVMBuildRet(builder, add);
-                Some(res)
+                let block = trans.module.create_entry_block(&mut builder);
+                let vars = Self::setup_params(&trans.module, &mut builder, sym, block)?;
+                let p0 = builder.use_var(vars[0]);
+                let p1 = builder.use_var(vars[1]);
+                let res = builder.ins().icmp(IntCC::SignedGreaterThan, p0, p1);
+                builder.ins().return_(&[res]);
+                Some(func)
             }
             "i32_eq" => {
-                Self::prepare(LLVMGetModuleContext(module), func, builder);
-                let p0 = LLVMGetParam(func, 0);
-                let p1 = LLVMGetParam(func, 1);
-                let op = LLVMIntPredicate::LLVMIntEQ;
-                let add = LLVMBuildICmp(builder, op, p0, p1, label("eq").as_ptr());
-                let res = LLVMBuildRet(builder, add);
-                Some(res)
+                let block = trans.module.create_entry_block(&mut builder);
+                let vars = Self::setup_params(&trans.module, &mut builder, sym, block)?;
+                let p0 = builder.use_var(vars[0]);
+                let p1 = builder.use_var(vars[1]);
+                let res = builder.ins().icmp(IntCC::Equal, p0, p1);
+                builder.ins().return_(&[res]);
+                Some(func)
             }
             _ => None,
         };

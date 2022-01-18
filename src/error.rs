@@ -10,6 +10,12 @@ impl std::fmt::Display for Error {
     }
 }
 
+impl From<String> for Error {
+    fn from(e: String) -> Self {
+        Error::new(e)
+    }
+}
+
 impl std::error::Error for Error {
     fn cause(&self) -> Option<&dyn std::error::Error> {
         None

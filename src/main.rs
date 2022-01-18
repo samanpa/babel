@@ -20,15 +20,14 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
     let specialize = Specialize::new();
     let lambda_lift = LambdaLift::new();
     let simplify = Simplify::new();
-    let codegen = CodeGen::new(mod_name.clone());
-    //let link = Link::new(mod_name.clone());
+    let codegen = CodeGen::new();
+    let link = Link::new(mod_name.clone());
 
     let parser = babel::parser::ModuleParser::new();
-    let mut module = parser
-        .parse(&file_contents)
+    let module = parser
+        .parse(&mod_name, &file_contents)
         .map_err(|lalr_err| babel::Error::new(format!("{:?}", lalr_err)))?;
 
-    module.set_name(mod_name);
     let modules = vec![module];
 
     let _ = passes![
@@ -38,8 +37,8 @@ fn compile(file: File, filenm: &Path) -> babel::Result<()> {
         => specialize
         => lambda_lift
         => simplify
-        //=> codegen
-        //=> link
+        => codegen
+        => link
     ];
 
     Ok(())

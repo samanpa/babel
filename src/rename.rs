@@ -104,8 +104,8 @@ impl Rename {
     }
 
     fn conv_module(&mut self, module: &ast::Module) -> Result<idtree::Module> {
-        let decls = Vector::map(module.decls(), |decl| self.conv_decl(decl));
-        Ok(idtree::Module::new(module.name().clone(), decls?))
+        let decls = Vector::map(&module.decls, |decl| self.conv_decl(decl));
+        Ok(idtree::Module::new(module.name.clone(), decls?))
     }
 
     fn new_tyvar(&self) -> Type {
