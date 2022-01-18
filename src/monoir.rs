@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     Unit,
     Bool,
@@ -13,17 +13,17 @@ pub enum Type {
 
 #[derive(Debug)]
 pub struct Module {
-    name: String,
-    types: Vec<Type>,
-    funcs: Vec<Bind>,
-    ext_funcs: Vec<Symbol>,
+    pub name: String,
+    pub types: Vec<Type>,
+    pub funcs: Vec<Bind>,
+    pub ext_funcs: Vec<Symbol>,
 }
 
 #[derive(Debug)]
 pub struct Symbol {
-    name: Rc<String>,
-    ty: Type,
-    id: u32,
+    pub name: Rc<String>,
+    pub ty: Type,
+    pub id: u32,
 }
 
 #[derive(Debug)]
@@ -35,8 +35,8 @@ pub enum Literal {
 
 #[derive(Debug)]
 pub struct Bind {
-    sym: Symbol,
-    expr: Expr,
+    pub sym: Symbol,
+    pub expr: Expr,
 }
 
 #[derive(Debug)]
@@ -68,45 +68,11 @@ impl Module {
             ext_funcs: vec![],
         }
     }
-
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    pub fn types(&self) -> &Vec<Type> {
-        &self.types
-    }
-
-    pub fn funcs(&self) -> &Vec<Bind> {
-        &self.funcs
-    }
-
-    pub fn externs(&self) -> &Vec<Symbol> {
-        &self.ext_funcs
-    }
-
-    pub fn add_func(&mut self, lam: Bind) {
-        self.funcs.push(lam)
-    }
-
-    pub fn add_type(&mut self, ty: Type) {
-        self.types.push(ty)
-    }
-
-    pub fn add_extern(&mut self, name: Symbol) {
-        self.ext_funcs.push(name)
-    }
 }
 
 impl Bind {
     pub fn new(sym: Symbol, expr: Expr) -> Self {
         Bind { sym, expr }
-    }
-    pub fn symbol(&self) -> &Symbol {
-        &self.sym
-    }
-    pub fn expr(&self) -> &Expr {
-        &self.expr
     }
 }
 

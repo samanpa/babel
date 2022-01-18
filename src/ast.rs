@@ -2,8 +2,8 @@ pub type Type = crate::types::Type<String>;
 
 #[derive(Debug)]
 pub struct Module {
-    name: String,
-    decls: Vec<Decl>,
+    pub name: String,
+    pub decls: Vec<Decl>,
 }
 
 #[derive(Debug)]
@@ -41,22 +41,11 @@ pub enum Expr {
 }
 
 impl Module {
-    pub fn new(decls: Vec<Decl>) -> Self {
+    pub fn new(name: &str, decls: Vec<Decl>) -> Self {
         Self {
-            name: "".to_string(),
+            name: name.to_string(),
             decls,
         }
-    }
-
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
-    }
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    pub fn decls(&self) -> &Vec<Decl> {
-        &self.decls
     }
 }
 

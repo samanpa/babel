@@ -40,27 +40,18 @@ impl Vector {
         res
     }
 
-    pub fn map<I, O, F>(v: &[I], mut f: F) -> Result<Vec<O>>
+    pub fn map<I, O, F>(v: &[I], f: F) -> Result<Vec<O>>
     where
         F: FnMut(&I) -> Result<O>,
     {
-        let mut res = Vec::with_capacity(v.len());
-        for val in v {
-            let val = f(val)?;
-            res.push(val);
-        }
-        Ok(res)
+        v.iter().map(f).collect::<Result<Vec<_>>>()
     }
-    pub fn mapt<I, O, F>(v: Vec<I>, mut f: F) -> Result<Vec<O>>
+
+    pub fn mapt<I, O, F>(v: impl IntoIterator<Item = I>, f: F) -> Result<Vec<O>>
     where
         F: FnMut(I) -> Result<O>,
     {
-        let mut res = Vec::with_capacity(v.len());
-        for val in v {
-            let val = f(val)?;
-            res.push(val);
-        }
-        Ok(res)
+        v.into_iter().map(f).collect::<Result<Vec<_>>>()
     }
 }
 

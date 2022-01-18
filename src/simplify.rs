@@ -35,14 +35,14 @@ impl Simplify {
         for decl in module.decls() {
             match *decl {
                 xir::Decl::Extern(ref name) => {
-                    modl.add_extern(process_symbol(name)?);
+                    modl.ext_funcs.push(process_symbol(name)?);
                 }
                 xir::Decl::Let(ref bindings) => {
                     for bind in bindings {
                         //println!("{:?} ===========\n  \n", bind);
                         let res = process_bind(bind)?;
                         //println!("{:?}\n====================\n", res);
-                        modl.add_func(res);
+                        modl.funcs.push(res);
                     }
                 }
             }

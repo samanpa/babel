@@ -1,4 +1,4 @@
-fn main() {
+let main() {
     let x = 10;
     i32_add(x, 20)
 }
