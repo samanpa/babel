@@ -1,5 +1,5 @@
 use crate::monoir;
-use crate::scoped_map::ScopedMap;
+use std::collections::HashMap;
 use crate::{Error, Result};
 use cranelift::codegen;
 use cranelift::frontend::Variable;
@@ -8,12 +8,11 @@ use cranelift_module::{FuncId, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
 
 pub(super) struct ModuleTranslator {
-    inner: ObjectModule,
+    pub(super) inner: ObjectModule,
 }
 
 pub(super) struct Translator {
     pub(super) module: ModuleTranslator,
-    functions: ScopedMap<u32, FuncId>,
 }
 
 impl Translator {
@@ -40,39 +39,45 @@ impl Translator {
 
         Ok(Self {
             module,
-            functions: ScopedMap::new(),
         })
     }
 
     pub(super) fn translate(mut self, module: monoir::Module) -> Result<ObjectModule> {
         use cranelift_module::Linkage;
-        let prelude = super::prelude::Prelude {};
+        let mut functions: HashMap<u32, FuncId> = HashMap::new();
         for extern_func in &module.ext_funcs {
             let sig = self.module.translate_sig(extern_func)?;
-            let func = prelude.emit(&self, &extern_func, &sig)?;
-            let linkage = if func.is_some() {
+            let intrinsic = super::intrinsics::emit(&self.module, &extern_func, &sig)?;
+            let linkage = if intrinsic.is_some() {
                 Linkage::Local
             } else {
                 Linkage::Import
             };
             let func_id = self.module.declare_func(extern_func, linkage, sig)?;
-            self.functions.insert(extern_func.id, func_id);
-            if let Some(func) = func {
+            functions.insert(extern_func.id, func_id);
+            if let Some(func) = intrinsic {
                 self.module.define_function(func_id, func)?;
             }
         }
 
-        /*
-        let mut func_ids = Vec::new();
+        let mut funcs = Vec::new();
         for bind in module.funcs.as_slice() {
             //println!("{bind:#?}");
             let symbol = &bind.sym;
             let sig = self.module.translate_sig(symbol)?;
-            let func_id = self.module.declare_func(&symbol, false, sig)?;
-            self.functions.insert(symbol.id, func_id);
-            func_ids.push(func_id);
+            let func_id = self.module.declare_func(&symbol, Linkage::Export, sig.clone())?;
+            functions.insert(symbol.id, func_id);
+            funcs.push((func_id, sig, bind));
         }
-             */
+
+        for (func_id, bind, sig) in funcs {
+            let mut trans = super::expr::FunctionTranslator::new(
+                &mut self.module,
+                &functions,
+            );
+            let func = trans.emit_func(&sig, &bind)?;
+            self.module.define_function(func_id, func)?;
+        }
 
         Ok(self.module.inner)
     }
@@ -80,7 +85,7 @@ impl Translator {
 
 impl ModuleTranslator {
     /// Declare a single variable declaration.
-    fn declare_variable(&self, symbol: &monoir::Symbol, builder: &mut FunctionBuilder) -> Variable {
+    pub(super) fn declare_variable(&self, symbol: &monoir::Symbol, builder: &mut FunctionBuilder) -> Variable {
         if symbol.ty == monoir::Type::Unit {
             panic!("{:?} is a unit type", symbol);
         }
@@ -117,7 +122,7 @@ impl ModuleTranslator {
         self.inner.target_config().pointer_type()
     }
 
-    fn translate_type(&self, ty: &monoir::Type) -> codegen::ir::Type {
+    pub(super) fn translate_type(&self, ty: &monoir::Type) -> codegen::ir::Type {
         use codegen::ir::types;
         match ty {
             monoir::Type::Unit => todo!(),
@@ -157,18 +162,32 @@ impl ModuleTranslator {
         linkage: cranelift_module::Linkage,
         sig: codegen::ir::Signature,
     ) -> Result<FuncId> {
-        self
-            .inner
+        self.inner
             .declare_function(&symbol.name, linkage, &sig)
             .map_err(|e| Error::new(format!(" Error {e}")))
     }
 
     pub(super) fn setup_params(
         &self,
-        params: &[monoir::Symbol],
         builder: &mut FunctionBuilder<'_>,
+        function: &monoir::Symbol,
         block: cranelift::prelude::Block,
-    ) -> Vec<Variable> {
+    ) -> Result<Vec<Variable>> {
+        let params = match &function.ty {
+            monoir::Type::Function { params_ty, .. } => params_ty
+                .iter()
+                .enumerate()
+                .map(|(id, ty)| monoir::Symbol {
+                    name: std::rc::Rc::new(format!("param{id}")),
+                    ty: ty.clone(),
+                    id: id as u32,
+                })
+                .collect::<Vec<_>>(),
+            _ => {
+                return Err(Error::new(format!("{function:?} is not a function. ")));
+            }
+        };
+
         let mut vars = Vec::new();
         for (i, param) in params.iter().enumerate() {
             // TODO: cranelift_frontend should really have an API to make it
@@ -178,7 +197,7 @@ impl ModuleTranslator {
             builder.def_var(var, val);
             vars.push(var);
         }
-        vars
+        Ok(vars)
     }
 
     pub(super) fn create_entry_block(

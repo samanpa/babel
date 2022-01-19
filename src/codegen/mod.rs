@@ -1,8 +1,9 @@
 use crate::monoir;
 use crate::{Error, Result, Vector};
 
-mod prelude;
-mod translate;
+mod expr;
+mod intrinsics;
+mod module;
 
 pub struct CodeGen {}
 
@@ -22,10 +23,11 @@ impl CodeGen {
 
     fn codegen_module(&mut self, module: monoir::Module) -> Result<String> {
         let name = module.name.to_string();
-        let cranelift_module = translate::Translator::new(&name)?;
+        let cranelift_module = module::Translator::new(&name)?;
         let module = cranelift_module.translate(module)?;
         let bytes = module.finish().emit().unwrap();
-        std::fs::write(format!("{name}.o"), bytes).unwrap();
-        Err(Error::new("Cranelift codegen not complete".to_string()))
+        let object_file = format!("{name}.o");
+        std::fs::write(&object_file, bytes).unwrap();
+        Ok(object_file)
     }
 }
