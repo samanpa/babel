@@ -41,8 +41,8 @@ pub struct Bind {
 
 #[derive(Debug)]
 pub struct Lam {
-    params: Vec<Symbol>,
-    body: Expr,
+    pub params: Vec<Symbol>,
+    pub body: Expr,
 }
 
 #[derive(Debug)]
@@ -80,12 +80,6 @@ impl Lam {
     pub fn new(params: Vec<Symbol>, body: Expr) -> Self {
         Lam { params, body }
     }
-    pub fn params(&self) -> &Vec<Symbol> {
-        &self.params
-    }
-    pub fn body(&self) -> &Expr {
-        &self.body
-    }
 }
 
 impl Symbol {
@@ -95,16 +89,10 @@ impl Symbol {
     pub fn id(&self) -> u32 {
         self.id
     }
-    pub fn name(&self) -> &String {
+    pub fn name(&self) -> &str {
         &self.name
     }
     pub fn ty(&self) -> &Type {
         &self.ty
     }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {}
 }
