@@ -46,15 +46,22 @@ pub struct Lam {
 }
 
 #[derive(Debug)]
+pub struct If {
+    pub cond: Expr,
+    pub texpr: Expr,
+    pub fexpr: Expr,
+    pub ty: Type,
+}
+
+#[derive(Debug)]
 pub enum Expr {
     UnitLit,
     I32Lit(i32),
     BoolLit(bool),
     Lam(Box<Lam>),
-    App(Box<Expr>, Vec<Expr>),
+    App(Type, Box<Expr>, Vec<Expr>),
     Var(Symbol),
-    //FIXME: introduce an If struct to reduce number or allocations
-    If(Box<Expr>, Box<Expr>, Box<Expr>, Type),
+    If(Box<If>),
     //FIXME: introduce an Let struct to reduce number or allocations
     Let(Box<Bind>, Box<Expr>),
 }

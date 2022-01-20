@@ -73,12 +73,12 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
         I32Lit(n) => monoir::Expr::I32Lit(n),
         BoolLit(b) => monoir::Expr::BoolLit(b),
         Var(ref var) => monoir::Expr::Var(process_symbol(var)?),
-        If(ref e) => monoir::Expr::If(
-            Box::new(process(e.cond())?),
-            Box::new(process(e.texpr())?),
-            Box::new(process(e.fexpr())?),
-            get_type(e.ty())?,
-        ),
+        If(ref e) => monoir::Expr::If(Box::new(monoir::If {
+            cond: process(e.cond())?,
+            texpr: process(e.texpr())?,
+            fexpr: process(e.fexpr())?,
+            ty: get_type(e.ty())?,
+        })),
         Let(ref e) => {
             let bind = process_bind(e.bind())?;
             let expr = process(e.expr())?;
@@ -90,10 +90,10 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
             let lam = monoir::Lam::new(params, body);
             monoir::Expr::Lam(Box::new(lam))
         }
-        App(ref caller, ref args) => {
+        App(ref ty, ref caller, ref args) => {
             let caller = process(caller)?;
             let args = Vector::map(args, |arg| process(arg))?;
-            monoir::Expr::App(Box::new(caller), args)
+            monoir::Expr::App(get_type(ty)?, Box::new(caller), args)
         }
         _ => {
             let msg = format!("EXPR not supported {:?}", expr);

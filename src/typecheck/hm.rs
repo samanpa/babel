@@ -135,7 +135,7 @@ fn infer_app(
     let fnty = mk_func(t2, retty.clone());
     gamma.unify(&t1, &fnty)?;
     let t = gamma.apply(&retty);
-    let app = xir::Expr::App(Box::new(caller), args);
+    let app = xir::Expr::App(t1, Box::new(caller), args);
     Ok((t, app))
 }
 

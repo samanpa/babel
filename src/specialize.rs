@@ -231,10 +231,11 @@ impl Specializer {
                 );
                 Expr::If(Box::new(if_expr))
             }
-            App(ref callee, ref args) => {
+            App(ref ty, ref callee, ref args) => {
                 let callee = self.run(callee, sub, vec![])?;
                 let args = Vector::map(args, |arg| self.run(arg, sub, vec![]))?;
-                xir::Expr::App(Box::new(callee), args)
+                let ty = sub.apply(ty);
+                xir::Expr::App(ty, Box::new(callee), args)
             }
             TyLam(ref param, ref b) => {
                 for (tyvar, ty) in param.iter().zip(args.into_iter()) {
