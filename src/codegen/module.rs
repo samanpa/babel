@@ -1,11 +1,11 @@
 use crate::monoir;
-use std::collections::HashMap;
 use crate::{Error, Result};
 use cranelift::codegen;
 use cranelift::frontend::Variable;
 use cranelift::prelude::FunctionBuilder;
 use cranelift_module::{FuncId, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
+use std::collections::HashMap;
 
 pub(super) struct ModuleTranslator {
     pub(super) inner: ObjectModule,
@@ -37,16 +37,14 @@ impl Translator {
         let inner = ObjectModule::new(builder);
         let module = ModuleTranslator { inner };
 
-        Ok(Self {
-            module,
-        })
+        Ok(Self { module })
     }
 
     pub(super) fn translate(mut self, module: monoir::Module) -> Result<ObjectModule> {
         use cranelift_module::Linkage;
         let mut functions: HashMap<u32, FuncId> = HashMap::new();
         for extern_func in &module.ext_funcs {
-            let sig = self.module.translate_sig(extern_func)?;
+            let sig = self.module.translate_sig(&extern_func.ty)?;
             let intrinsic = super::intrinsics::emit(&self.module, &extern_func, &sig)?;
             let linkage = if intrinsic.is_some() {
                 Linkage::Local
@@ -64,17 +62,16 @@ impl Translator {
         for bind in module.funcs.as_slice() {
             //println!("{bind:#?}");
             let symbol = &bind.sym;
-            let sig = self.module.translate_sig(symbol)?;
-            let func_id = self.module.declare_func(&symbol, Linkage::Export, sig.clone())?;
+            let sig = self.module.translate_sig(&symbol.ty)?;
+            let func_id = self
+                .module
+                .declare_func(&symbol, Linkage::Export, sig.clone())?;
             functions.insert(symbol.id, func_id);
             funcs.push((func_id, sig, bind));
         }
 
         for (func_id, bind, sig) in funcs {
-            let mut trans = super::expr::FunctionTranslator::new(
-                &mut self.module,
-                &functions,
-            );
+            let mut trans = super::expr::FunctionTranslator::new(&mut self.module, &functions);
             let func = trans.emit_func(&sig, &bind)?;
             self.module.define_function(func_id, func)?;
         }
@@ -85,7 +82,11 @@ impl Translator {
 
 impl ModuleTranslator {
     /// Declare a single variable declaration.
-    pub(super) fn declare_variable(&self, symbol: &monoir::Symbol, builder: &mut FunctionBuilder) -> Variable {
+    pub(super) fn declare_variable(
+        &self,
+        symbol: &monoir::Symbol,
+        builder: &mut FunctionBuilder,
+    ) -> Variable {
         if symbol.ty == monoir::Type::Unit {
             panic!("{:?} is a unit type", symbol);
         }
@@ -118,7 +119,7 @@ impl ModuleTranslator {
         Ok(())
     }
 
-    fn pointer_ty(&self) -> codegen::ir::Type {
+    pub(super) fn pointer_ty(&self) -> codegen::ir::Type {
         self.inner.target_config().pointer_type()
     }
 
@@ -132,11 +133,11 @@ impl ModuleTranslator {
         }
     }
 
-    fn translate_sig(&self, symbol: &monoir::Symbol) -> Result<codegen::ir::Signature> {
+    pub(super) fn translate_sig(&self, ty: &monoir::Type) -> Result<codegen::ir::Signature> {
         if let monoir::Type::Function {
             params_ty,
             return_ty,
-        } = &symbol.ty
+        } = &ty
         {
             let mut sig = self.inner.make_signature();
             for param in params_ty {
@@ -152,7 +153,7 @@ impl ModuleTranslator {
             }
             Ok(sig)
         } else {
-            Err(Error::new(format!("{symbol:?} is not a function type")))
+            Err(Error::new(format!("{ty:?} is not a function type")))
         }
     }
 
@@ -170,24 +171,9 @@ impl ModuleTranslator {
     pub(super) fn setup_params(
         &self,
         builder: &mut FunctionBuilder<'_>,
-        function: &monoir::Symbol,
+        params: &[monoir::Symbol],
         block: cranelift::prelude::Block,
     ) -> Result<Vec<Variable>> {
-        let params = match &function.ty {
-            monoir::Type::Function { params_ty, .. } => params_ty
-                .iter()
-                .enumerate()
-                .map(|(id, ty)| monoir::Symbol {
-                    name: std::rc::Rc::new(format!("param{id}")),
-                    ty: ty.clone(),
-                    id: id as u32,
-                })
-                .collect::<Vec<_>>(),
-            _ => {
-                return Err(Error::new(format!("{function:?} is not a function. ")));
-            }
-        };
-
         let mut vars = Vec::new();
         for (i, param) in params.iter().enumerate() {
             // TODO: cranelift_frontend should really have an API to make it

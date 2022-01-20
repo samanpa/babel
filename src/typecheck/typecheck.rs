@@ -89,10 +89,11 @@ fn subst(expr: &xir::Expr, sub: &mut Env) -> xir::Expr {
             );
             Expr::If(Box::new(if_expr))
         }
-        App(ref callee, ref args) => {
+        App(ref ty, ref callee, ref args) => {
             let callee = subst(callee, sub);
             let args = args.iter().map(|arg| subst(arg, sub)).collect::<Vec<_>>();
-            xir::Expr::App(Box::new(callee), args)
+            let ty = sub.apply(ty);
+            xir::Expr::App(ty, Box::new(callee), args)
         }
         Let(ref le) => {
             let bind = bind_subst(le.bind(), sub);

@@ -1,5 +1,5 @@
 use crate::monoir;
-use crate::{Error, Result, Vector};
+use crate::{Result, Vector};
 
 mod expr;
 mod intrinsics;

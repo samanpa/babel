@@ -110,13 +110,13 @@ impl LambdaLift {
                 );
                 Expr::If(Box::new(if_expr))
             }
-            App(ref callee, ref args) => {
+            App(ref ty, ref callee, ref args) => {
                 let callee = self.lift(callee, acc, false);
                 let args = args
                     .iter()
                     .map(|arg| self.lift(arg, acc, false))
                     .collect::<Vec<_>>();
-                App(Box::new(callee), args)
+                App(ty.clone(), Box::new(callee), args)
             }
             Let(ref exp) => {
                 let bind = self.lift_bind(exp.bind(), acc);
