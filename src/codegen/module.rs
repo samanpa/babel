@@ -45,7 +45,7 @@ impl Translator {
         let mut functions: HashMap<u32, FuncId> = HashMap::new();
         for extern_func in &module.ext_funcs {
             let sig = self.module.translate_sig(&extern_func.ty)?;
-            let intrinsic = super::intrinsics::emit(&self.module, &extern_func, &sig)?;
+            let intrinsic = super::intrinsics::emit(&self.module, extern_func, &sig)?;
             let linkage = if intrinsic.is_some() {
                 Linkage::Local
             } else {
@@ -65,14 +65,14 @@ impl Translator {
             let sig = self.module.translate_sig(&symbol.ty)?;
             let func_id = self
                 .module
-                .declare_func(&symbol, Linkage::Export, sig.clone())?;
+                .declare_func(symbol, Linkage::Export, sig.clone())?;
             functions.insert(symbol.id, func_id);
             funcs.push((func_id, sig, bind));
         }
 
         for (func_id, bind, sig) in funcs {
             let mut trans = super::expr::FunctionTranslator::new(&mut self.module, &functions);
-            let func = trans.emit_func(&sig, &bind)?;
+            let func = trans.emit_func(sig, &bind)?;
             self.module.define_function(func_id, func)?;
         }
 
@@ -147,7 +147,7 @@ impl ModuleTranslator {
             }
 
             if **return_ty != monoir::Type::Unit {
-                let ty = self.translate_type(&return_ty);
+                let ty = self.translate_type(return_ty);
                 let param = codegen::ir::AbiParam::new(ty);
                 sig.returns.push(param);
             }
@@ -179,7 +179,7 @@ impl ModuleTranslator {
             // TODO: cranelift_frontend should really have an API to make it
             // easy to set up param variables.
             let val = builder.block_params(block)[i];
-            let var = self.declare_variable(&param, builder);
+            let var = self.declare_variable(param, builder);
             builder.def_var(var, val);
             vars.push(var);
         }

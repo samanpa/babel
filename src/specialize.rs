@@ -131,7 +131,7 @@ impl Specializer {
     fn add_if_poly(&mut self, b: &Bind) -> bool {
         use self::Expr::TyLam;
         match *b.expr() {
-            TyLam(ref tys, _) if tys.len() > 0 => {
+            TyLam(ref tys, _) if !tys.is_empty() => {
                 self.entries
                     .entry(b.symbol().clone())
                     .or_insert_with(|| Instances::new(tys.clone()));
@@ -146,7 +146,7 @@ impl Specializer {
     }
 
     fn add_instance(&mut self, var: &Symbol, sub: &mut Subst, args: Vec<Type>) -> Result<Symbol> {
-        match self.entries.get_mut(&var) {
+        match self.entries.get_mut(var) {
             None => Err(Error::new(format!(
                 "Could not find var {:?} -> {:?}",
                 var, args
@@ -168,7 +168,7 @@ impl Specializer {
         let mut result = Vec::new();
         let instances = match self.get(symbol) {
             None => HashMap::new(),
-            Some(ref instances) => instances.inner.clone(),
+            Some(instances) => instances.inner.clone(),
         };
         for (tys, symbol) in instances {
             let tys = tys.iter().map(|ty| sub.apply(ty)).collect();
@@ -182,7 +182,7 @@ impl Specializer {
     fn process(&mut self, bind: &Bind, sub: &mut Subst, args: Vec<Type>) -> Result<Bind> {
         let symbol = bind.symbol();
         let expr = bind.expr();
-        let spec = self.spec(&symbol, expr, sub, args)?;
+        let spec = self.spec(symbol, expr, sub, args)?;
         // handle let symbol: 'a = ... Where 'a is monomorphic
         let symbol = symbol.with_ty(sub.apply(symbol.ty()));
         let bind = Bind::new(symbol, spec);
@@ -241,17 +241,17 @@ impl Specializer {
                 for (tyvar, ty) in param.iter().zip(args.into_iter()) {
                     sub.bind(tyvar, ty)
                 }
-                let body = self.run(b, sub, vec![])?;
-                body
+
+                self.run(b, sub, vec![])?
             }
             TyApp(ref e, ref args) => {
                 let args = args.iter().map(|ty| sub.apply(ty)).collect::<Vec<Type>>();
                 self.run(e, sub, args)?
             }
             Var(ref id) => {
-                let id = match self.is_poly(&id) {
+                let id = match self.is_poly(id) {
                     false => id.with_ty(sub.apply(id.ty())),
-                    true => self.add_instance(&id, sub, args)?,
+                    true => self.add_instance(id, sub, args)?,
                 };
                 Var(id)
             }

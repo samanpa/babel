@@ -44,7 +44,7 @@ impl TypeChecker {
             }
             idtree::Decl::Let(ref bind) => {
                 let b = infer_fn(&mut self.gamma, bind, 1)?;
-                let r = b.iter().map(|b| bind_subst(&b, &mut self.gamma)).collect();
+                let r = b.iter().map(|b| bind_subst(b, &mut self.gamma)).collect();
                 /*
                 println!("{:?}", bind);
                 println!("->\n{:?}", b);
