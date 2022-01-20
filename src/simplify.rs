@@ -103,7 +103,7 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
     Ok(expr)
 }
 
-fn get_appty(ty: &Type, args: &Vec<Type>) -> Result<monoir::Type> {
+fn get_appty(ty: &Type, args: &[Type]) -> Result<monoir::Type> {
     use crate::types::Type::*;
 
     let mut args = Vector::map(args, get_type)?;

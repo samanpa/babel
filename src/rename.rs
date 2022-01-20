@@ -74,14 +74,14 @@ impl Rename {
         Ok(ty)
     }
 
-    fn add_uniq_name(&mut self, nm: &String) -> Rc<String> {
+    fn add_uniq_name(&mut self, nm: &str) -> Rc<String> {
         self.uniq_names
-            .entry(nm.clone())
-            .or_insert_with(|| Rc::new(nm.clone()))
+            .entry(nm.to_string())
+            .or_insert_with(|| Rc::new(nm.to_string()))
             .clone()
     }
 
-    fn mk_tycon(&mut self, nm: &String) -> Rc<String> {
+    fn mk_tycon(&mut self, nm: &str) -> Rc<String> {
         self.add_uniq_name(nm)
     }
 
@@ -90,10 +90,10 @@ impl Rename {
         TopLevelFunc(vertex_key)
     }
 
-    fn add_sym(&mut self, nm: &String, ty: Type) -> Result<idtree::Symbol> {
+    fn add_sym(&mut self, nm: &str, ty: Type) -> Result<idtree::Symbol> {
         let var_name = self.add_uniq_name(nm);
         let sym = idtree::Symbol::new(var_name, ty, fresh_id());
-        if let Some(_) = self.names.insert(nm.clone(), sym.clone()) {
+        if self.names.insert(nm.to_string(), sym.clone()).is_some() {
             //Allow duplicates at everywhere except the top level
             if self.names.scope() == 0 {
                 let msg = Error::new(format!("Name {} already declared", nm));
