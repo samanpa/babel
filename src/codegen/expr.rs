@@ -36,7 +36,13 @@ impl<'a> FunctionTranslator<'a> {
         Ok(func)
     }
 
-    fn emit_indirect(&mut self, ty: &Type, var: &Expr, args: &[Expr], builder: &mut FunctionBuilder) -> Result<Value> {
+    fn emit_indirect(
+        &mut self,
+        ty: &Type,
+        var: &Expr,
+        args: &[Expr],
+        builder: &mut FunctionBuilder,
+    ) -> Result<Value> {
         let callee = self.emit(var, builder)?;
         let args = Vector::map(args, |arg| self.emit(arg, builder))?;
         let sig = self.module.translate_sig(ty)?;
@@ -62,24 +68,23 @@ impl<'a> FunctionTranslator<'a> {
             Var(v) => match self.vars.get(&v.id) {
                 Some(v) => Ok(*v),
                 None => {
-                    // Check to see if it is a function 
+                    // Check to see if it is a function
                     match self.func_ids.get(&v.id) {
                         Some(func_id) => {
                             let module = self.module;
-                            let func_ref = module.inner.declare_func_in_func(*func_id, builder.func);
+                            let func_ref =
+                                module.inner.declare_func_in_func(*func_id, builder.func);
                             let ptr_ty = self.module.pointer_ty();
                             let val = builder.ins().func_addr(ptr_ty, func_ref);
                             self.vars.insert(v.id, val);
                             Ok(val)
                         }
-                        None => {
-                            Err(Error::new(format!(
-                                "Variable {v:?} could not be found {:?}",
-                                self.vars
-                            )))
-                        }
+                        None => Err(Error::new(format!(
+                            "Variable {v:?} could not be found {:?}",
+                            self.vars
+                        ))),
                     }
-                },
+                }
             },
             App(ty, var, args) => match **var {
                 Var(ref func_sym) => {
@@ -90,7 +95,7 @@ impl<'a> FunctionTranslator<'a> {
                     let local_callee = self
                         .module
                         .inner
-                        .declare_func_in_func(*func_id, &mut builder.func);
+                        .declare_func_in_func(*func_id, builder.func);
 
                     let args = Vector::map(args, |arg| self.emit(arg, builder))?;
                     let call = builder.ins().call(local_callee, &args);
@@ -124,11 +129,10 @@ impl<'a> FunctionTranslator<'a> {
                 let f_return = self.emit(&if_.fexpr, builder)?;
                 builder.ins().jump(merge_block, &[f_return]);
 
-                
                 // Switch to the merge block for subsequent statements.
                 builder.switch_to_block(merge_block);
                 builder.seal_block(merge_block);
-                
+
                 // Read the value of the if-else by reading the merge block
                 // parameter.
                 let phi = builder.block_params(merge_block)[0];

@@ -92,7 +92,7 @@ fn process(expr: &xir::Expr) -> Result<monoir::Expr> {
         }
         App(ref ty, ref caller, ref args) => {
             let caller = process(caller)?;
-            let args = Vector::map(args, |arg| process(arg))?;
+            let args = Vector::map(args, process)?;
             monoir::Expr::App(get_type(ty)?, Box::new(caller), args)
         }
         _ => {
@@ -109,7 +109,7 @@ fn get_appty(ty: &Type, args: &Vec<Type>) -> Result<monoir::Type> {
     let mut args = Vector::map(args, get_type)?;
     match *ty {
         Con(TyCon::Func, _) => {
-            if args.len() == 0 {
+            if args.is_empty() {
                 let msg = format!("Function with no return type found {:?}", ty);
                 Err(Error::new(msg))
             } else {

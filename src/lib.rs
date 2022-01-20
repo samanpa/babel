@@ -3,7 +3,7 @@ use lalrpop_util::lalrpop_mod;
 pub mod ast;
 mod error;
 pub mod prelude;
-lalrpop_mod!(pub parser);
+lalrpop_mod!(#[allow(clippy::all)] pub parser);
 pub mod codegen;
 pub mod idtree;
 pub mod lambda_lift;

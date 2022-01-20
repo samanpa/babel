@@ -29,7 +29,7 @@ impl crate::Pass for Rename {
         let result = Vector::map(&mod_vec, |module| self.conv_module(module));
         let _sorted = SCC::run(&self.call_ref_graph);
         //println!("{:#?}", sorted);
-        Ok(result?)
+        result
     }
 }
 
@@ -183,7 +183,7 @@ impl Rename {
                 let ast::Bind(ref name, ref bind_expr) = **bind;
                 let ty = self.new_tyvar();
                 //Convert the bound expression before adding the bound symbol
-                let bexpr = self.conv(bind_expr, &func)?;
+                let bexpr = self.conv(bind_expr, func)?;
                 let sym = self.add_sym(name, ty)?;
                 let bind = idtree::Bind::new(sym, bexpr);
 

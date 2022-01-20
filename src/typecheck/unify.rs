@@ -60,7 +60,7 @@ impl UnificationTable {
                 let key = *self.indices.get(id).unwrap();
                 let ty = self.subst.find(key).clone();
                 match ty {
-                    Var(ty) => Var(ty.clone()),
+                    Var(ty) => Var(ty),
                     ty => self.apply_subst(&ty),
                 }
             }
@@ -113,5 +113,5 @@ impl UnificationTable {
 
 fn cannot_unify(lhs: &Type, rhs: &Type) -> crate::Result<()> {
     let msg = format!("Can not unify {:?} with {:?}", lhs, rhs);
-    return Err(Error::new(msg));
+    Err(Error::new(msg))
 }
