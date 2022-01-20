@@ -139,7 +139,7 @@ impl<'a> FunctionTranslator<'a> {
                 Ok(phi)
             }
             Lam(lam) => {
-                println!("{lam:#?}");
+                //println!("{lam:#?}");
                 let block = self.module.create_entry_block(builder);
                 let vars = self.module.setup_params(builder, &lam.params, block)?;
                 for (param, var) in lam.params.iter().zip(vars) {

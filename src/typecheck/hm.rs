@@ -75,8 +75,8 @@ fn infer_var(gamma: &mut Env, var: &idtree::Symbol, level: u32) -> Result<(Type,
 
 fn translate_lam(
     body: xir::Expr,
-    params: &Vec<idtree::Symbol>,
-    params_ty: &Vec<Type>,
+    params: &[idtree::Symbol],
+    params_ty: &[Type],
     retty: Type,
 ) -> xir::Expr {
     let params = params
@@ -89,7 +89,7 @@ fn translate_lam(
 
 fn infer_lam(
     gamma: &mut Env,
-    params: &Vec<idtree::Symbol>,
+    params: &[idtree::Symbol],
     body: &idtree::Expr,
     level: u32,
 ) -> Result<(Type, xir::Expr)> {
@@ -141,10 +141,7 @@ fn infer_app(
 
 fn is_value(expr: &idtree::Expr) -> bool {
     use crate::idtree::Expr::*;
-    match *expr {
-        UnitLit | BoolLit(_) | I32Lit(_) | Lam(_, _) | Var(_) => true,
-        _ => false,
-    }
+    matches!(*expr, UnitLit | BoolLit(_) | I32Lit(_) | Lam(..) | Var(_))
 }
 
 fn infer_let(gamma: &mut Env, let_exp: &idtree::Let, level: u32) -> Result<(Type, xir::Expr)> {
@@ -168,7 +165,7 @@ fn infer_let(gamma: &mut Env, let_exp: &idtree::Let, level: u32) -> Result<(Type
 
 pub(super) fn infer_fn(
     gamma: &mut Env,
-    bindings: &Vec<idtree::Bind>,
+    bindings: &[idtree::Bind],
     level: u32,
 ) -> Result<Vec<xir::Bind>> {
     //Typing let rec x = e is done by translating it to

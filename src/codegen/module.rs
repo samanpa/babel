@@ -71,7 +71,7 @@ impl Translator {
         }
 
         for (func_id, bind, sig) in funcs {
-            let mut trans = super::expr::FunctionTranslator::new(&mut self.module, &functions);
+            let mut trans = super::expr::FunctionTranslator::new(&self.module, &functions);
             let func = trans.emit_func(sig, &bind)?;
             self.module.define_function(func_id, func)?;
         }
@@ -97,7 +97,7 @@ impl ModuleTranslator {
     }
 
     fn define_function(&mut self, funcid: FuncId, function: codegen::ir::Function) -> Result<()> {
-        println!("{}", function);
+        //println!("{}", function);
         use codegen::{
             binemit::{NullStackMapSink, NullTrapSink},
             settings, Context,

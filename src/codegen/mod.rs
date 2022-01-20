@@ -5,6 +5,7 @@ mod expr;
 mod intrinsics;
 mod module;
 
+#[derive(Default)]
 pub struct CodeGen {}
 
 impl crate::Pass for CodeGen {
