@@ -3,7 +3,7 @@ name = "babel"
 version = "0.1.0"
 authors = ["Kojo Adams <samanpa@gmail.com>"]
 build   = "build.rs"
-edition = "2018"
+edition = "2021"
 
 [lib]
 name = "babel"
@@ -17,11 +17,10 @@ cranelift = "0.80.0"
 cranelift-module = "0.80.0"
 cranelift-object = "0.80.0"
 # Add a dependency on the LALRPOP runtime library:
-lalrpop-util = "0.19"
+lalrpop-util = { version = "0.19", features = ["lexer"] }
 libc = "0.2"
 regex = "1.0"
 target-lexicon = "0.12.2"
 
-[build-dependencies.lalrpop]
-version = "0.19"
-features = [ "lexer" ]
+[build-dependencies]
+lalrpop = {version = "0.19", features = [ "lexer" ] }
